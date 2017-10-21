@@ -50,14 +50,6 @@ MatrixKind make_rademacher(std::size_t n, rng::RandTwister &rs) {
     return ret;
 }
 
-template<typename VectorKind>
-VectorKind make_rademacher(std::size_t n, rng::RandTwister &rs) {
-    VectorKind ret(n);
-    rademacher(ret, rs);
-    return ret;
-}
-
-
 template<template<typename, bool> typename MatrixKind, typename FloatType, bool StorageType>
 void rademacher(MatrixKind<FloatType, StorageType> &mat) {
     rademacher(mat, rng::random_twist);

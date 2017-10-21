@@ -1,5 +1,5 @@
-#ifndef _GMM_RAND_H__
-#define _GMM_RAND_H__
+#ifndef _GRFP_RAND_H__
+#define _GRFP_RAND_H__
 #include <random>
 #include "fastrange/fastrange.h"
 #include "fast_mutex.h"
@@ -7,9 +7,11 @@
 namespace rng {
 
 struct RandTwister {
+
     std::mt19937_64 twister_;
 
-    using ResultType     = std::mt19937_64::result_type;
+    using ResultType = std::mt19937_64::result_type;
+
     static const ResultType MAX     = std::mt19937_64::max();
     static const ResultType MIN     = std::mt19937_64::min();
     static constexpr double MAX_INV = 1. / MAX;
@@ -18,8 +20,10 @@ struct RandTwister {
     auto operator()()                              {return twister_();}
     auto operator()(std::mt19937_64 &engine) const {return engine();}
     // Generate a large number of random integers.
-    void operator()(std::size_t n, RandTwister::ResultType *a) {
-        const auto leftover(n & 0x7ULL);
+    template<typename IntType>
+    void operator()(IntType n, RandTwister::ResultType *a) {
+#if UNROLL
+        const auto leftover(n & 0x7UL);
         n >>= 3;
         switch(leftover) {
             case 0: do {
@@ -33,6 +37,9 @@ struct RandTwister {
             case 1: *a++ = twister_();
                        } while(n--);
         }
+#else
+        for(;n--;*a++ = twister_());
+#endif
     }
     void reseed(ResultType seed) {twister_.seed(seed);}
     using TwisterReference = std::add_lvalue_reference<std::mt19937_64>::type;
@@ -68,4 +75,4 @@ T tsrandf() {return tsrandom_twist() * RandTwister::MAX_INV;}
 
 } // namespace rng
 
-#endif // #ifndef _GMM_RAND_H__
+#endif // #ifndef _GRFP_RAND_H__
