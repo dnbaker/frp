@@ -1,0 +1,6 @@
+[submodule "FFHT"]
+	path = FFHT
+	url = https://github.com/dnbaker/FFHT
+[submodule "fastrange"]
+	path = fastrange
+	url = https://github.com/lemire/fastrange
