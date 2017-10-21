@@ -55,6 +55,19 @@ void rademacher(MatrixKind<FloatType, StorageType> &mat) {
     rademacher(mat, rng::random_twist);
 }
 
+template<class Container>
+void fill_shuffled(Container &con) {
+    std::iota(std::begin(con), std::end(con), static_cast<decltype(con[0])>(0));
+    std::random_shuffle(std::begin(con), std::end(con));
+}
+
+template<class Container, typename... Args>
+Container make_shuffled(Args &&...args) {
+    Container con(std::forward<Args>(args)...);
+    fill_shuffled(con);
+    return con;
+}
+
 #undef process_el
 #undef get_at
 #undef get_bool
