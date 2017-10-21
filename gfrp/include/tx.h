@@ -57,7 +57,7 @@ void rademacher(MatrixKind<FloatType, StorageType> &mat) {
 
 template<class Container>
 void fill_shuffled(Container &con) {
-    std::iota(std::begin(con), std::end(con), static_cast<decltype(con[0])>(0));
+    std::iota(std::begin(con), std::end(con), static_cast<std::decay_t<decltype(con[0])>>(0));
     std::random_shuffle(std::begin(con), std::end(con));
 }
 
