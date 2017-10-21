@@ -4,3 +4,9 @@
 [submodule "fastrange"]
 	path = fastrange
 	url = https://github.com/lemire/fastrange
+[submodule "blaze"]
+	path = blaze
+	url = https://bitbucket.org/blaze-lib/blaze.git
+[submodule "kspp"]
+	path = kspp
+	url = https://github.com/dnbaker/kspp
