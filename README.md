@@ -10,22 +10,23 @@ Generic Fast Randomized Projections
 
 ## TODO
 
-0. Add Hadamard Fourier Features
-1. Add DCT Fourier Features
-  1. Use FFTW or new implementation.
-2. Kernels
-  1. Gaussian [Default, see Recht and Rahimi]
-  2. Laplacian [ibid.]
-  3. Cauchy [ibid.]
-  4. Angular [See arxiv 1703.00864]
-  5. Dot Product [See arxiv 1407.5599, table 1 for the rest]
-  6. Polynomial
-  7. Hellinger
-  8. Chi Squared
-  9. Intersection
-  7. Jenson-Shannon
-  10. Skewed-Chi Squared
-  11. Skewed-Intersection
-  12. Exponential Semigroup
-  13. Reciprocal Semingroup
-  14. Arc-Cosine
+
+1. Add Hadamard Fourier Features
+2. Add DCT Fourier Features
+    1. Use FFTW or new implementation.
+3. Kernels:
+    1. Gaussian [Default, see Recht and Rahimi]
+    2. Laplacian [ibid.]
+    3. Cauchy [ibid.]
+    4. Angular [See arxiv 1703.00864]
+    5. Dot Product [See arxiv 1407.5599, table 1 for the rest]
+    6. Polynomial
+    7. Hellinger
+    8. Chi Squared
+    9. Intersection 
+    10. Jenson-Shannon
+    11. Skewed-Chi Squared
+    12. Skewed-Intersection
+    13. Exponential Semigroup
+    14. Reciprocal Semingroup
+    15. Arc-Cosine
