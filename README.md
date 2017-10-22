@@ -13,7 +13,7 @@ Generic Fast Randomized Projections
 
 1. Add Hadamard Fourier Features
 2. Add DCT Fourier Features
-    1. Use FFTW or new implementation.
+    1. Use FFTW, Spiral, or new implementation. [http://spiral.ece.cmu.edu/dctgen/index.php]
 3. Kernels:
     1. Gaussian [Default, see Recht and Rahimi]
     2. Laplacian [ibid.]

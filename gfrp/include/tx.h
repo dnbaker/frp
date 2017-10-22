@@ -52,13 +52,22 @@ MatrixKind make_rademacher(std::size_t n, rng::RandTwister &rs) {
 
 template<template<typename, bool> typename MatrixKind, typename FloatType, bool StorageType>
 void rademacher(MatrixKind<FloatType, StorageType> &mat) {
-    rademacher(mat, rng::random_twist);
+    rademacher(mat, rng::tsrandom_twist);
+}
+
+template<typename MatrixKind>
+MatrixKind make_rademacher(std::size_t n) {
+    return make_rademacher<MatrixKind>(n, rng::tsrandom_twist);
 }
 
 template<class Container>
 void fill_shuffled(Container &con) {
     std::iota(std::begin(con), std::end(con), static_cast<std::decay_t<decltype(con[0])>>(0));
+#if USE_STD
     std::random_shuffle(std::begin(con), std::end(con));
+#else
+    for(std::size_t i(con.size()); i > 1; std::swap(con[rng::random_bounded_nearlydivisionless64(i-1)], con[i-1]), --i);
+#endif
 }
 
 template<class Container, typename... Args>

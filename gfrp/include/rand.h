@@ -68,6 +68,36 @@ struct ThreadsafeRandTwister: public RandTwister {
 static RandTwister random_twist(std::rand());
 static ThreadsafeRandTwister tsrandom_twist(std::rand());
 
+// Based on https://github.com/lemire/FastShuffleExperiments/blob/master/cpp/rangedrand.h
+// map random value to [0,range) with slight bias, redraws to avoid bias if
+// needed
+template <typename RandomBitGenerator>
+static inline uint64_t random_bounded_nearlydivisionless64(uint64_t range, RandomBitGenerator &rg) {
+  __uint128_t random64bit, multiresult;
+  uint64_t leftover;
+  uint64_t threshold;
+  random64bit = rg();
+  multiresult = random64bit * range;
+  leftover = (uint64_t)multiresult;
+  if (leftover < range) {
+    threshold = -range % range;
+    while (leftover < threshold) {
+      random64bit = rg();
+      multiresult = random64bit * range;
+      leftover = (uint64_t)multiresult;
+    }
+  }
+  return multiresult >> 64; // [0, range)
+}
+
+static inline uint64_t random_bounded_nearlydivisionless64(uint64_t range) {
+    return random_bounded_nearlydivisionless64<rng::RandTwister>(range, random_twist);
+}
+
+static inline uint64_t tsrandom_bounded_nearlydivisionless64(uint64_t range) {
+    return random_bounded_nearlydivisionless64<rng::ThreadsafeRandTwister>(range, tsrandom_twist);
+}
+
 template<typename T>
 T randf() {return random_twist() * RandTwister::MAX_INV;}
 template<typename T>
