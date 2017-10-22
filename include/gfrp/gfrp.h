@@ -4,5 +4,6 @@
 #include "gfrp/linalg.h"
 #include "gfrp/rand.h"
 #include "gfrp/tx.h"
+#include "gfrp/dist.h"
 
 #endif

@@ -7,6 +7,7 @@
 using namespace std::chrono;
 
 using namespace gfrp::tx;
+using namespace gfrp::dist;
 using namespace blaze;
 
 template<typename T>
@@ -37,4 +38,5 @@ int main(int argc, char *argv[]) {
     std::cout << shufvec;
     gfrp::linalg::gram_schmidt(mat, true);
     std::cout << mat;
+    gaussian_fill(vec);
 }
