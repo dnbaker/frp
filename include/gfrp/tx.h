@@ -1,7 +1,7 @@
-#ifndef _GFRP_H__
-#define _GFRP_H__
+#ifndef _GFRP_TX_H__
+#define _GFRP_TX_H__
 #include "blaze/Math.h"
-#include "gfrp/include/rand.h"
+#include "gfrp/rand.h"
 
 // Performs transformations on matrices and vectors.
 
@@ -83,4 +83,4 @@ Container make_shuffled(Args &&...args) {
 
 }} //namespace gfrp::tx
 
-#endif  // GFRP_H
+#endif  // _GFRP_TX_H__
