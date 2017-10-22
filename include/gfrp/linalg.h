@@ -17,7 +17,6 @@ void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, bool orthonormalize=fals
 template<typename MatrixKind>
 void gram_schmidt(MatrixKind &b, bool orthonormalize=false) {
     blaze::DynamicVector<typename MatrixKind::ElementType> inv_unorms(b.rows());
-    auto ivit(std::begin(inv_unorms));
     for(size_t i(0), nrows(b.rows()); i < nrows; ++i) {
         auto irow(row(b, i));
         for(size_t j(0); j < i; ++j) {

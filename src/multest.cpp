@@ -1,4 +1,4 @@
-#include "gfrp/include/tx.h"
+#include "gfrp/gfrp.h"
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
