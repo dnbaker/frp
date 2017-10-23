@@ -1,9 +1,7 @@
 #ifndef _GFRP_LINALG_H__
 #define _GFRP_LINALG_H__
 #define _USE_MATH_DEFINES
-#include "blaze/Math.h"
-#include <cmath>
-#include "kspp/ks.h"
+#include "gfrp/util.h"
 
 namespace gfrp { namespace linalg {
 
@@ -46,6 +44,15 @@ void gram_schmidt(MatrixKind &b, bool orthonormalize=false, bool flip=false) {
             for(size_t i(0), nrows(b.rows()); i < nrows; ++i)
                 row(b, i) *= inv_unorms[i];
     }
+}
+
+template<typename MatrixKind>
+decltype(auto) frobnorm(const MatrixKind &mat) {
+    using FloatType = typename MatrixKind::ElementType;
+    FloatType ret(0.);
+    for(size_t i(0); i < mat.rows(); ++i)
+        ret += dot(row(mat, i), row(mat, i));
+    return ret;
 }
 
 template<typename FloatType>
