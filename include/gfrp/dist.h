@@ -16,6 +16,10 @@ void sample_fill(Container &con, DistArgs &&... args) {
     std::normal_distribution<FloatType> dist(std::forward<DistArgs>(args)...);
     for(auto &el: con) el = dist(mt);
 }
+void random_fill(uint64_t *data, uint64_t len) {
+    std::mt19937_64 mt;
+    for(uint64_t i(!len); i < len; ++i) data[i] = mt();
+}
 
 #define DEFINE_DIST_FILL(type, name) \
     template<typename Container, typename...Args> \

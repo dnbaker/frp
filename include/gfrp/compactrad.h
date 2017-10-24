@@ -46,10 +46,10 @@ class CompactRademacher {
     using container_type = T;
     using size_type = size_t;
 public:
-    CompactRademacher(size_t n=0): n_{n}, m_{n}, data_(static_cast<T *>(std::malloc((sizeof(T) * n) >> SHIFT))) {
-        if(n & (n - 1)) {
-            std::fprintf(stderr, "Warning: n is not a power of 2. This is a surprise. (%zu)\n", n);
-        }
+    CompactRademacher(size_t n=0): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(std::malloc(sizeof(T) * n_))) {
+        if(n & (n - 1))
+            throw std::runtime_error(ks::sprintf("Warning: n is not a power of 2. This is a surprise. (%zu)\n", n).data());
+        std::fprintf(stderr, "I have %zu elements allocated which each hold %zu bits. Total size is %zu. log2(nbits=%zu)\n", n_, NBITS, size(), SHIFT);
     }
     // For setting to random values
     auto *data() {return data_;}
@@ -57,6 +57,7 @@ public:
     // For use
     auto size() const {return n_ << SHIFT;}
     auto capacity() const {return m_ << SHIFT;}
+    auto nwords() const {return n_;}
     template<typename OWordType, typename OFloatType>
     bool operator==(const CompactRademacher<OWordType, OFloatType> &other) const {
         if(size() != other.size()) return false;
@@ -77,6 +78,10 @@ public:
     }
     FloatType operator[](size_type idx) const {return values_[!(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)))] ;}
     ~CompactRademacher(){
+#if 0
+        auto str = ::ks::sprintf("Deleting! I have %zu of elements allocated and %s available.\n", n_, size());
+        std::fprintf(stderr, "str: %p\n", str.data());
+#endif
         std::free(data_);
     }
 };
