@@ -10,3 +10,6 @@
 [submodule "kspp"]
 	path = kspp
 	url = https://github.com/dnbaker/kspp
+[submodule "fftw-wrapper"]
+	path = fftw-wrapper
+	url = https://github.com/dnbaker/fftw-wrapper
