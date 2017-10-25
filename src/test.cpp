@@ -22,12 +22,13 @@ bool has_neg(const T &mat) {
 
 class Timer {
     using TpType = std::chrono::system_clock::time_point;
+    std::string name_;
     TpType start_, stop_;
 public:
-    Timer(): start_(std::chrono::system_clock::now()) {}
+    Timer(std::string &&name=""): name_{name}, start_(std::chrono::system_clock::now()) {}
     void stop() {stop_ = std::chrono::system_clock::now();}
     void restart() {start_ = std::chrono::system_clock::now();}
-    void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s\n";}
+    void report() {std::fprintf(stderr, "About to report\n"); std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
     ~Timer() {stop(); /* hammertime */ report();}
 };
 
@@ -37,22 +38,30 @@ bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} 
 int main(int argc, char *argv[]) {
     const std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                       niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));
-    CompactRademacher<uint64_t, double> cr(size);
+    CompactRademacher<uint64_t, int8_t> cr(size);
     random_fill(cr.data(), cr.nwords());
+#if 0
     for(size_t i(0); i < cr.size(); ++i)
         std::cerr << "cr at index " << i << " is " << cr[i] << '\n';
+#endif
     std::vector<double> out(size);
     for(size_t j(0); j < out.size(); ++j) out[j] = cr[j];
     auto ln([](size_t n){auto ret(0); while(n>>=1) ++ret; return ret;}(size));
     {
-        Timer time;
+        Timer time("plain dumb");
         for(size_t i(0); i < niter; ++i)
             fsm::dumb_fht(out.data(), ln);
+    }
+    std::vector<int8_t> ints(size);
+    {
+        Timer time("rad");
+        for(size_t i(0); i < niter; ++i)
+            fsm::rad_fht(cr, &ints[0], ln);
     }
     std::vector<double> out_dumb(size);
     for(size_t i(0); i < 1 << 16; ++i) out_dumb[i] = cr[i];
     {
-        Timer time;
+        Timer time("FFHT::fht");
         for(size_t i(0); i < niter; ++i) {
             //for(size_t j(0); j < out_dumb.size(); ++j) out[j] = cr[j];
             fht(out_dumb.data(), ln);

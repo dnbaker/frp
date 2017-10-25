@@ -37,7 +37,9 @@ std::tuple<SizeType, SizeType, SizeType> get_cache_sizes() {
         if(std::strstr(line, "ache") == nullptr) continue;
         if(std::strstr(line, "L") == nullptr) continue;
         auto toks(ks::toksplit<int>(line, std::strlen(line), 0));
-        if(toks[0] == "L1") {
+        if(toks[0] == "L1i") {
+            continue;
+        } else if(toks[0] == "L1d") {
             ptr = ret;
         } else if(toks[0] == "L2") {
             ptr = ret + 1;
@@ -53,13 +55,11 @@ std::tuple<SizeType, SizeType, SizeType> get_cache_sizes() {
         const auto &magtok(toks[toks.size() - 2]);
         *ptr = std::atoi(magtok.data());
         const char sizechar(endtok[0]);
-#elif linux
+#else
         const char *tmp(toks.back().data());
         *ptr = std::atoi(tmp);
         while(std::isdigit(*tmp)) ++tmp;
         const char sizechar(*tmp);
-#else
-#error("Unsupported platform")
 #endif
         assert(std::isalpha(sizechar));
         switch(sizechar) {

@@ -48,7 +48,7 @@ ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS)
+OBJS:=$(OBJS) fht.o fast_copy.o
 
 all: $(OBJS) $(EX)
 print-%  : ; @echo $* = $($*)
@@ -72,6 +72,11 @@ f%: src/%.fo $(OBJS)
 
 %.o: %.c
 	$(CC) $(CCFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+
+fht.o: FFHT/fht.c
+	cd FFHT && make && cp fht.o .. && cd ..
+fast_copy.o: FFHT/fast_copy.c
+	cd FFHT && make && cp fast_copy.o .. && cd ..
 
 
 tests: clean unit
