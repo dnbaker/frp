@@ -33,7 +33,11 @@ the  smallest  length  and  doubling  on  each  iteration  the  input  dimension
 FWHT is done in-place.
 */
 
+#if 0
 template<typename T=uint64_t, typename FloatType=FLOAT_TYPE, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
+#else
+template<typename T=uint64_t, typename FloatType=FLOAT_TYPE, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+#endif
 class CompactRademacher {
     size_t n_, m_;
     T *data_;
