@@ -121,7 +121,7 @@ void dumb_fht(FloatType *buf, const uint64_t log_n) {
 
 
 template<typename T>
-bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
+constexpr bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
 
 
 }

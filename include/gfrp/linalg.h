@@ -6,30 +6,51 @@
 namespace gfrp { namespace linalg {
 
 template<typename MatrixKind1, typename MatrixKind2>
-void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, bool orthonormalize=false, bool flip=false) {
+void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, int flags) {
     b = a;
-    gram_schmidt(b, orthonormalize);
+    gram_schmidt(b, flags);
 }
 
+enum GramSchmitFlags {
+    FLIP = 1,
+    ORTHONORMALIZE = 2,
+    RESCALE_TO_GAUSSIAN = 4
+};
+
+
 template<typename MatrixKind>
-void gram_schmidt(MatrixKind &b, bool orthonormalize=false, bool flip=false) {
-    if(flip) {
-        blaze::DynamicVector<typename MatrixKind::ElementType> inv_unorms(b.columns());
+void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
+    using FloatType = typename MatrixKind::ElementType;
+    if(flags & FLIP) {
+        blaze::DynamicVector<FloatType> inv_unorms(b.columns());
+        FloatType tmp;
         for(size_t i(0), ncolumns(b.columns()); i < ncolumns; ++i) {
             auto icolumn(column(b, i));
             for(size_t j(0); j < i; ++j) {
                 auto jcolumn(column(b, j));
                 icolumn -= jcolumn * dot(icolumn, jcolumn) * inv_unorms[j];
             }
-            auto tmp(1./dot(icolumn, icolumn));
-            inv_unorms[i] = (tmp != static_cast<decltype(tmp)>(0.)) ? tmp
-                                                                    : 0.;
+            if((tmp = dot(icolumn, icolumn)) == 0.0) {
+            }
+            inv_unorms[i] = tmp ? tmp: std::numeric_limits<decltype(tmp)>::max();
+#if !NDEBUG
+            if(tmp ==std::numeric_limits<decltype(tmp)>::max())
+                std::fprintf(stderr, "Warning: norm of column %i (0-based) is 0.0\n", i);
+#endif
         }
-        if(orthonormalize)
+        if(flags & ORTHONORMALIZE)
             for(size_t i(0), ncolumns(b.columns()); i < ncolumns; ++i)
                 column(b, i) *= inv_unorms[i];
+        if(flags & RESCALE_TO_GAUSSIAN) {
+            #pragma omp parallel
+            for(size_t i = 0, ncolumns = b.columns(); i < ncolumns; ++i) {
+                auto mcolumn(columns(b, i));
+                auto meanvarpair(meanvar(mcolumn)); // mean.first = mean, mean.second = var
+                mcolumn = (mcolumn - meanvarpair.first) * 1./std::sqrt(meanvarpair.second);
+            }
+        }
     } else {
-        blaze::DynamicVector<typename MatrixKind::ElementType> inv_unorms(b.rows());
+        blaze::DynamicVector<FloatType> inv_unorms(b.rows());
         for(size_t i(0), nrows(b.rows()); i < nrows; ++i) {
             auto irow(row(b, i));
             for(size_t j(0); j < i; ++j) {
@@ -37,12 +58,19 @@ void gram_schmidt(MatrixKind &b, bool orthonormalize=false, bool flip=false) {
                 irow -= jrow * dot(irow, jrow) * inv_unorms[j];
             }
             auto tmp(1./dot(irow, irow));
-            inv_unorms[i] = (tmp != static_cast<decltype(tmp)>(0.)) ? tmp
-                                                                    : 0.;
+            inv_unorms[i] = tmp ? tmp: std::numeric_limits<decltype(tmp)>::max();
         }
-        if(orthonormalize)
+        if(flags & ORTHONORMALIZE)
             for(size_t i(0), nrows(b.rows()); i < nrows; ++i)
                 row(b, i) *= inv_unorms[i];
+        if(flags & RESCALE_TO_GAUSSIAN) {
+            #pragma omp parallel
+            for(size_t i = 0, nrows = b.rows(); i < nrows; ++i) {
+                auto mrow(row(b, i));
+                auto meanvarpair(meanvar(mrow)); // mean.first = mean, mean.second = var
+                mrow = (mrow - meanvarpair.first) * 1./std::sqrt(meanvarpair.second);
+            }
+        }
     }
 }
 

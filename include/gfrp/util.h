@@ -47,9 +47,35 @@ inline constexpr int log2_64(uint64_t value)
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 
-
-
-
+template<class Container>
+auto mean(const Container &c) {
+    using FloatType = std::decay_t<decltype(c[0])>;
+    FloatType sum(0.);
+    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
+        for(const auto entry: c) sum += entry.value();
+    } else {
+        for(const auto entry: c) sum += entry;
+    }
+    sum /= c.size();
+    return sum;
 }
+
+template<class Container>
+auto meanvar(const Container &c) {
+    using FloatType = std::decay_t<decltype(c[0])>;
+    FloatType sum(0.), varsum(0.0);
+    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
+        for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
+    } else {
+        for(const auto entry: c) sum += entry, varsum += entry * entry;
+    }
+    auto inv(static_cast<FloatType>(1)/c.size());
+    varsum -= sum * sum * inv;
+    varsum *= inv;
+    sum *= inv;
+    return std::make_pair(sum, varsum);
+}
+
+} // namespace gfrp
 
 #endif
