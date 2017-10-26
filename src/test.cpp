@@ -2,6 +2,7 @@
 #include "gfrp/fsm.h"
 #include "FFHT/fht.h"
 #include <iostream>
+#include "fftw-wrapper/fftw_wrapper.h"
 #include <cstdlib>
 #include <cstring>
 #include <chrono>
@@ -45,6 +46,8 @@ int main(int argc, char *argv[]) {
         std::cerr << "cr at index " << i << " is " << cr[i] << '\n';
 #endif
     std::vector<double> out(size);
+    fft::FFTWDispatcher<double> disp(out.size(), false, false, fft::tx::R2HC);
+    disp.make_plan(out.data(), out.data());
     for(size_t j(0); j < out.size(); ++j) out[j] = cr[j];
     auto ln([](size_t n){auto ret(0); while(n>>=1) ++ret; return ret;}(size));
     {
@@ -56,7 +59,8 @@ int main(int argc, char *argv[]) {
     {
         Timer time("rad");
         for(size_t i(0); i < niter; ++i)
-            fsm::rad_fht(cr, &ints[0], ln);
+            //fsm::rad_fht(cr, &ints[0], ln);
+            disp.run(out.data(), out.data());
     }
     std::vector<double> out_dumb(size);
     for(size_t i(0); i < 1 << 16; ++i) out_dumb[i] = cr[i];

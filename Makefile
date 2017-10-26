@@ -29,7 +29,7 @@ OPT:=$(OPT) $(FLAGS)
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
-LIB=-lz -pthread
+LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f
 LD=-L.
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
