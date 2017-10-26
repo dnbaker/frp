@@ -17,6 +17,7 @@ struct RandTwister {
     static constexpr double MAX_INV = 1. / MAX;
 
     RandTwister(ResultType seed=std::rand()): twister_(seed) {}
+    void seed(ResultType seed) {twister_.seed(seed);}
     auto operator()()                              {return twister_();}
     auto operator()(std::mt19937_64 &engine) const {return engine();}
     // Generate a large number of random integers.
@@ -51,6 +52,7 @@ struct RandTwister {
 struct ThreadsafeRandTwister: public RandTwister {
     ThreadsafeRandTwister(ResultType seed): RandTwister(seed) {}
     tthread::fast_mutex lock_;
+    void seed(ResultType seed) {lock_.lock(); RandTwister::seed(seed); lock_.unlock();}
     auto operator()() {
         lock_.lock();
         const auto ret(twister_());
