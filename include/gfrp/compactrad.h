@@ -41,7 +41,9 @@ template<typename T=uint64_t, typename FloatType=FLOAT_TYPE, typename=std::enabl
 class CompactRademacher {
     size_t n_, m_;
     T *data_;
+
     static constexpr FloatType values_[2] {1, -1};
+    static constexpr int32_t  ivalues_[2] {1, -1};
     static constexpr size_t NBITS = sizeof(T) * CHAR_BIT;
     static constexpr size_t SHIFT = log2_64(NBITS);
     static constexpr size_t BITMASK = NBITS - 1;
@@ -80,7 +82,8 @@ public:
             data_ = tmp;
         }
     }
-    FloatType operator[](size_type idx) const {return values_[!(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)))] ;}
+    FloatType operator[](size_type idx) const {return values_[!(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)))];}
+    int at(size_type idx) const {return ivalues_[!(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)))];}
     ~CompactRademacher(){
 #if 0
         auto str = ::ks::sprintf("Deleting! I have %zu of elements allocated and %s available.\n", n_, size());
