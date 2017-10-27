@@ -10,22 +10,24 @@ namespace gfrp {
 // vectors with C++ std distributions as well as Rademacher.
 
 template<typename Container, template<typename> typename Distribution, typename... DistArgs>
-void sample_fill(Container &con, DistArgs &&... args) {
+void sample_fill(Container &con, uint64_t seed, DistArgs &&... args) {
     using FloatType = std::decay_t<decltype(con[0])>;
-    std::mt19937_64 mt;
+    aes::AesCtr gen(seed);
     std::normal_distribution<FloatType> dist(std::forward<DistArgs>(args)...);
-    for(auto &el: con) el = dist(mt);
+    for(auto &el: con) el = dist(gen);
 }
 
 
-void random_fill(uint64_t *data, uint64_t len) {
-    for(std::mt19937_64 mt; len; data[--len] = mt());
+template<typename RNG=aes::AesCtr>
+void random_fill(uint64_t *data, uint64_t len, uint64_t seed=0) {
+    if(seed == 0) fprintf(stderr, "Warning: seed for random_fill is 0\n");
+    for(RNG gen(seed); len; data[--len] = gen());
 }
 
 #define DEFINE_DIST_FILL(type, name) \
     template<typename Container, typename...Args> \
-    void name##_fill(Container &con, Args &&... args) { \
-        sample_fill<Container, type, Args...>(con, std::forward<Args>(args)...); \
+    void name##_fill(Container &con, uint64_t seed, Args &&... args) { \
+        sample_fill<Container, type, Args...>(con, seed, std::forward<Args>(args)...); \
     }
 
 DEFINE_DIST_FILL(std::normal_distribution, gaussian)

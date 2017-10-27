@@ -2,6 +2,7 @@
 #define _GFRP_CRAD_H__
 #include "gfrp/util.h"
 #include "gfrp/linalg.h"
+#include <ctime>
 
 namespace gfrp {
 
@@ -33,7 +34,7 @@ the  smallest  length  and  doubling  on  each  iteration  the  input  dimension
 FWHT is done in-place.
 */
 
-template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
 class CompactRademacher {
     size_t n_, m_;
     T *data_;
@@ -49,11 +50,11 @@ class CompactRademacher {
     using size_type = size_t;
 public:
     // Constructors
-    CompactRademacher(size_t n=0): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(std::malloc(sizeof(T) * n_))) {
+    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(std::malloc(sizeof(T) * n_))) {
         if(n & (BITMASK))
             throw std::runtime_error(ks::sprintf("Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK).data());
         std::fprintf(stderr, "I have %zu elements allocated which each hold %zu bits. Total size is %zu. log2(nbits=%zu)\n", n_, NBITS, size(), SHIFT);
-        randomize();
+        randomize(seed);
     }
     CompactRademacher(CompactRademacher<T, FloatType> &&other) {
         std::memset(this, 0, sizeof(this));
@@ -63,7 +64,7 @@ public:
     }
     CompactRademacher(const CompactRademacher<T, FloatType> &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(std::malloc(sizeof(T) * n_))) {
         if(data_ == nullptr) throw std::bad_alloc();
-        randomize();
+        std::memcpy(data_, other.data_, sizeof(T) * n_);
     }
     // For setting to random values
     auto *data() {return data_;}
@@ -82,8 +83,8 @@ public:
                 return false;
         return true;
     }
-    void randomize() {
-        random_fill(reinterpret_cast<uint64_t *>(data_), n_ * sizeof(uint64_t) / sizeof(T));
+    void randomize(uint64_t seed) {
+        random_fill(reinterpret_cast<uint64_t *>(data_), n_ * sizeof(uint64_t) / sizeof(T), seed);
     }
     void zero() {std::memset(data_, 0, sizeof(T) * (n_ >> SHIFT));}
     void reserve(size_t newsize) {

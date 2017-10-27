@@ -65,20 +65,26 @@ public:
     }
 };
 
-//template<typename SizeType=size_t>
+template<typename T> class TD;
+
+template<typename SizeType=size_t, typename RNG=aes::AesCtr>
 class OnlineShuffler {
+    //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
+    //This 
+    using ResultType = typename RNG::result_type;
+    //TD<ResultType> thing;
     const uint64_t seed_;
-    std::mt19937_64 mt_;
+    RNG             rng_;
 public:
-    OnlineShuffler(size_t seed): seed_{seed}, mt_(seed) {}
+    explicit OnlineShuffler(ResultType seed): seed_{seed}, rng_(seed) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
         //The naive approach is double memory.
     }
     template<typename Vector>
     void apply(Vector &vec) const {
-        mt_.seed(seed_);
-        std::shuffle(std::begin(vec), std::end(vec), mt_);
+        rng_.seed(seed_);
+        std::shuffle(std::begin(vec), std::end(vec), rng_);
         //The naive approach is double memory.
     }
 };
@@ -91,6 +97,9 @@ class SpinBlockTransformer {
 public:
     SpinBlockTransformer(size_t k, size_t n, size_t m, Blocks &&... blocks):
         k_(k), n_(n), m_(m), blocks_(blocks...) {}
+
+    SpinBlockTransformer(size_t k, size_t n, size_t m, std::tuple<Blocks...> &&blocks):
+        k_(k), n_(n), m_(m), blocks_(std::move(blocks)) {}
 
 // Template magic for unrolling from the back.
     template<typename InVector, typename OutVector, size_t Index>

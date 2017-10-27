@@ -75,4 +75,6 @@ int main(int argc, char *argv[]) {
     SpinBlockType spinner(size, size, size, CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size));
     std::mt19937_64 gen(0);
     std::shuffle(out.begin(), out.end(), gen);
+    aes::AesCtr aesgen(0);
+    std::shuffle(out.begin(), out.end(), aesgen);
 }

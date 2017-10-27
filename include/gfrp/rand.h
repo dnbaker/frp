@@ -2,7 +2,8 @@
 #define _GRFP_RAND_H__
 #include <random>
 #include "fastrange/fastrange.h"
-#include "fast_mutex.h"
+#include "include/thirdparty/fast_mutex.h"
+#include "include/thirdparty/aesctr.h"
 
 namespace rng {
 
