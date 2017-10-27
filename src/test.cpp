@@ -73,4 +73,6 @@ int main(int argc, char *argv[]) {
     using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>>;
     //SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});
     SpinBlockType spinner(size, size, size, CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size));
+    std::mt19937_64 gen(0);
+    std::shuffle(out.begin(), out.end(), gen);
 }
