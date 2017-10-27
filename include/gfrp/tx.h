@@ -5,7 +5,7 @@
 
 // Performs transformations on matrices and vectors.
 
-namespace gfrp { namespace tx {
+namespace gfrp {
 
 template<class Container>
 void fill_shuffled(Container &con) {
@@ -24,6 +24,6 @@ Container make_shuffled(Args &&...args) {
     return con;
 }
 
-}} //namespace gfrp::tx
+} //namespace gfrp::tx
 
 #endif  // _GFRP_TX_H__

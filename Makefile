@@ -25,9 +25,10 @@ ifneq (,$(findstring g++,$(CXX)))
 		endif
 	endif
 endif
+EXTRA=
 OPT:=$(OPT) $(FLAGS)
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f
 LD=-L.

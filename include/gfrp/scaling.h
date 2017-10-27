@@ -2,7 +2,7 @@
 #define _GFRP_SCALING_H__
 #include "gfrp/linalg.h"
 
-namespace gfrp { scale {
+namespace gfrp {
 
 #if 0
 struct GaussianScale
@@ -29,13 +29,13 @@ struct GaussianScale
 };
 #endif
 
-template<FloatType>
+template<typename FloatType>
 FloatType gaussian_scale(FloatType r, FloatType d) {
     // Using formula from Doubly Stochastic
     return std::pow(2. * M_PI, (-d * 0.5)) * std::exp(-.5 * r * r);
 }
 
 
-}}
+}
 
 #endif // #ifndef _GFRP_SCALING_H__

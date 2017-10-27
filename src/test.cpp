@@ -9,8 +9,7 @@
 
 using namespace std::chrono;
 
-using namespace gfrp::dist;
-using namespace gfrp::tx;
+using namespace gfrp;
 using namespace blaze;
 
 template<typename T>
@@ -39,17 +38,17 @@ bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} 
 int main(int argc, char *argv[]) {
     const std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                       niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));
-    CompactRademacher<uint64_t, int8_t> cr(size);
-    random_fill(cr.data(), cr.nwords());
+    CompactRademacher<FLOAT_TYPE> cr(size);
 #if 0
     for(size_t i(0); i < cr.size(); ++i)
         std::cerr << "cr at index " << i << " is " << cr[i] << '\n';
 #endif
+    fprintf(stderr, "size: %zu\n", size);
     std::vector<double> out(size);
     fft::FFTWDispatcher<double> disp(out.size(), false, false, fft::tx::R2HC);
     disp.make_plan(out.data(), out.data());
     for(size_t j(0); j < out.size(); ++j) out[j] = cr[j];
-    auto ln([](size_t n){auto ret(0); while(n>>=1) ++ret; return ret;}(size));
+    const auto ln(log2_64(size));
     {
         Timer time("plain dumb");
         for(size_t i(0); i < niter; ++i)
@@ -63,7 +62,7 @@ int main(int argc, char *argv[]) {
             disp.run(out.data(), out.data());
     }
     std::vector<double> out_dumb(size);
-    for(size_t i(0); i < 1 << 16; ++i) out_dumb[i] = cr[i];
+    for(size_t i(0); i < size; ++i) out_dumb[i] = cr[i];
     {
         Timer time("FFHT::fht");
         for(size_t i(0); i < niter; ++i) {
@@ -71,4 +70,5 @@ int main(int argc, char *argv[]) {
             fht(out_dumb.data(), ln);
         }
     }
+    SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>> spinner(size, size, size, CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size));
 }

@@ -4,7 +4,7 @@
 #include "gfrp/rand.h"
 #include "gfrp/linalg.h"
 
-namespace gfrp { namespace dist {
+namespace gfrp {
 
 // Fill a matrix with distributions. Contains utilities for filling
 // vectors with C++ std distributions as well as Rademacher.
@@ -16,9 +16,10 @@ void sample_fill(Container &con, DistArgs &&... args) {
     std::normal_distribution<FloatType> dist(std::forward<DistArgs>(args)...);
     for(auto &el: con) el = dist(mt);
 }
+
+
 void random_fill(uint64_t *data, uint64_t len) {
-    std::mt19937_64 mt;
-    for(uint64_t i(!len); i < len; ++i) data[i] = mt();
+    for(std::mt19937_64 mt; len; data[--len] = mt());
 }
 
 #define DEFINE_DIST_FILL(type, name) \
@@ -87,6 +88,6 @@ MatrixKind make_rademacher(std::size_t n) {
     return make_rademacher<MatrixKind>(n, rng::tsrandom_twist);
 }
 
-}}
+}
 
 #endif // #ifndef _GFRP_DIST_H__

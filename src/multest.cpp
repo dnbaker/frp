@@ -5,8 +5,7 @@
 #include <chrono>
 
 using namespace std::chrono;
-using namespace gfrp::dist;
-using namespace gfrp::tx;
+using namespace gfrp;
 using namespace blaze;
 
 class Timer {

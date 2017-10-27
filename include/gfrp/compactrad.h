@@ -3,7 +3,7 @@
 #include "gfrp/util.h"
 #include "gfrp/linalg.h"
 
-namespace gfrp { namespace dist {
+namespace gfrp {
 
 /*
 // From https://arxiv.org/pdf/1702.08159.pdf
@@ -33,11 +33,7 @@ the  smallest  length  and  doubling  on  each  iteration  the  input  dimension
 FWHT is done in-place.
 */
 
-#if 0
-template<typename T=uint64_t, typename FloatType=FLOAT_TYPE, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
-#else
-template<typename T=uint64_t, typename FloatType=FLOAT_TYPE, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
-#endif
+template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
 class CompactRademacher {
     size_t n_, m_;
     T *data_;
@@ -52,10 +48,22 @@ class CompactRademacher {
     using container_type = T;
     using size_type = size_t;
 public:
+    // Constructors
     CompactRademacher(size_t n=0): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(std::malloc(sizeof(T) * n_))) {
-        if(n & (n - 1))
-            throw std::runtime_error(ks::sprintf("Warning: n is not a power of 2. This is a surprise. (%zu)\n", n).data());
+        if(n & (BITMASK))
+            throw std::runtime_error(ks::sprintf("Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK).data());
         std::fprintf(stderr, "I have %zu elements allocated which each hold %zu bits. Total size is %zu. log2(nbits=%zu)\n", n_, NBITS, size(), SHIFT);
+        randomize();
+    }
+    CompactRademacher(CompactRademacher<T, FloatType> &&other) {
+        std::memset(this, 0, sizeof(this));
+        std::swap(data_, other.data_);
+        std::swap(n_, other.n_);
+        std::swap(m_, other.m_);
+    }
+    CompactRademacher(const CompactRademacher<T, FloatType> &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(std::malloc(sizeof(T) * n_))) {
+        if(data_ == nullptr) throw std::bad_alloc();
+        randomize();
     }
     // For setting to random values
     auto *data() {return data_;}
@@ -64,6 +72,7 @@ public:
     auto size() const {return n_ << SHIFT;}
     auto capacity() const {return m_ << SHIFT;}
     auto nwords() const {return n_;}
+    auto nbytes() const {return size();}
     template<typename OWordType, typename OFloatType>
     bool operator==(const CompactRademacher<OWordType, OFloatType> &other) const {
         if(size() != other.size()) return false;
@@ -72,6 +81,9 @@ public:
             if(data_[i] != odata[i])
                 return false;
         return true;
+    }
+    void randomize() {
+        random_fill(reinterpret_cast<uint64_t *>(data_), n_ * sizeof(uint64_t) / sizeof(T));
     }
     void zero() {std::memset(data_, 0, sizeof(T) * (n_ >> SHIFT));}
     void reserve(size_t newsize) {
@@ -82,8 +94,18 @@ public:
             data_ = tmp;
         }
     }
-    FloatType operator[](size_type idx) const {return values_[!(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)))];}
-    int at(size_type idx) const {return ivalues_[!(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)))];}
+    int bool_idx(size_type idx) const {return !(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
+
+    FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
+    int at(size_type idx) const {return ivalues_[bool_idx(idx)];}
+
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) {
+        static_assert(std::is_same<std::decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
+        static_assert(std::is_same<std::decay_t<decltype(out[0])>, FloatType>::value, "Output vector should be the same type as this structure.");
+        throw std::runtime_error("Not Implemented!!!!");
+    }
+
     ~CompactRademacher(){
 #if 0
         auto str = ::ks::sprintf("Deleting! I have %zu of elements allocated and %s available.\n", n_, size());
@@ -94,7 +116,7 @@ public:
 };
 
 
-}}
+}
 
 
 #endif // #ifndef _GFRP_CRAD_H__
