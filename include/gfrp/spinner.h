@@ -65,7 +65,7 @@ class SpinBlockTransformer {
     std::tuple<Blocks...> blocks_;
 public:
     SpinBlockTransformer(size_t k, size_t n, size_t m, Blocks &&... blocks):
-        k_(k), n_(n), m_(m), blocks_(std::forward(blocks)...) {}
+        k_(k), n_(n), m_(m), blocks_(blocks...) {}
 
 // Template magic for unrolling from the back.
     template<typename InVector, typename OutVector, size_t Index>
