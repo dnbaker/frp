@@ -98,13 +98,13 @@ public:
 
     FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
     int at(size_type idx) const {return ivalues_[bool_idx(idx)];}
-
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
         static_assert(std::is_same<std::decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
         static_assert(std::is_same<std::decay_t<decltype(out[0])>, FloatType>::value, "Output vector should be the same type as this structure.");
         throw std::runtime_error("Not Implemented!!!!");
     }
+
 
     ~CompactRademacher(){
 #if 0

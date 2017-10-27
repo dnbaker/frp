@@ -5,6 +5,14 @@
 #include "FFHT/fht.h"
 
 namespace gfrp {
+/*
+ *
+ * TODO: Think about how this should be done. Leave this alone for now.
+ * Does 'apply' need 1 or two matrices to run on?
+ *
+ *
+ *
+ */
 
 template<typename FloatType, typename StructMat, typename DiagMat, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
 struct SDBlock {
@@ -14,8 +22,7 @@ struct SDBlock {
     // n_: dimension of data we're projecting up or down.
     // k_: ultimate size of the space to which we're projecting.
     // m_: The size of 
-    template<typename... DiagArgs>
-    SDBlock(StructMat &&s, DiagArgs &&... args): s_(std::move(s)), d_(std::forward<DiagArgs>(args)...)
+    SDBlock(StructMat &&s, DiagMat &&d): s_(std::forward<StructMat>(s)), d_(std::forward<DiagMat>(d))
     {
         assert(s_.size() == d_.size());
     }
@@ -54,13 +61,13 @@ public:
     Shuffler(size_t n): shuffler_(make_shuffled<Container>(n)) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        throw std::runtime_error("Not Implemented");
+        //The naive approach is double memory.
     }
 };
 
 template<typename... Blocks>
 class SpinBlockTransformer {
-    // This variadic template allows me to mix various kinds of blocks, so long as they perform 
+    // This variadic template allows me to mix various kinds of blocks, so long as they perform
     size_t k_, n_, m_;
     std::tuple<Blocks...> blocks_;
 public:

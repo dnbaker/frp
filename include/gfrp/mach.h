@@ -63,10 +63,10 @@ std::tuple<SizeType, SizeType, SizeType> get_cache_sizes() {
 #endif
         assert(std::isalpha(sizechar));
         switch(sizechar) {
-            case 'T': case 't': *ptr <<= 10;
-            case 'G': case 'g': *ptr <<= 10;
-            case 'M': case 'm': *ptr <<= 10;
-            case 'K': case 'k': *ptr <<= 10;
+            case 'T': case 't': *ptr <<= 40; break;
+            case 'G': case 'g': *ptr <<= 30; break;
+            case 'M': case 'm': *ptr <<= 20; break;
+            case 'K': case 'k': *ptr <<= 10; break;
         }
     }
 
