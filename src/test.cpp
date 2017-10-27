@@ -77,4 +77,5 @@ int main(int argc, char *argv[]) {
     std::shuffle(out.begin(), out.end(), gen);
     aes::AesCtr aesgen(0);
     std::shuffle(out.begin(), out.end(), aesgen);
+    ScalingBlock<FLOAT_TYPE> sb(size);
 }

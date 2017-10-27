@@ -54,6 +54,22 @@ struct HadamardBlock<double> {
     }
 };
 
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
+struct ScalingBlock {
+    using VectorType = VectorKind<FloatType, VectorOrientation>;
+    VectorType vec_;
+    template<typename...Args>
+    ScalingBlock(Args &&...args): vec_(std::forward<Args>(args)...) {}
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) const {
+        throw std::runtime_error("Not Implemented");
+    }
+    template<typename Vector>
+    void apply(Vector &out) const {
+        throw std::runtime_error("Not Implemented");
+    }
+};
+
 template<typename SizeType=size_t, typename Container=blaze::DynamicVector<SizeType>>
 class Shuffler {
     Container shuffler_;
