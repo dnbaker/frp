@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <chrono>
+#include <cassert>
 
 using namespace std::chrono;
 
@@ -38,11 +39,10 @@ bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} 
 int main(int argc, char *argv[]) {
     const std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                       niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));
-    CompactRademacher<FLOAT_TYPE> cr(size);
 #if 0
+    CompactRademacher<FLOAT_TYPE> cr(size);
     for(size_t i(0); i < cr.size(); ++i)
         std::cerr << "cr at index " << i << " is " << cr[i] << '\n';
-#endif
     fprintf(stderr, "size: %zu\n", size);
     std::vector<double> out(size);
     fft::FFTWDispatcher<double> disp(out.size(), false, false, fft::tx::R2HC);
@@ -71,11 +71,74 @@ int main(int argc, char *argv[]) {
         }
     }
     using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>>;
-    //SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});
     SpinBlockType spinner(size, size, size, CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size));
     std::mt19937_64 gen(0);
     std::shuffle(out.begin(), out.end(), gen);
     aes::AesCtr aesgen(0);
     std::shuffle(out.begin(), out.end(), aesgen);
     ScalingBlock<FLOAT_TYPE> sb(size);
+#endif
+    blaze::DynamicVector<float> tvec(size); // Full vector
+    blaze::DynamicVector<float> tmul(size); // Full vector
+    blaze::DynamicVector<float> tvout(size);
+#if 1
+    PRNVector<std::mt19937_64, std::normal_distribution<float>> prn_vec(size, 0);
+#else
+    PRNVector<aes::AesCtr, UnchangedRNGDistribution<aes::AesCtr>> prn_vec(size, 0);
+#endif
+    for(auto &el: tvec) {
+        el = (float)std::rand() / RAND_MAX;
+    }
+    size_t i(0);
+    for(auto el: prn_vec) {
+        tmul[i++] = el;
+    }
+    {
+        Timer time("Pre-computed.");
+        for(size_t j(0); j < niter; ++j) {
+            for(size_t i(0), e(tvec.size()); i < e; ++i) {
+                tvout[i] = tvec[i] * tmul[i];
+            }
+        }
+    }
+    {
+        Timer time("On-the-fly.");
+        for(size_t j(0); j < niter; ++j) {
+            auto prn_it(prn_vec.begin());
+            for(size_t i(0), e(tvec.size()); i < e; ++i, ++prn_it) {
+                tvout[i] = tvec[i] * (*prn_it);
+            }
+        }
+    }
+    {
+        Timer time("On-the-fly, all iterator.");
+        for(size_t j(0); j < niter; ++j) {
+            auto prn_it(prn_vec.begin());
+            for(auto tvo(tvout.begin()), tve(tvout.end()), tvc(tvec.begin());
+                tvo != tve; ++tvo, ++tvc, ++prn_it) {
+                *tvo = *tvc * (*prn_it);
+            }
+        }
+    }
+#if 0
+    fprintf(stderr, "num steps in first loop: %zu\n", secondc);
+    for(auto ie(tvec.begin()), io(tvout.begin()); ie != tvec.end(); ++ie, ++io) {
+        std::fprintf(stderr, "In %lf Out %lf\n", *ie, *io);
+        if(*ie != *io) {
+            std::cerr << "Invec: \n\n\n" << tvec;
+            std::cerr << "Outvec: \n\n\n" << tvout;
+            assert(false);
+        }
+    }
+    gaussian_fill(tvec);
+    SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});
+    {
+        Timer time("FFHT::fht");
+        for(size_t i(0); i < niter; ++i) {
+            //for(size_t j(0); j < out_dumb.size(); ++j) out[j] = cr[j];
+            fht(out_dumb.data(), ln);
+        }
+    }
+    using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>>;
+#endif
 }

@@ -1,6 +1,6 @@
 #ifndef _GFRP_SPINNER_H__
 #define _GFRP_SPINNER_H__
-#include "gfrp/compactrad.h"
+#include "gfrp/compact.h"
 #include "gfrp/linalg.h"
 #include "FFHT/fht.h"
 
@@ -82,28 +82,6 @@ public:
 };
 
 template<typename T> class TD;
-
-template<typename SizeType=size_t, typename RNG=aes::AesCtr>
-class OnlineShuffler {
-    //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
-    //This 
-    using ResultType = typename RNG::result_type;
-    //TD<ResultType> thing;
-    const uint64_t seed_;
-    RNG             rng_;
-public:
-    explicit OnlineShuffler(ResultType seed): seed_{seed}, rng_(seed) {}
-    template<typename InVector, typename OutVector>
-    void apply(const InVector &in, OutVector &out) const {
-        //The naive approach is double memory.
-    }
-    template<typename Vector>
-    void apply(Vector &vec) const {
-        rng_.seed(seed_);
-        std::shuffle(std::begin(vec), std::end(vec), rng_);
-        //The naive approach is double memory.
-    }
-};
 
 template<typename... Blocks>
 class SpinBlockTransformer {

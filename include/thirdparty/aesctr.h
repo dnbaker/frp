@@ -114,11 +114,17 @@ class AesCtr {
     aesctr_state ctr_;
 public:
     using result_type = uint64_t;
-    AesCtr(result_type seed): ctr_{0} {
+    AesCtr(result_type seed): ctr_{{0}, {0}, {0}, 0} {
         aesctr_seed_r(&ctr_, seed);
     }
     result_type operator()() {
         return aesctr_r(&ctr_);
+    }
+    void seed(uint64_t seedval) {
+#if !NEBUG
+        std::fprintf(stderr, "AesCtr setting seed to %zu\n", seedval);
+#endif
+        aesctr_seed_r(&ctr_, seedval);
     }
     result_type max() const {return std::numeric_limits<uint64_t>::max();}
     result_type min() const {return std::numeric_limits<uint64_t>::min();}

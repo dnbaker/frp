@@ -26,7 +26,7 @@ http://ieeexplore.ieee.org/document/558495/
 
 
 F2F
-proceeds with vectorized sums and subtractions iteratively for the first n/2^k 
+proceeds with vectorized sums and subtractions iteratively for the first n/2^k
 positions (where n is the length of the input vector and k is the iteration starting from 1)
 computing the intermediate operations of the Cooley-Tukey algorithm till a small Hadamard
 routine that fits in cache.  Then the algorithm continues in the same way but starting from
@@ -116,8 +116,105 @@ public:
     }
 };
 
+template<typename SizeType=size_t, typename RNG=aes::AesCtr>
+class OnlineShuffler {
+    //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
+    //This
+    using ResultType = typename RNG::result_type;
+    const uint64_t seed_;
+    RNG             rng_;
+public:
+    explicit OnlineShuffler(ResultType seed): seed_{seed}, rng_(seed) {}
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) const {
+        //The naive approach is double memory.
+    }
+    template<typename Vector>
+    void apply(Vector &vec) const {
+        rng_.seed(seed_);
+        std::shuffle(std::begin(vec), std::end(vec), rng_);
+        //The naive approach is double memory.
+    }
+};
 
-}
+template<typename RNG>
+struct UnchangedRNGDistribution {
+    auto operator()(RNG &rng) const {return rng();}
+};
+
+template<typename RNG=aes::AesCtr, typename Distribution=UnchangedRNGDistribution<RNG>>
+class PRNVector {
+    // Vector of random values generated
+    const uint64_t seed_, size_;
+    uint64_t       used_;
+    RNG             rng_;
+    Distribution   dist_;
+public:
+    using ResultType = std::decay_t<decltype(dist_(rng_))>;
+private:
+    ResultType      val_;
+
+
+public:
+
+    class PRNIterator {
+
+        PRNVector<RNG, Distribution> *ref_;
+    public:
+        auto operator*() const {return ref_->val_;}
+        auto &operator ++() {
+            inc();
+            return *this;
+        }
+        void inc() {
+            ref_->val_ = ref_->dist_(ref_->rng_);
+            ++ref_->used_;
+        }
+#if 0
+        auto &operator ++(int) {
+            const ResultType ret(val_);
+            ref_.dist_(rng_);
+            return ret;
+        }
+        bool operator ==(const PRNIterator &other) const {
+            return ref_->used_ == ref_->size_; // Doesn't even access the other iterator. Only used for `while(it != end)`.
+        }
+#endif
+        bool operator !=(const PRNIterator &other) const {
+            return ref_->used_ <= ref_->size_; // Doesn't even access the other iterator. Only used for `while(it < end)`.
+        }
+        PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {
+            if(ref_) inc();
+        }
+        ~PRNIterator() {
+#if 0
+            if(ref_) {
+                ref_->used_ = 0;
+                ref_->rng_.seed(ref_->seed_);
+            }
+#endif
+        }
+    };
+    template<typename... DistArgs>
+    PRNVector(uint64_t size, uint64_t seed=0, DistArgs &&... args):
+        seed_{seed}, size_{size}, used_{0}, rng_(seed_), dist_(std::forward<DistArgs>(args)...), val_() {}
+
+    auto begin() {
+        reset();
+        return PRNIterator(this);
+    }
+    void reset() {
+        rng_.seed(seed_);
+        dist_.reset();
+        used_ = 0;
+    }
+    auto end() {
+        return PRNIterator(static_cast<decltype(this)>(nullptr));
+    }
+};
+
+
+} // namespace gfrp
 
 
 #endif // #ifndef _GFRP_CRAD_H__

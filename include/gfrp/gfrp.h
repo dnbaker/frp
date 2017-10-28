@@ -6,7 +6,7 @@
 #include "gfrp/rand.h"
 #include "gfrp/tx.h"
 #include "gfrp/dist.h"
-#include "gfrp/compactrad.h"
+#include "gfrp/compact.h"
 #include "gfrp/fsm.h"
 #include "gfrp/mach.h"
 #include "gfrp/spinner.h"
