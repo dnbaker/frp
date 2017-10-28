@@ -140,13 +140,15 @@ public:
 template<typename RNG>
 struct UnchangedRNGDistribution {
     auto operator()(RNG &rng) const {return rng();}
+    void reset() {}
 };
 
 template<typename RNG=aes::AesCtr, typename Distribution=UnchangedRNGDistribution<RNG>>
 class PRNVector {
     // Vector of random values generated
-    const uint64_t seed_, size_;
+    const uint64_t seed_;
     uint64_t       used_;
+    uint64_t       size_;
     RNG             rng_;
     Distribution   dist_;
 public:
@@ -167,32 +169,15 @@ public:
             return *this;
         }
         void inc() {
-            ref_->val_ = ref_->dist_(ref_->rng_);
+            ref_->gen();
             ++ref_->used_;
         }
-#if 0
-        auto &operator ++(int) {
-            const ResultType ret(val_);
-            ref_.dist_(rng_);
-            return ret;
-        }
-        bool operator ==(const PRNIterator &other) const {
-            return ref_->used_ == ref_->size_; // Doesn't even access the other iterator. Only used for `while(it != end)`.
-        }
-#endif
+        void gen() {ref_->gen();}
         bool operator !=(const PRNIterator &other) const {
-            return ref_->used_ <= ref_->size_; // Doesn't even access the other iterator. Only used for `while(it < end)`.
+            return ref_->used_ < ref_->size_; // Doesn't even access the other iterator. Only used for `while(it < end)`.
         }
         PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {
-            if(ref_) inc();
-        }
-        ~PRNIterator() {
-#if 0
-            if(ref_) {
-                ref_->used_ = 0;
-                ref_->rng_.seed(ref_->seed_);
-            }
-#endif
+            if(ref_) gen();
         }
     };
     template<typename... DistArgs>
@@ -203,14 +188,17 @@ public:
         reset();
         return PRNIterator(this);
     }
+    ResultType gen() {return val_ = dist_(rng_);}
     void reset() {
         rng_.seed(seed_);
         dist_.reset();
         used_ = 0;
     }
-    auto end() {
+    auto end() const {
         return PRNIterator(static_cast<decltype(this)>(nullptr));
     }
+    auto size() const {return size_;}
+    void resize(size_t newsize) {size_ = newsize;}
 };
 
 

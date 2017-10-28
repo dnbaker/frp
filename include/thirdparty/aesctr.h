@@ -121,9 +121,6 @@ public:
         return aesctr_r(&ctr_);
     }
     void seed(uint64_t seedval) {
-#if !NEBUG
-        std::fprintf(stderr, "AesCtr setting seed to %zu\n", seedval);
-#endif
         aesctr_seed_r(&ctr_, seedval);
     }
     result_type max() const {return std::numeric_limits<uint64_t>::max();}

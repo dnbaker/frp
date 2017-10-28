@@ -78,16 +78,26 @@ int main(int argc, char *argv[]) {
     std::shuffle(out.begin(), out.end(), aesgen);
     ScalingBlock<FLOAT_TYPE> sb(size);
 #endif
+#if 0
     blaze::DynamicVector<float> tvec(size); // Full vector
     blaze::DynamicVector<float> tmul(size); // Full vector
     blaze::DynamicVector<float> tvout(size);
-#if 1
+#else
+    blaze::DynamicVector<uint64_t> tvec(size); // Full vector
+    blaze::DynamicVector<uint64_t> tmul(size); // Full vector
+    blaze::DynamicVector<uint64_t> tvout(size);
+#endif
+#if 0
     PRNVector<std::mt19937_64, std::normal_distribution<float>> prn_vec(size, 0);
 #else
     PRNVector<aes::AesCtr, UnchangedRNGDistribution<aes::AesCtr>> prn_vec(size, 0);
 #endif
     for(auto &el: tvec) {
+#if 0
         el = (float)std::rand() / RAND_MAX;
+#else
+        el = (uint64_t(std::rand()) << 32) | std::rand();
+#endif
     }
     size_t i(0);
     for(auto el: prn_vec) {
@@ -120,16 +130,27 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-#if 0
-    fprintf(stderr, "num steps in first loop: %zu\n", secondc);
+    i = 0;
+    for(auto el: prn_vec) {
+        tmul[i++] = el;
+    }
+    i = 0;
+    for(auto el: prn_vec) {
+        tvout[i++] = el;
+    }
+    i = 0;
+    for(auto el: prn_vec) {
+        tvec[i++] = el;
+    }
+    //fprintf(stderr, "First entries: %zu, %zu, %zu\n", tvout[0], tvec[0], *prn_vec.begin());
     for(auto ie(tvec.begin()), io(tvout.begin()); ie != tvec.end(); ++ie, ++io) {
-        std::fprintf(stderr, "In %lf Out %lf\n", *ie, *io);
         if(*ie != *io) {
             std::cerr << "Invec: \n\n\n" << tvec;
             std::cerr << "Outvec: \n\n\n" << tvout;
             assert(false);
         }
     }
+#if 0
     gaussian_fill(tvec);
     SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});
     {
