@@ -1,5 +1,4 @@
 #include "gfrp/gfrp.h"
-#include "gfrp/fsm.h"
 #include "FFHT/fht.h"
 #include <iostream>
 #include "fftw-wrapper/fftw_wrapper.h"
@@ -150,6 +149,8 @@ int main(int argc, char *argv[]) {
             assert(false);
         }
     }
+    using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, HadamardBlock<FLOAT_TYPE>>;
+    SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), HadamardBlock<FLOAT_TYPE>()});
 #if 0
     gaussian_fill(tvec);
     SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});
@@ -160,6 +161,5 @@ int main(int argc, char *argv[]) {
             fht(out_dumb.data(), ln);
         }
     }
-    using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>>;
 #endif
 }

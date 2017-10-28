@@ -2,7 +2,9 @@
 #define _GFRP_CRAD_H__
 #include "gfrp/util.h"
 #include "gfrp/linalg.h"
+#include "fastrange/fastrange.h"
 #include <ctime>
+#include <unordered_set>
 
 namespace gfrp {
 
@@ -127,6 +129,21 @@ public:
     explicit OnlineShuffler(ResultType seed): seed_{seed}, rng_(seed) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
+        std::fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n");
+        const auto isz(in.size());
+        if(isz == out.size()) {
+            out = in;
+            apply<OutVector>(out);
+        } else if(isz > out.size()) {
+            std::unordered_set<uint64_t> indices;
+            indices.reserve(out.size());
+            while(indices.size() < out.size()) indices.insert(fastrange64(rng_(), isz));
+            auto it(out.begin());
+            for(const auto index: indices) *it++ = in[index]; // Could consider a sorted map for quicker iteration/cache coherence.
+        } else {
+            for(auto it(out.begin()), eit(out.end()); it != eit;)
+                *it++ = in[fastrange64(rng_(), isz)];
+        }
         //The naive approach is double memory.
     }
     template<typename Vector>
@@ -161,7 +178,7 @@ public:
 
     class PRNIterator {
 
-        PRNVector<RNG, Distribution> *ref_;
+        PRNVector<RNG, Distribution> *const ref_;
     public:
         auto operator*() const {return ref_->val_;}
         auto &operator ++() {
@@ -176,13 +193,13 @@ public:
         bool operator !=(const PRNIterator &other) const {
             return ref_->used_ < ref_->size_; // Doesn't even access the other iterator. Only used for `while(it < end)`.
         }
-        PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {
-            if(ref_) gen();
-        }
+        PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {}
     };
+
+
     template<typename... DistArgs>
     PRNVector(uint64_t size, uint64_t seed=0, DistArgs &&... args):
-        seed_{seed}, size_{size}, used_{0}, rng_(seed_), dist_(std::forward<DistArgs>(args)...), val_() {}
+        seed_{seed}, used_{0}, size_{size}, rng_(seed_), dist_(std::forward<DistArgs>(args)...), val_(gen()) {}
 
     auto begin() {
         reset();
@@ -193,6 +210,10 @@ public:
         rng_.seed(seed_);
         dist_.reset();
         used_ = 0;
+        gen();
+    }
+    auto end() {
+        return PRNIterator(static_cast<decltype(this)>(nullptr));
     }
     auto end() const {
         return PRNIterator(static_cast<decltype(this)>(nullptr));

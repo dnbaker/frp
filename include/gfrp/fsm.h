@@ -2,6 +2,7 @@
 #define _GFRP_FSM_H__
 
 namespace fsm { // Fast structured multiplication
+
 using std::uint64_t;
 using std::uint32_t;
 
