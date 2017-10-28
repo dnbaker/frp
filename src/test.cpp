@@ -34,6 +34,13 @@ public:
 };
 
 template<typename T>
+float sum(const T &con) {
+    float ret(0.);
+    for(auto el: con) ret += el;
+    return ret;
+}
+
+template<typename T>
 bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
 
 int main(int argc, char *argv[]) {
@@ -82,7 +89,7 @@ int main(int argc, char *argv[]) {
     blaze::DynamicVector<float> tmul(size); // Full vector
     blaze::DynamicVector<float> tvout(size);
 #if 1
-    PRNVector<std::mt19937_64, std::normal_distribution<float>> prn_vec(size, 0);
+    PRNVector<std::mt19937_64, std::normal_distribution<float>, 4> prn_vec(size, 0);
 #else
     PRNVector<aes::AesCtr, UnchangedRNGDistribution<aes::AesCtr>> prn_vec(size, 0);
 #endif
@@ -91,6 +98,7 @@ int main(int argc, char *argv[]) {
     }
     size_t i(0);
     for(auto el: prn_vec) {
+        //fprintf(stderr, "el: %f\n", el);
         tmul[i++] = el;
     }
     {
@@ -101,6 +109,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    auto sum1(sum(tvout));
     {
         Timer time("On-the-fly.");
         for(size_t j(0); j < niter; ++j) {
@@ -110,6 +119,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    auto sum2(sum(tvout));
     {
         Timer time("On-the-fly, all iterator.");
         for(size_t j(0); j < niter; ++j) {
@@ -120,6 +130,8 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    auto sum3(sum(tvout));
+    fprintf(stderr, "sums: %f, %f, %f\n", sum1, sum2, sum3);
 #if 0
     fprintf(stderr, "num steps in first loop: %zu\n", secondc);
     for(auto ie(tvec.begin()), io(tvout.begin()); ie != tvec.end(); ++ie, ++io) {

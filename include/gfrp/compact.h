@@ -142,7 +142,7 @@ struct UnchangedRNGDistribution {
     auto operator()(RNG &rng) const {return rng();}
 };
 
-template<typename RNG=aes::AesCtr, typename Distribution=UnchangedRNGDistribution<RNG>>
+template<typename RNG=aes::AesCtr, typename Distribution=UnchangedRNGDistribution<RNG>, size_t log2nvals=3>
 class PRNVector {
     // Vector of random values generated
     const uint64_t seed_, size_;
@@ -152,23 +152,28 @@ class PRNVector {
 public:
     using ResultType = std::decay_t<decltype(dist_(rng_))>;
 private:
-    ResultType      val_;
-
-
+    static const size_t NVALS = 1ull << log2nvals;
+    static const size_t NVM1  = NVALS - 1;
+    ResultType values_ [NVALS];
 public:
-
     class PRNIterator {
 
-        PRNVector<RNG, Distribution> *ref_;
+        PRNVector<RNG, Distribution, log2nvals> *ref_;
     public:
-        auto operator*() const {return ref_->val_;}
+        auto operator*() const {return ref_->values_[ref_->used() & NVM1];}
         auto &operator ++() {
             inc();
             return *this;
         }
         void inc() {
-            ref_->val_ = ref_->dist_(ref_->rng_);
-            ++ref_->used_;
+            if(((++ref_->used_) & NVM1) == 0) {
+                fill();
+            }
+        }
+        void fill() {
+            for(size_t i(0); i < NVALS; ++i) {
+                ref_->values_[i] = ref_->gen();
+            }
         }
 #if 0
         auto &operator ++(int) {
@@ -177,14 +182,16 @@ public:
             return ret;
         }
         bool operator ==(const PRNIterator &other) const {
-            return ref_->used_ == ref_->size_; // Doesn't even access the other iterator. Only used for `while(it != end)`.
+            return ref_->used() == ref_->size(); // Doesn't even access the other iterator. Only used for `while(it != end)`.
         }
 #endif
         bool operator !=(const PRNIterator &other) const {
-            return ref_->used_ <= ref_->size_; // Doesn't even access the other iterator. Only used for `while(it < end)`.
+            return ref_->used() <= ref_->size(); // Doesn't even access the other iterator. Only used for `while(it < end)`.
         }
-        PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {
-            if(ref_) inc();
+        PRNIterator(decltype(ref_) prn_vec): ref_(prn_vec) {
+            if(ref_) {
+                fill();
+            }
         }
         ~PRNIterator() {
 #if 0
@@ -197,7 +204,7 @@ public:
     };
     template<typename... DistArgs>
     PRNVector(uint64_t size, uint64_t seed=0, DistArgs &&... args):
-        seed_{seed}, size_{size}, used_{0}, rng_(seed_), dist_(std::forward<DistArgs>(args)...), val_() {}
+        seed_{seed}, size_{size}, used_{0}, rng_(seed_), dist_(std::forward<DistArgs>(args)...), values_{0} {}
 
     auto begin() {
         reset();
@@ -207,10 +214,16 @@ public:
         rng_.seed(seed_);
         dist_.reset();
         used_ = 0;
+        std::memset(values_, 0, sizeof(values_));
     }
     auto end() {
         return PRNIterator(static_cast<decltype(this)>(nullptr));
     }
+    ResultType gen() {
+        return dist_(rng_);
+    }
+    auto size() const {return size_;}
+    auto &used() const {return used_;}
 };
 
 
