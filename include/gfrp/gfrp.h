@@ -12,5 +12,6 @@
 #include "gfrp/spinner.h"
 #include "gfrp/scaling.h"
 #include "gfrp/stackstruct.h"
+#include "gfrp/jl.h"
 
 #endif

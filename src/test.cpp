@@ -151,6 +151,8 @@ int main(int argc, char *argv[]) {
     }
     using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, HadamardBlock<FLOAT_TYPE>, GaussianScalingBlock<FLOAT_TYPE>>;
     SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), HadamardBlock<FLOAT_TYPE>(size), GaussianScalingBlock<FLOAT_TYPE>(1337)});
+    JLTransform<blaze::DynamicMatrix<float>> jlt(24, 1000);
+    jlt.fill(1337);
 #if 0
     gaussian_fill(tvec);
     SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});

@@ -35,7 +35,7 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
             inv_unorms[i] = tmp ? tmp: std::numeric_limits<decltype(tmp)>::max();
 #if !NDEBUG
             if(tmp ==std::numeric_limits<decltype(tmp)>::max())
-                std::fprintf(stderr, "Warning: norm of column %i (0-based) is 0.0\n", i);
+                std::fprintf(stderr, "Warning: norm of column %zu (0-based) is 0.0\n", i);
 #endif
         }
         if(flags & ORTHONORMALIZE)
@@ -44,9 +44,10 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
         if(flags & RESCALE_TO_GAUSSIAN) {
             #pragma omp parallel
             for(size_t i = 0, ncolumns = b.columns(); i < ncolumns; ++i) {
-                auto mcolumn(columns(b, i));
+                auto mcolumn(column(b, i));
                 auto meanvarpair(meanvar(mcolumn)); // mean.first = mean, mean.second = var
-                mcolumn = (mcolumn - meanvarpair.first) * 1./std::sqrt(meanvarpair.second);
+                const auto invsqrt(1./std::sqrt(meanvarpair.second));
+                for(auto &el: mcolumn) el = (el - meanvarpair.first) * invsqrt;
             }
         }
     } else {
@@ -68,7 +69,8 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
             for(size_t i = 0, nrows = b.rows(); i < nrows; ++i) {
                 auto mrow(row(b, i));
                 auto meanvarpair(meanvar(mrow)); // mean.first = mean, mean.second = var
-                mrow = (mrow - meanvarpair.first) * 1./std::sqrt(meanvarpair.second);
+                for(auto &el: mrow) el -= meanvarpair.first;
+                mrow *= 1./std::sqrt(meanvarpair.second);
             }
         }
     }
