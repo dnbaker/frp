@@ -6,6 +6,7 @@
 #include <climits>
 #include <cstdint>
 #include "kspp/ks.h"
+#include "FFHT/fast_copy.h"
 #include "blaze/Math.h"
 
 #ifndef FLOAT_TYPE
@@ -24,6 +25,12 @@ using std::int8_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
 using std::size_t;
+
+inline constexpr uint64_t roundup(uint64_t x) {
+    x--;
+    x |= x >> 1; x |= x >> 2; x |= x >> 4; x |= x >> 8; x |= x >> 16; x |= x >> 32;
+    return ++x;
+}
 
 inline constexpr int log2_64(uint64_t value)
 {
