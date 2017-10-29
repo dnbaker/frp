@@ -51,6 +51,7 @@ struct ScalingBlock {
 template<typename FloatType, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
 struct AdditionBlock {
     const FloatType v_;
+    template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
         throw std::runtime_error("Not Implemented");
     }
@@ -58,12 +59,13 @@ struct AdditionBlock {
     void apply(Vector &out) const {
         out += v_;
     }
-    AdditionBlock(FloatType val) v_(val) {}
-}
+    AdditionBlock(FloatType val): v_(val) {}
+};
 
 template<typename FloatType, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
 struct ProductBlock {
     const FloatType v_;
+    template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
         if(in.size() == out.size()) {
             out = in;
@@ -76,8 +78,8 @@ struct ProductBlock {
     void apply(Vector &out) const {
         out *= v_;
     }
-    ProductBlock(FloatType val) v_(val) {}
-}
+    ProductBlock(FloatType val): v_(val) {}
+};
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr>
 struct GaussianScalingBlock: ScalingBlock<FloatType, VectorOrientation, VectorKind> {
