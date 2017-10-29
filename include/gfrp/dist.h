@@ -9,11 +9,11 @@ namespace gfrp {
 // Fill a matrix with distributions. Contains utilities for filling
 // vectors with C++ std distributions as well as Rademacher.
 
-template<typename Container, template<typename> typename Distribution, typename... DistArgs>
+template<typename Container, template<typename> typename Distribution, typename RNG=aes::AesCtr, typename... DistArgs>
 void sample_fill(Container &con, uint64_t seed, DistArgs &&... args) {
     using FloatType = std::decay_t<decltype(con[0])>;
-    aes::AesCtr gen(seed);
-    std::normal_distribution<FloatType> dist(std::forward<DistArgs>(args)...);
+    RNG gen(seed);
+    Distribution<FloatType> dist(std::forward<DistArgs>(args)...);
     for(auto &el: con) el = dist(gen);
 }
 
@@ -25,9 +25,9 @@ void random_fill(uint64_t *data, uint64_t len, uint64_t seed=0) {
 }
 
 #define DEFINE_DIST_FILL(type, name) \
-    template<typename Container, typename...Args> \
+    template<typename Container, typename RNG=aes::AesCtr, typename...Args> \
     void name##_fill(Container &con, uint64_t seed, Args &&... args) { \
-        sample_fill<Container, type, Args...>(con, seed, std::forward<Args>(args)...); \
+        sample_fill<Container, type, RNG, Args...>(con, seed, std::forward<Args>(args)...); \
     }
 
 DEFINE_DIST_FILL(std::normal_distribution, gaussian)
