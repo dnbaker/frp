@@ -28,7 +28,7 @@ public:
     Timer(std::string &&name=""): name_{name}, start_(std::chrono::system_clock::now()) {}
     void stop() {stop_ = std::chrono::system_clock::now();}
     void restart() {start_ = std::chrono::system_clock::now();}
-    void report() {std::fprintf(stderr, "About to report\n"); std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
+    void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
     ~Timer() {stop(); /* hammertime */ report();}
 };
 
