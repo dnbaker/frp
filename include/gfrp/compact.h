@@ -150,7 +150,6 @@ public:
     void apply(Vector &vec) const {
         rng_.seed(seed_);
         std::shuffle(std::begin(vec), std::end(vec), rng_);
-        //The naive approach is double memory.
     }
 };
 

@@ -149,8 +149,8 @@ int main(int argc, char *argv[]) {
             assert(false);
         }
     }
-    using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, HadamardBlock<FLOAT_TYPE>>;
-    SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), HadamardBlock<FLOAT_TYPE>(size)});
+    using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, HadamardBlock<FLOAT_TYPE>, GaussianScalingBlock<FLOAT_TYPE>>;
+    SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), HadamardBlock<FLOAT_TYPE>(size), GaussianScalingBlock<FLOAT_TYPE>(1337)});
 #if 0
     gaussian_fill(tvec);
     SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});

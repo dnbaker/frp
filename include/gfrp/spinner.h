@@ -8,8 +8,20 @@
 namespace gfrp {
 /*
  *
- * TODO: Think about how this should be done. Leave this alone for now.
- * Does 'apply' need 1 or two matrices to run on?
+ * TODO:
+ *
+ * 0. Add full-size JL transform and OJL transform matrices. This is straight-forward for the JLs. But maybe not for random projection.
+ *    What does it mean to rescale them after Gram-Schmidt? To unit variance and zero mean? Or does it mean to multiply some other way?
+ *
+ * 1. Think about how this should be done.
+ * Can any of this be precomputed?
+ * Could inserting the Rademacher matrix access insertion into a F*T application save time?
+ * What normalization constant to we need in front? Should that be decomposed into the Gaussian scaler?
+ *   1. Note that mixtures of these are arbitrary function approximators -- how to ...?
+ *
+ * 2. Note that these can be applied to fast LSH algorithms.
+ * 3. Don't lose sight of the fact that these can be inserted into neural networks to replace fully-connected layers.
+ *   1. How do we update these parameters? What are the parameters?
  *
  *
  *
@@ -44,18 +56,58 @@ struct ScalingBlock {
     }
     template<typename Vector>
     void apply(Vector &out) const {
-        throw std::runtime_error("Not Implemented");
+        out *= vec_;
     }
 };
 
-template<typename SizeType=size_t, typename Container=blaze::DynamicVector<SizeType>>
-class Shuffler {
-    Container shuffler_;
-public:
-    Shuffler(size_t n): shuffler_(make_shuffled<Container>(n)) {}
+template<typename FloatType, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+struct AdditionBlock {
+    const FloatType v_;
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        //The naive approach is double memory.
+        throw std::runtime_error("Not Implemented");
+    }
+    template<typename Vector>
+    void apply(Vector &out) const {
+        out += v_;
+    }
+    AdditionBlock(FloatType val): v_(val) {}
+};
+
+template<typename FloatType, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+struct ProductBlock {
+    const FloatType v_;
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) const {
+        if(in.size() == out.size()) {
+            out = in;
+            apply<OutVector>(out);
+        } else {
+            throw std::runtime_error("Not Implemented");
+        }
+    }
+    template<typename Vector>
+    void apply(Vector &out) const {
+        out *= v_;
+    }
+    ProductBlock(FloatType val): v_(val) {}
+};
+
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr>
+struct GaussianScalingBlock: ScalingBlock<FloatType, VectorOrientation, VectorKind> {
+    using VectorType = VectorKind<FloatType, VectorOrientation>;
+    VectorType vec_;
+    template<typename...Args>
+    GaussianScalingBlock(uint64_t seed=0, FloatType mean=0., FloatType var=1., Args &&...args): vec_(std::forward<Args>(args)...) {
+        gaussian_fill(vec_, seed, mean, var);
+    }
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) const {
+        throw std::runtime_error("Not Implemented");
+    }
+    template<typename Vector>
+    void apply(Vector &out) const {
+        out *= vec_;
     }
 };
 
