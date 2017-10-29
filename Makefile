@@ -14,17 +14,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 DBG:= # -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE
 OS:=$(shell uname)
-ifneq (,$(findstring g++,$(CXX)))
-	ifeq ($(shell uname),Darwin)
-		ifeq (,$(findstring clang,$(CXX)))
-			FLAGS := $(FLAGS) -Wa,-q
-			CLHASH_CHECKOUT := "&& git checkout mac"
-		else
-			FLAGS := $(FLAGS) -flto
-			CLHASH_CHECKOUT := "&& git checkout master"
-		endif
-	endif
-endif
+
 EXTRA=
 OPT:=$(OPT) $(FLAGS)
 XXFLAGS=-fno-rtti
@@ -83,6 +73,6 @@ unit: $(OBJS) $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 
 clean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o gfrp/src/*o
+	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o gfrp/src/*o && cd FFHT && make clean && cd ..
 
 mostlyclean: clean
