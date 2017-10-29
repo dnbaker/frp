@@ -8,8 +8,20 @@
 namespace gfrp {
 /*
  *
- * TODO: Think about how this should be done. Leave this alone for now.
- * Does 'apply' need 1 or two matrices to run on?
+ * TODO:
+ *
+ * 0. Add full-size JL transform and OJL transform matrices. This is straight-forward for the JLs. But maybe not for random projection.
+ *    What does it mean to rescale them after Gram-Schmidt? To unit variance and zero mean? Or does it mean to multiply some other way?
+ *
+ * 1. Think about how this should be done.
+ * Can any of this be precomputed?
+ * Could inserting the Rademacher matrix access insertion into a F*T application save time?
+ * What normalization constant to we need in front? Should that be decomposed into the Gaussian scaler?
+ *   1. Note that mixtures of these are arbitrary function approximators -- how to ...?
+ *
+ * 2. Note that these can be applied to fast LSH algorithms.
+ * 3. Don't lose sight of the fact that these can be inserted into neural networks to replace fully-connected layers.
+ *   1. How do we update these parameters? What are the parameters?
  *
  *
  *
