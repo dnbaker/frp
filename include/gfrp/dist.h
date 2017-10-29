@@ -36,7 +36,7 @@ DEFINE_DIST_FILL(std::chi_squared_distribution, chisq)
 DEFINE_DIST_FILL(std::lognormal_distribution, lognormal)
 DEFINE_DIST_FILL(std::extreme_value_distribution, extreme_value)
 DEFINE_DIST_FILL(std::weibull_distribution, weibull)
-    
+
 #define get_bool(val, ind) (!!(rval & (1uL << (ind))))
 #define process_el(el, rval, c) do {\
         el = vals[get_bool(rval, c++)];\

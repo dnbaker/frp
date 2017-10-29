@@ -1,7 +1,7 @@
 #ifndef _GFRP_MACH_H__
 #define _GFRP_MACH_H__
 #include <cassert>
-#include <tuple>
+#include <string>
 #include <unistd.h>
 #include <stdexcept>
 #include <cstdio>
@@ -26,13 +26,33 @@ void print_toks(std::vector<ks::KString> &strings) {
 #define CACHE_CMD_STR "lscpu"
 #endif
 
+template<typename T>
+using ref = T&;
+
+struct CacheSizes {
+    size_t l1;
+    size_t l2;
+    size_t l3;
+    operator ref<size_t [3]>() {
+        return reinterpret_cast<ref<size_t [3]>>(*this);
+    }
+    CacheSizes(size_t l1a, size_t l2a, size_t l3a): l1(l1a), l2(l2a), l3(l3a) {}
+    CacheSizes() {std::memset(this, 0, sizeof(*this));}
+    std::string str() const {
+        char buf[64];
+        std::sprintf(buf, "L1:%zu,L2:%zu,L3:%zu", l1, l2, l3);
+        return buf;
+    }
+};
+
 template<typename SizeType=size_t>
-std::tuple<SizeType, SizeType, SizeType> get_cache_sizes() {
-    FILE *fp(popen(CACHE_CMD_STR, "r"));
-    char buf[1 << 16]{0}; 
-    char *line(nullptr);
-    SizeType ret[]{0, 0,0};
-    SizeType *ptr(nullptr);
+CacheSizes get_cache_sizes() {
+    std::FILE *fp(popen(CACHE_CMD_STR, "r"));
+    char buf[1 << 16];
+    std::memset(buf, 0, sizeof(buf));
+    CacheSizes ret;
+    SizeType *ptr;
+    char    *line;
     while((line = std::fgets(buf, sizeof(buf), fp))) {
         if(std::strstr(line, "ache") == nullptr) continue;
         if(std::strstr(line, "L") == nullptr) continue;
@@ -40,11 +60,11 @@ std::tuple<SizeType, SizeType, SizeType> get_cache_sizes() {
         if(toks[0] == "L1i") {
             continue;
         } else if(toks[0] == "L1d") {
-            ptr = ret;
+            ptr = &ret[0];
         } else if(toks[0] == "L2") {
-            ptr = ret + 1;
+            ptr = &ret[1];
         } else if(toks[0] == "L3") {
-            ptr = ret + 2;
+            ptr = &ret[2];
         } else {
             std::fclose(fp);
             std::fprintf(stderr, "DIE (%s)\n", toks[0].data());
@@ -71,7 +91,7 @@ std::tuple<SizeType, SizeType, SizeType> get_cache_sizes() {
     }
 
     std::fclose(fp);
-    return std::make_tuple(ret[0], ret[1], ret[2]);
+    return ret;
 }
 
 }} // namespace gfpr::mach

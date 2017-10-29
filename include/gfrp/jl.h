@@ -11,11 +11,10 @@ class JLTransform  {
     using FloatType = typename MatrixType::ElementType;
     const size_t m_, n_;
     MatrixType matrix_;
-
 public:
     JLTransform(size_t m, size_t n):
         m_{m}, n_{n}, matrix_(m, n)  {
-        if(m_ >= n_) throw std::runtime_error("JLTransform has to reduce dimensionality.");
+        if(m_ >= n_) fprintf(stderr, "Warning: JLTransform has to reduce dimensionality.");
     }
     template<typename RNG, typename Distribution>
     void fill(RNG &rng, Distribution &dist, bool orthogonalize=true) {
@@ -25,6 +24,7 @@ public:
         if(orthogonalize) {
             linalg::gram_schmidt(matrix_, linalg::RESCALE_TO_GAUSSIAN);
         }
+        matrix_ *= 1. / std::sqrt(static_cast<double>(m_));
     }
     void fill(uint64_t seed, bool orthogonalize=true) {
         aes::AesCtr rng(seed);
@@ -41,5 +41,4 @@ public:
 };
 
 } // namespace gfrp
-
 #endif
