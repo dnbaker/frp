@@ -10,6 +10,7 @@
 using namespace std::chrono;
 
 using namespace gfrp;
+using namespace gfrp::linalg;
 using namespace blaze;
 
 template<typename T>
@@ -155,6 +156,9 @@ int main(int argc, char *argv[]) {
     jlt.fill(1337);
     auto sizes(mach::get_cache_sizes());
     std::cerr << sizes.str() << '\n';
+    blaze::DynamicVector<float> v1(1000);
+    v1 += float(4.);
+    std:: cerr << v1;
 #if 0
     gaussian_fill(tvec);
     SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});

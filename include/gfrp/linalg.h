@@ -2,6 +2,15 @@
 #define _GFRP_LINALG_H__
 #define _USE_MATH_DEFINES
 #include "gfrp/util.h"
+#include "x86intrin.h"
+
+#ifdef __AVX2__
+#define VECTOR_WIDTH (32ul)
+#elif __SSE2__
+#define VECTOR_WIDTH (16ul)
+#else
+#define VECTOR_WIDTH (8ul)
+#endif
 
 namespace gfrp { namespace linalg {
 
@@ -16,6 +25,127 @@ enum GramSchmitFlags {
     ORTHONORMALIZE = 2,
     RESCALE_TO_GAUSSIAN = 4
 };
+
+template<typename ValueType>
+void mempluseq(ValueType *data, size_t nelem, ValueType val) {
+    throw std::runtime_error("Not implemented.");
+}
+
+template<>
+void mempluseq<float>(float *data, size_t nelem, float val) {
+
+#if _FEATURE_AVX512F
+#define load_fn _mm512_loadu_ps
+#define store_fn _mm512_storeu_ps
+#define add_fn _mm512_add_ps
+    using ValType = __m512;
+    const __m512 vval(__m512_set1_ps(val));
+#elif __AVX2__
+#define load_fn _mm256_loadu_ps
+#define store_fn _mm256_storeu_ps
+#define add_fn _mm256_add_ps
+    using ValType = __m256;
+    const __m256 vval(_mm256_set1_ps(val));
+#elif __SSE2__
+#define load_fn _mm_loadu_ps
+#define store_fn _mm_storeu_ps
+#define add_fn _mm_add_ps
+    using ValType = __m128;
+    const __m128 vval(_mm_set1_ps(val));
+#else
+    while(nelem--) *data += val;
+    return;
+#endif
+#if _FEATURE_AVX512F || __AVX2__ || __SSE2__
+    while(nelem >= (sizeof(ValType) / sizeof(float))) {
+        store_fn(data, add_fn(load_fn(data), vval)); // *data += vval
+        nelem -= (sizeof(ValType) / sizeof(float)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(float));
+    }
+    while(nelem--) *data++ += val;
+#undef load_fn
+#undef add_fn
+#undef store_fn
+#endif
+}
+template<>
+void mempluseq<double>(double *data, size_t nelem, double val) {
+#if _FEATURE_AVX512F
+#define load_fn _mm512_loadu_pd
+#define store_fn _mm512_storeu_pd
+#define add_fn _mm512_add_pd
+    using ValType = __m512d;
+    const __m512d vval(__m512_set1_pd(val));
+#elif __AVX2__
+#define load_fn _mm256_loadu_pd
+#define store_fn _mm256_storeu_pd
+#define add_fn _mm256_add_pd
+    using ValType = __m256d;
+    const __m256d vval(_mm256_set1_pd(val));
+#elif __SSE2__
+#define load_fn _mm_loadu_pd
+#define store_fn _mm_storeu_pd
+#define add_fn _mm_add_pd
+    using ValType = __m128d;
+    const __m128d vval(_mm_set1_pd(val));
+#else
+    while(nelem--) *data += val;
+    return;
+#endif
+#if _FEATURE_AVX512F || __AVX2__ || __SSE2__
+    while(nelem >= (sizeof(ValType) / sizeof(float))) {
+        store_fn(data, add_fn(load_fn(data), vval)); // *data += vval
+        nelem -= (sizeof(ValType) / sizeof(float)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(float));
+    }
+    while(nelem--) *data++ += val;
+#undef load_fn
+#undef add_fn
+#undef store_fn
+#endif
+}
+
+
+template<typename MatrixType, typename ValueType,
+         typename=std::enable_if_t<std::is_arithmetic<ValueType>::value>>
+MatrixType &operator+=(MatrixType &in, ValueType val) {
+    if constexpr(blaze::IsMatrix<MatrixType>::value) {
+        if constexpr(blaze::IsSparseMatrix<MatrixType>::value) {
+            for(size_t i(0); i < in.rows(); ++i) {
+                for(auto it(in.begin(i)), eit(in.end(i)); it != eit; ++it) {
+                    it->value() += val;
+                }
+            }
+        } else {
+            if(size_t(&in(0, 1) - &in(0, 0)) == 1) {
+                for(size_t i(0); i < in.rows(); ++i) {
+                    mempluseq(&in(i, 0), in.columns(), val);
+                }
+            } else {
+                for(size_t i(0); i < in.columns(); ++i) {
+                    mempluseq(&in(0, i), in.rows(), val);
+                }
+            }
+        }
+    } else {
+        if constexpr(blaze::IsSparseVector<MatrixType>::value) {
+            for(auto it(in.begin()), eit(in.end()); it != eit; ++it) it->value() += val;
+        } else {
+            if(size_t(&in[0] - &in[1]) == 1) {
+                mempluseq(&in[0], in.size(), val);
+            } else {
+                for(auto &el: in) el = val;
+            }
+        }
+    }
+    return in;
+}
+
+template<typename MatrixType, typename ValueType,
+         typename=std::enable_if_t<std::is_arithmetic<ValueType>::value>>
+MatrixType &operator-=(MatrixType &in, ValueType val) {
+    return in += -val;
+}
 
 
 /*
@@ -53,8 +183,9 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
             for(size_t i = 0, ncolumns = b.columns(); i < ncolumns; ++i) {
                 auto mcolumn(column(b, i));
                 auto meanvarpair(meanvar(mcolumn)); // mean.first = mean, mean.second = var
-                const auto invsqrt(1./std::sqrt(meanvarpair.second));
-                for(auto &el: mcolumn) el = (el - meanvarpair.first) * invsqrt;
+                const auto invsqrt(1./std::sqrt(meanvarpair.second * b.rows()));
+                mcolumn -= meanvarpair.first;
+                mcolumn *= invsqrt;
             }
         }
     } else {
@@ -76,8 +207,8 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
             for(size_t i = 0; i < nrows; ++i) {
                 auto mrow(row(b, i));
                 const auto meanvarpair(meanvar(mrow)); // mean.first = mean, mean.second = var
-                for(auto &el: mrow) el -= meanvarpair.first;
-                mrow *= 1./std::sqrt(meanvarpair.second);
+                mrow -= meanvarpair.first;
+                mrow *= 1./std::sqrt(meanvarpair.second * b.columns());
             }
         }
     }
