@@ -39,7 +39,7 @@ void mempluseq<float>(float *data, size_t nelem, float val) {
 #define store_fn _mm512_storeu_ps
 #define add_fn _mm512_add_ps
     using ValType = __m512;
-    const __m512 vval(__m512_set1_ps(val));
+    const __m512 vval(__mm512_set1_ps(val));
 #elif __AVX2__
 #define load_fn _mm256_loadu_ps
 #define store_fn _mm256_storeu_ps
@@ -69,13 +69,162 @@ void mempluseq<float>(float *data, size_t nelem, float val) {
 #endif
 }
 template<>
+void mempluseq<int8_t>(int8_t *data, size_t nelem, int8_t val) {
+#if _FEATURE_AVX512F
+#define load_fn _mm512_loadu_si512
+#define store_fn _mm512_storeu_si512
+#define add_fn _mm512_add_pd
+    using ValType = __m512i;
+    const ValType vval(_mm512_set1_epi8(val));
+#elif __AVX2__
+#define load_fn _mm256_loadu_si256
+#define store_fn _mm256_storeu_si256
+#define add_fn _mm256_add_epi8
+    using ValType = __m256i;
+    const ValType vval(_mm256_set1_epi8(val));
+#elif __SSE2__
+#define load_fn _mm_loadu_si128
+#define store_fn _mm_storeu_si128
+#define add_fn _mm_add_epi8
+    using ValType = __m128i;
+    const ValType vval(_mm_set1_epi8(val));
+#else
+    while(nelem--) *data += val;
+    return;
+#endif
+    using NumType = int8_t;
+#if _FEATURE_AVX512F || __AVX2__ || __SSE2__
+    while(nelem >= (sizeof(ValType) / sizeof(NumType))) {
+        store_fn((ValType *)data, add_fn(load_fn((ValType *)data), vval)); // *data += vval
+        nelem -= (sizeof(ValType) / sizeof(NumType)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(NumType));
+    }
+    while(nelem--) *data++ += val;
+#undef load_fn
+#undef add_fn
+#undef store_fn
+#endif
+}
+template<>
+void mempluseq<int16_t>(int16_t *data, size_t nelem, int16_t val) {
+#if _FEATURE_AVX512F
+#define load_fn _mm512_loadu_si512
+#define store_fn _mm512_storeu_si512
+#define add_fn _mm512_add_epi16
+    using ValType = __m512i;
+    const ValType vval(_mm512_set1_epi16(val));
+#elif __AVX2__
+#define load_fn _mm256_loadu_si256
+#define store_fn _mm256_storeu_si256
+#define add_fn _mm256_add_epi16
+    using ValType = __m256i;
+    const ValType vval(_mm256_set1_epi16(val));
+#elif __SSE2__
+#define load_fn _mm_loadu_si128
+#define store_fn _mm_storeu_si128
+#define add_fn _mm_add_epi16
+    using ValType = __m128i;
+    const ValType vval(_mm_set1_epi16(val));
+#else
+    while(nelem--) *data += val;
+    return;
+#endif
+    using NumType = int16_t;
+#if _FEATURE_AVX512F || __AVX2__ || __SSE2__
+    while(nelem >= (sizeof(ValType) / sizeof(NumType))) {
+        store_fn((ValType *)data, add_fn(load_fn((ValType *)data), vval)); // *data += vval
+        nelem -= (sizeof(ValType) / sizeof(NumType)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(NumType));
+    }
+    while(nelem--) *data++ += val;
+#undef load_fn
+#undef add_fn
+#undef store_fn
+#endif
+}
+template<>
+void mempluseq<int64_t>(int64_t *data, size_t nelem, int64_t val) {
+#if _FEATURE_AVX512F
+#define load_fn _mm512_loadu_si512
+#define store_fn _mm512_storeu_si512
+#define add_fn _mm512_add_epi64
+    using ValType = __m512i;
+    const ValType vval(_mm512_set1_epi64(val));
+#elif __AVX2__
+#define load_fn _mm256_loadu_si256
+#define store_fn _mm256_storeu_si256
+#define add_fn _mm256_add_epi64
+    using ValType = __m256i;
+    const ValType vval(_mm256_set1_epi64x(val));
+#elif __SSE2__
+#define load_fn _mm_loadu_si128
+#define store_fn _mm_storeu_si128
+#define add_fn _mm_add_epi64
+    using ValType = __m128i;
+    const ValType vval(_mm_set1_epi64(val));
+#else
+    while(nelem--) *data += val;
+    return;
+#endif
+    using NumType = int64_t;
+#if _FEATURE_AVX512F || __AVX2__ || __SSE2__
+    while(nelem >= (sizeof(ValType) / sizeof(NumType))) {
+        store_fn((ValType *)data, add_fn(load_fn((ValType *)data), vval)); // *data += vval
+        nelem -= (sizeof(ValType) / sizeof(NumType)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(NumType));
+    }
+    while(nelem--) *data++ += val;
+#undef load_fn
+#undef add_fn
+#undef store_fn
+#endif
+}
+template<>
+void mempluseq<int32_t>(int32_t *data, size_t nelem, int32_t val) {
+#if _FEATURE_AVX512F
+#define load_fn _mm512_loadu_si512
+#define store_fn _mm512_storeu_si512
+#define add_fn _mm512_add_epi32
+    using ValType = __m512i;
+    const ValType vval(_mm512_set1_epi32(val));
+#elif __AVX2__
+#define load_fn _mm256_loadu_si256
+#define store_fn _mm256_storeu_si256
+#define add_fn _mm256_add_epi32
+    using ValType = __m256i;
+    const ValType vval(_mm256_set1_epi32(val));
+#elif __SSE2__
+#define load_fn _mm_loadu_si128
+#define store_fn _mm_storeu_si128
+#define add_fn _mm_add_epi32
+    using ValType = __m128i;
+    const ValType vval(_mm_set1_epi32(val));
+#else
+    while(nelem--) *data += val;
+    return;
+#endif
+    using NumType = int32_t;
+#if _FEATURE_AVX512F || __AVX2__ || __SSE2__
+    while(nelem >= (sizeof(ValType) / sizeof(NumType))) {
+        store_fn((ValType *)data, add_fn(load_fn((ValType *)data), vval)); // *data += vval
+        nelem -= (sizeof(ValType) / sizeof(NumType)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(NumType));
+    }
+    while(nelem--) *data++ += val;
+#undef load_fn
+#undef add_fn
+#undef store_fn
+#endif
+}
+
+template<>
 void mempluseq<double>(double *data, size_t nelem, double val) {
 #if _FEATURE_AVX512F
 #define load_fn _mm512_loadu_pd
 #define store_fn _mm512_storeu_pd
 #define add_fn _mm512_add_pd
     using ValType = __m512d;
-    const __m512d vval(__m512_set1_pd(val));
+    const __m512d vval(_mm512_set1_pd(val));
 #elif __AVX2__
 #define load_fn _mm256_loadu_pd
 #define store_fn _mm256_storeu_pd
@@ -92,11 +241,12 @@ void mempluseq<double>(double *data, size_t nelem, double val) {
     while(nelem--) *data += val;
     return;
 #endif
+    using NumType = double;
 #if _FEATURE_AVX512F || __AVX2__ || __SSE2__
-    while(nelem >= (sizeof(ValType) / sizeof(double))) {
+    while(nelem >= (sizeof(ValType) / sizeof(NumType))) {
         store_fn(data, add_fn(load_fn(data), vval)); // *data += vval
-        nelem -= (sizeof(ValType) / sizeof(double)); // Move ahead and skip that many elements
-        data += (sizeof(ValType) / sizeof(double));
+        nelem -= (sizeof(ValType) / sizeof(NumType)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(NumType));
     }
     while(nelem--) *data++ += val;
 #undef load_fn
