@@ -189,7 +189,7 @@ public:
             ++ref_->used_;
         }
         void gen() {ref_->gen();}
-        bool operator !=(const PRNIterator &other) const {
+        bool operator !=([[maybe_unused]] const PRNIterator &other) const {
             return ref_->used_ < ref_->size_; // Doesn't even access the other iterator. Only used for `while(it < end)`.
         }
         PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {}
