@@ -93,10 +93,10 @@ void mempluseq<double>(double *data, size_t nelem, double val) {
     return;
 #endif
 #if _FEATURE_AVX512F || __AVX2__ || __SSE2__
-    while(nelem >= (sizeof(ValType) / sizeof(float))) {
+    while(nelem >= (sizeof(ValType) / sizeof(double))) {
         store_fn(data, add_fn(load_fn(data), vval)); // *data += vval
-        nelem -= (sizeof(ValType) / sizeof(float)); // Move ahead and skip that many elements
-        data += (sizeof(ValType) / sizeof(float));
+        nelem -= (sizeof(ValType) / sizeof(double)); // Move ahead and skip that many elements
+        data += (sizeof(ValType) / sizeof(double));
     }
     while(nelem--) *data++ += val;
 #undef load_fn

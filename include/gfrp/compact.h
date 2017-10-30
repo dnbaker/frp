@@ -36,6 +36,17 @@ the  smallest  length  and  doubling  on  each  iteration  the  input  dimension
 FWHT is done in-place.
 */
 
+// TODO!!!
+/*
+   Add random-access AES-CTR-based Rademacher array.
+   Add random-access std::*distribution array.
+
+   Need help with ideas:
+      1. Pruning or selecting more important random features:::Talk to Arora.
+      2. 
+
+ */
+
 template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
 class CompactRademacher {
     size_t n_, m_;
