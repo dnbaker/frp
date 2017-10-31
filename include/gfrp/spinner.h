@@ -93,7 +93,7 @@ struct ProductBlock {
     ProductBlock(FloatType val): v_(val) {}
 };
 
-template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr>
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
 struct GaussianScalingBlock: ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     VectorType vec_;

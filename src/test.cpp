@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 #if 0
     PRNVector<std::mt19937_64, std::normal_distribution<float>> prn_vec(size, 0);
 #else
-    PRNVector<aes::AesCtr, UnchangedRNGDistribution<aes::AesCtr>> prn_vec(size, 0);
+    PRNVector<aes::AesCtr<uint64_t>> prn_vec(size, 0);
 #endif
     for(auto &el: tvec) {
 #if 0
@@ -169,6 +169,7 @@ int main(int argc, char *argv[]) {
         for(size_t i(0); i < size; ++i) seq.push_back(rng());
         for(size_t i(0); i < size; ram.push_back(rng[i++]));
         for(size_t i(0); i < size; ++i) {
+            //fprintf(stderr, "Seq %zu ram %zu at ind %u\n", seq[i], ram[i], unsigned(i + 1));
             assert(seq[i] == ram[i]);
         }
     }

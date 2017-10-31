@@ -75,8 +75,9 @@ static inline void aesctr_seed_r(aesctr_state *state, uint64_t seed) {
 
 #undef AES_ROUND
 
-static inline uint64_t aesctr_r(aesctr_state *state) {
-  if (__builtin_expect(state->offset >= 16 * AESCTR_UNROLL, 0)) {
+template<typename T>
+static inline T aesctr_r(aesctr_state *state) {
+  if (__builtin_expect(state->offset >= sizeof(__m128i) * AESCTR_UNROLL, 0)) {
     __m128i work[AESCTR_UNROLL];
     for (int i = 0; i < AESCTR_UNROLL; ++i) {
       work[i] = _mm_xor_si128(state->ctr[i], state->seed[0]);
@@ -96,21 +97,21 @@ static inline uint64_t aesctr_r(aesctr_state *state) {
     }
     state->offset = 0;
   }
-  uint64_t output = 0;
+  T output;
   memcpy(&output, &state->state[state->offset], sizeof(output));
   state->offset += sizeof(output);
   return output;
 }
 
-// UNTESTED
-static inline uint64_t aes_random_access_r(const aesctr_state *state, size_t count) {
+template<typename T>
+static inline T aes_random_access_r(const aesctr_state *state, size_t count) {
     // Since AES generates 64-bit values, we have to select one of two results.
-    const unsigned offset(count & 1);
-    uint64_t ret[2];
-    count >>= 1;
-    __m128i work;
-    const __m128i ctr(_mm_set_epi64x(0, count));
-    work = _mm_xor_si128(ctr, state->seed[0]);
+    static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(T);
+    static constexpr unsigned BMASK = DIV - 1;
+    const unsigned offset(count & BMASK);
+    T ret[DIV];
+    count /= DIV;
+    __m128i work(_mm_xor_si128(_mm_set_epi64x(0, count), state->seed[0]));
     for (int r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
         work = _mm_aesenc_si128(work, state->seed[r]);
     }
@@ -124,24 +125,24 @@ static inline void aesctr_seed(uint64_t seed) {
   aesctr_seed_r(&g_aesctr_state, seed);
 }
 
-static inline uint64_t aesctr() { return aesctr_r(&g_aesctr_state); }
+static inline uint64_t aesctr() { return aesctr_r<uint64_t>(&g_aesctr_state); }
 
+template<typename result_type=uint64_t, typename=std::enable_if_t<std::is_integral<result_type>::value>>
 class AesCtr {
     // Todo: template this to provide random bits of various sizes.
     aesctr_state ctr_;
 public:
-    using result_type = uint64_t;
-    AesCtr(result_type seed=0): ctr_{{0}, {0}, {0}, 0} {
+    AesCtr(uint64_t seed=0): ctr_{{0}, {0}, {0}, 0} {
         aesctr_seed_r(&ctr_, seed);
     }
     result_type operator()() {
-        return aesctr_r(&ctr_);
+        return aesctr_r<result_type>(&ctr_);
     }
     void seed(uint64_t seedval) {
         aesctr_seed_r(&ctr_, seedval);
     }
-    result_type operator[] (uint64_t index) const {
-        return aes_random_access_r(&ctr_, index);
+    result_type operator[] (size_t index) const {
+        return aes_random_access_r<result_type>(&ctr_, index);
     }
     result_type max() const {return std::numeric_limits<uint64_t>::max();}
     result_type min() const {return std::numeric_limits<uint64_t>::min();}

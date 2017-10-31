@@ -47,7 +47,7 @@ FWHT is done in-place.
 
  */
 
-template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr<uint64_t>, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
 class CompactRademacher {
     std::vector<T> data_;
 
@@ -107,7 +107,7 @@ public:
 
 };
 
-template<typename SizeType=size_t, typename RNG=aes::AesCtr>
+template<typename SizeType=size_t, typename RNG=aes::AesCtr<uint64_t>>
 class OnlineShuffler {
     //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
     //This
@@ -148,7 +148,7 @@ struct UnchangedRNGDistribution {
     void reset() {}
 };
 
-template<typename RNG=aes::AesCtr, typename Distribution=UnchangedRNGDistribution<RNG>>
+template<typename RNG=aes::AesCtr<uint64_t>, typename Distribution=UnchangedRNGDistribution<RNG>>
 class PRNVector {
     // Vector of random values generated
     const uint64_t seed_;
