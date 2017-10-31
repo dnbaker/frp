@@ -49,8 +49,7 @@ FWHT is done in-place.
 
 template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
 class CompactRademacher {
-    size_t n_, m_;
-    T *data_;
+    std::vector<T> data_;
 
     static constexpr FloatType values_[2] {1, -1};
     static constexpr int32_t  ivalues_[2] {1, -1};
@@ -63,50 +62,37 @@ class CompactRademacher {
     using size_type = size_t;
 public:
     // Constructors
-    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(std::malloc(sizeof(T) * n_))) {
+    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): data_(n >> SHIFT) {
         if(n & (BITMASK))
             throw std::runtime_error(ks::sprintf("Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK).data());
-        std::fprintf(stderr, "I have %zu elements allocated which each hold %zu bits. Total size is %zu. log2(nbits=%zu)\n", n_, NBITS, size(), SHIFT);
+        std::fprintf(stderr, "I have %zu elements allocated which each hold %zu bits. Total size is %zu. log2(nbits=%zu)\n", data_.size(), NBITS, size(), SHIFT);
         randomize(seed);
     }
-    CompactRademacher(CompactRademacher<T, FloatType> &&other) {
-        std::memset(this, 0, sizeof(this));
-        std::swap(data_, other.data_);
-        std::swap(n_, other.n_);
-        std::swap(m_, other.m_);
-    }
-    CompactRademacher(const CompactRademacher<T, FloatType> &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(std::malloc(sizeof(T) * n_))) {
-        if(data_ == nullptr) throw std::bad_alloc();
-        std::memcpy(data_, other.data_, sizeof(T) * n_);
-    }
+    CompactRademacher(CompactRademacher &&other) = default;
+    CompactRademacher(const CompactRademacher &other) = default;
     // For setting to random values
-    auto *data() {return data_;}
-    const auto *data() const {return data_;}
+    auto *data() {return data_.data();}
+    const auto *data() const {return data_.data();}
     // For use
-    auto size() const {return n_ << SHIFT;}
-    auto capacity() const {return m_ << SHIFT;}
-    auto nwords() const {return n_;}
+    auto size() const {return data_.size() << SHIFT;}
+    auto capacity() const {return data_.capacity() << SHIFT;}
+    auto nwords() const {return data_.size();}
     auto nbytes() const {return size();}
     template<typename OWordType, typename OFloatType>
     bool operator==(const CompactRademacher<OWordType, OFloatType> &other) const {
         if(size() != other.size()) return false;
         auto odata = other.data();
-        for(size_t i(0);i < n_; ++i)
+        for(size_t i(0);i < data_.size(); ++i)
             if(data_[i] != odata[i])
                 return false;
         return true;
     }
     void randomize(uint64_t seed) {
-        random_fill(reinterpret_cast<uint64_t *>(data_), n_ * sizeof(uint64_t) / sizeof(T), seed);
+        random_fill(reinterpret_cast<uint64_t *>(data_.data()), data_.size() * sizeof(uint64_t) / sizeof(T), seed);
     }
-    void zero() {std::memset(data_, 0, sizeof(T) * (n_ >> SHIFT));}
+    void zero() {std::memset(data_.data(), 0, sizeof(T) * data_.size());}
     void reserve(size_t newsize) {
-        if(newsize & (newsize - 1)) throw std::runtime_error("newsize should be a power of two");
-        if(newsize > m_) {
-            auto tmp(static_cast<T*>(std::realloc(data_, sizeof(T) * (newsize >> SHIFT))));
-            if(tmp == nullptr) throw std::bad_alloc();
-            data_ = tmp;
-        }
+        data_.reserve(newsize);
     }
     int bool_idx(size_type idx) const {return !(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
 
@@ -119,14 +105,6 @@ public:
         throw std::runtime_error("Not Implemented!!!!");
     }
 
-
-    ~CompactRademacher(){
-#if 0
-        auto str = ::ks::sprintf("Deleting! I have %zu of elements allocated and %s available.\n", n_, size());
-        std::fprintf(stderr, "str: %p\n", str.data());
-#endif
-        std::free(data_);
-    }
 };
 
 template<typename SizeType=size_t, typename RNG=aes::AesCtr>
