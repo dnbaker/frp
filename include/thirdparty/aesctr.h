@@ -75,7 +75,7 @@ static inline void aesctr_seed_r(aesctr_state *state, uint64_t seed) {
 
 #undef AES_ROUND
 
-template<typename T>
+template<typename T, typename=std::enable_if_t<std::is_integral<T>::value>>
 static inline T aesctr_r(aesctr_state *state) {
   if (__builtin_expect(state->offset >= sizeof(__m128i) * AESCTR_UNROLL, 0)) {
     __m128i work[AESCTR_UNROLL];
@@ -103,7 +103,7 @@ static inline T aesctr_r(aesctr_state *state) {
   return output;
 }
 
-template<typename T>
+template<typename T, typename=std::enable_if_t<std::is_integral<T>::value>>
 static inline T aes_random_access_r(const aesctr_state *state, size_t count) {
     // Since AES generates 64-bit values, we have to select one of two results.
     static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(T);
