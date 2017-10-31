@@ -102,6 +102,26 @@ static inline uint64_t aesctr_r(aesctr_state *state) {
   return output;
 }
 
+// UNTESTED
+static inline uint64_t aes_random_access_r(aesctr_state *state, size_t count) {
+    // Since AES generates 64-bit values, we have to select one of two results.
+    const unsigned offset(count & 1);
+    uint64_t ret[2];
+    count >>= 1;
+    __m128i work;
+    union {
+        __m128i ret128;
+        uint64_t ret[2];
+    } ret;
+    const __m128i ctr(_mm_set_epi64x(0, count));
+    work = _mm_xor_si128(ctr, state->seed[0]);
+    for (int r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
+        work = _mm_aesenc_si128(work, state->seed[r]);
+    }
+    _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(work, state->seed[AESCTR_ROUNDS]));
+    return ret[offset];
+}
+
 static aesctr_state g_aesctr_state;
 
 static inline void aesctr_seed(uint64_t seed) {
