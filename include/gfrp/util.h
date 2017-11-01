@@ -76,7 +76,7 @@ auto meanvar(const Container &c) {
     } else {
         for(const auto entry: c) sum += entry, varsum += entry * entry;
     }
-    const auto inv(static_cast<FloatType>(1)/c.size());
+    const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
     varsum -= sum * sum * inv;
     varsum *= inv;
     sum *= inv;

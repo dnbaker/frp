@@ -99,7 +99,7 @@ void mempluseq<int8_t>(int8_t *data, size_t nelem, int8_t val) {
         nelem -= (sizeof(ValType) / sizeof(NumType)); // Move ahead and skip that many elements
         data += (sizeof(ValType) / sizeof(NumType));
     }
-    while(nelem--) *data++ += val;
+    while(nelem--) *data = (int8_t)(*data + val), ++data;
 #undef load_fn
 #undef add_fn
 #undef store_fn
@@ -136,7 +136,10 @@ void mempluseq<int16_t>(int16_t *data, size_t nelem, int16_t val) {
         nelem -= (sizeof(ValType) / sizeof(NumType)); // Move ahead and skip that many elements
         data += (sizeof(ValType) / sizeof(NumType));
     }
-    while(nelem--) *data++ += val;
+    while(nelem--) {
+        *data = (int16_t)((int16_t)(*data) + val);
+         ++data;
+    }
 #undef load_fn
 #undef add_fn
 #undef store_fn
@@ -333,7 +336,7 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
             for(size_t i = 0, ncolumns = b.columns(); i < ncolumns; ++i) {
                 auto mcolumn(column(b, i));
                 auto meanvarpair(meanvar(mcolumn)); // mean.first = mean, mean.second = var
-                const auto invsqrt(1./std::sqrt(meanvarpair.second * b.rows()));
+                const auto invsqrt(1./std::sqrt(meanvarpair.second * static_cast<double>(b.rows())));
                 mcolumn -= meanvarpair.first;
                 mcolumn *= invsqrt;
             }
@@ -358,7 +361,7 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
                 auto mrow(row(b, i));
                 const auto meanvarpair(meanvar(mrow)); // mean.first = mean, mean.second = var
                 mrow -= meanvarpair.first;
-                mrow *= 1./std::sqrt(meanvarpair.second * b.columns());
+                mrow *= 1./std::sqrt(meanvarpair.second * static_cast<double>(b.columns()));
             }
         }
     }

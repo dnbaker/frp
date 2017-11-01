@@ -20,25 +20,8 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-    const size_t len(argc == 1 ? 1 << 16 : std::atoi(argv[1]));
-    const size_t niter(argc <= 2 ? 1 << 13: std::atoi(argv[2]));
+    const unsigned len(argc == 1 ? 1 << 16 : std::atoi(argv[1]));
     DynamicVector<FLOAT_TYPE> vec(len);
     DynamicVector<FLOAT_TYPE> ret(len);
     for(auto &el: vec) el = FLOAT_TYPE(std::rand()) / RAND_MAX;
-    std::cerr << "Int mults:";
-    auto radint(make_rademacher<DynamicVector<int>>(len));
-    {
-        Timer timer;
-        for(size_t i(0); i < niter; ++i) {
-            ret = vec * radint;
-        }
-    }
-    std::cerr << "Float mults:";
-    auto radf(make_rademacher<DynamicVector<FLOAT_TYPE>>(len));
-    {
-        Timer timer;
-        for(size_t i(0); i < niter; ++i) {
-            ret = vec * radf;
-        }
-    }
 }

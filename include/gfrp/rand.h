@@ -15,7 +15,7 @@ struct RandTwister {
 
     static const ResultType MAX     = std::mt19937_64::max();
     static const ResultType MIN     = std::mt19937_64::min();
-    static constexpr double MAX_INV = 1. / MAX;
+    static constexpr double MAX_INV = 1. / static_cast<double>(MAX);
 
     RandTwister(ResultType seed=std::rand()): twister_(seed) {}
     void seed(ResultType seed) {twister_.seed(seed);}
@@ -90,7 +90,7 @@ static inline uint64_t random_bounded_nearlydivisionless64(uint64_t range, Rando
       leftover = (uint64_t)multiresult;
     }
   }
-  return multiresult >> 64; // [0, range)
+  return static_cast<uint64_t>(multiresult >> 64); // [0, range)
 }
 
 static inline uint64_t random_bounded_nearlydivisionless64(uint64_t range) {
