@@ -36,26 +36,17 @@ typedef struct {
     state->seed[index] = k;                                                    \
   } while (0)
 
-static inline void aesctr_seed_r(aesctr_state *state, uint64_t seed) {
+template<size_t NROUNDS=AESCTR_ROUNDS>
+static inline void aesctr_seed_r(aesctr_state *state, __m128i k) {
   /*static const uint8_t rcon[] = {
       0x8d, 0x01, 0x02, 0x04,
       0x08, 0x10, 0x20, 0x40,
       0x80, 0x1b, 0x36
   };*/
-  __m128i k = _mm_set_epi64x(0, seed);
   state->seed[0] = k;
   // D. Lemire manually unrolled following loop since _mm_aeskeygenassist_si128
   // requires immediates
 
-  /*for(int i = 1; i <= AESCTR_ROUNDS; ++i)
-  {
-      __m128i k2 = _mm_aeskeygenassist_si128(k, rcon[i]);
-      k = _mm_xor_si128(k, _mm_slli_si128(k, 4));
-      k = _mm_xor_si128(k, _mm_slli_si128(k, 4));
-      k = _mm_xor_si128(k, _mm_slli_si128(k, 4));
-      k = _mm_xor_si128(k, _mm_shuffle_epi32(k2, _MM_SHUFFLE(3,3,3,3)));
-      state->seed[i] = k;
-  }*/
   AES_ROUND(0x01, 1);
   AES_ROUND(0x02, 2);
   AES_ROUND(0x04, 3);
@@ -70,7 +61,11 @@ static inline void aesctr_seed_r(aesctr_state *state, uint64_t seed) {
   for (int i = 0; i < AESCTR_UNROLL; ++i) {
     state->ctr[i] = _mm_set_epi64x(0, i);
   }
-  state->offset = 16 * AESCTR_UNROLL;
+  state->offset = sizeof(__m128i) * AESCTR_UNROLL;
+}
+
+static inline void aesctr_seed_r(aesctr_state *state, uint64_t seed) {
+    aesctr_seed_r(state, _mm_set_epi64x(0, seed));
 }
 
 #undef AES_ROUND
