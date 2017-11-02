@@ -31,7 +31,7 @@ using std::size_t;
   } while (0)
 
 
-template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=4, typename=std::enable_if_t<std::is_integral<GeneratedType>::value>>
+template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=8, typename=std::enable_if_t<std::is_integral<GeneratedType>::value>>
 class AesCtr {
     static const size_t AESCTR_ROUNDS = 10;
     uint8_t state_[sizeof(__m128i) * UNROLL_COUNT];
