@@ -13,3 +13,6 @@
 [submodule "fftw-wrapper"]
 	path = fftw-wrapper
 	url = https://github.com/dnbaker/fftw-wrapper
+[submodule "random"]
+	path = random
+	url = https://github.com/boostorg/random

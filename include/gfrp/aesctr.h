@@ -65,6 +65,10 @@ class AesCtr {
                   _mm_aesenclast_si128(work[ind], state.seed_[AESCTR_ROUNDS]));
           aes_unroll_impl<ind + 1, todo - 1>().add_store(work, state);
         }
+        void pluseq(__m128i *data, __m128i addn) {
+            data[ind] = _mm_add_epi64(data[ind], addn);
+            aes_unroll_impl<ind + 1, todo - 1>()(data, addn);
+        }
     };
     // Termination conditions
     template<size_t ind>
@@ -74,6 +78,7 @@ class AesCtr {
         template<size_t NUMROLL>
         void round_and_enc([[maybe_unused]] __m128i *ret, [[maybe_unused]] AesCtr &state) const {}
         void add_store([[maybe_unused]] __m128i *work, [[maybe_unused]] AesCtr &state) const {}
+        void pluseq([[maybe_unused]] __m128i *work, [[maybe_unused]] __m128i addn) const {}
     };
 
 public:
@@ -92,6 +97,13 @@ public:
         std::memcpy(&ret, state_ + offset_, sizeof(ret));
         offset_ += sizeof(result_type);
         return ret;
+    }
+    void fast_forward(uint64_t index) {
+        const __m128i new_offset =
+                           _mm_set_epi64x(0, (index & (UNROLL_COUNT - 1)) - (uint64_t)(ctr_[0]));
+        if(new_offset) {
+            aes_unroll_impl<0, UNROLL_COUNT>().pluseq(ctr_, new_offset);
+        }
     }
     result_type max() const {return std::numeric_limits<result_type>::max();}
     result_type min() const {return std::numeric_limits<result_type>::min();}
