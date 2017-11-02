@@ -39,7 +39,6 @@ bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} 
 int main(int argc, char *argv[]) {
     const std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                       niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));
-#if 0
     CompactRademacher<FLOAT_TYPE> cr(size);
     for(size_t i(0); i < cr.size(); ++i)
         std::cerr << "cr at index " << i << " is " << cr[i] << '\n';
@@ -70,23 +69,14 @@ int main(int argc, char *argv[]) {
             fht(out_dumb.data(), ln);
         }
     }
-    using SpinBlockType = SpinBlockTransformer<CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>, CompactRademacher<FLOAT_TYPE>>;
-    SpinBlockType spinner(size, size, size, CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size));
     std::mt19937_64 gen(0);
     std::shuffle(out.begin(), out.end(), gen);
     aes::AesCtr aesgen(0);
     std::shuffle(out.begin(), out.end(), aesgen);
     ScalingBlock<FLOAT_TYPE> sb(size);
-#endif
-#if 0
-    blaze::DynamicVector<float> tvec(size); // Full vector
-    blaze::DynamicVector<float> tmul(size); // Full vector
-    blaze::DynamicVector<float> tvout(size);
-#else
     blaze::DynamicVector<uint64_t> tvec(size); // Full vector
     blaze::DynamicVector<uint64_t> tmul(size); // Full vector
     blaze::DynamicVector<uint64_t> tvout(size);
-#endif
 #if 0
     PRNVector<std::mt19937_64, std::normal_distribution<float>> prn_vec(size, 0);
 #else
@@ -159,17 +149,17 @@ int main(int argc, char *argv[]) {
     std::cerr << sizes.str() << '\n';
     blaze::DynamicVector<float> v1(1000);
     v1 += float(4.);
+    for(size_t i(0); i < niter; ++i)
     {
         // Test random-access is working.
-        aes::AesCtr rng;
+        aes::AesCtr<uint64_t> rng;
         std::vector<uint64_t> seq;
-        std::vector<uint64_t> ram;
         seq.reserve(size);
-        ram.reserve(size);
         for(size_t i(0); i < size; ++i) seq.push_back(rng());
+        std::vector<uint64_t> ram;
+        ram.reserve(size);
         for(size_t i(0); i < size; ram.push_back(rng[i++]));
         for(size_t i(0); i < size; ++i) {
-            //fprintf(stderr, "Seq %zu ram %zu at ind %u\n", seq[i], ram[i], unsigned(i + 1));
             assert(seq[i] == ram[i]);
         }
     }

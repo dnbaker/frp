@@ -76,7 +76,7 @@ public:
     CompactRademacher(CompactRademacher &&other) = default;
     CompactRademacher(const CompactRademacher &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(std::malloc(sizeof(T) * m_))) {
         if(data_ == nullptr) throw std::bad_alloc();
-        std::memcpy(data_, other.data_, sizeof(T) * n_);
+        std::memcpy(data_.get(), other.data_, sizeof(T) * n_);
     }
     // For setting to random values
     auto *data() {return data_;}
@@ -108,7 +108,7 @@ public:
             data_ = tmp;
         }
     }
-    int bool_idx(size_type idx) const {return !(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
+    int bool_idx(size_type idx) const {return !(data_.get()[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
 
     FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
     int at(size_type idx) const {return ivalues_[bool_idx(idx)];}

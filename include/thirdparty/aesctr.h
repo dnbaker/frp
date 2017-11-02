@@ -16,9 +16,15 @@ using std::uint64_t;
 using std::uint8_t;
 using std::size_t;
 
+#ifndef AESCTR_UNROLL
 #define AESCTR_UNROLL 4
+#endif
+#ifndef AESCTR_ROUNDS
 #define AESCTR_ROUNDS 10
+#endif
 
+
+// TODO: Fully template this.
 typedef struct {
   uint8_t state[16 * AESCTR_UNROLL];
   __m128i ctr[AESCTR_UNROLL];
@@ -36,7 +42,6 @@ typedef struct {
     state->seed[index] = k;                                                    \
   } while (0)
 
-template<size_t NROUNDS=AESCTR_ROUNDS>
 static inline void aesctr_seed_r(aesctr_state *state, __m128i k) {
   /*static const uint8_t rcon[] = {
       0x8d, 0x01, 0x02, 0x04,
@@ -70,26 +75,49 @@ static inline void aesctr_seed_r(aesctr_state *state, uint64_t seed) {
 
 #undef AES_ROUND
 
-template<typename T, typename=std::enable_if_t<std::is_integral<T>::value>>
+template<size_t ind, size_t todo>
+struct aes_unroll_impl {
+    operator()(__m128i *ret, aesctr_state *state) const {
+        ret[ind] = _mm_xor_si128(state->ctr[ind], state->seed[0]);
+        aes_unroll_impl<ind + 1, todo - 1>()(ret, state);
+    }
+    void aesenc(__m128i *ret, __m128i subkey) const {
+        ret[ind] = _mm_aesenc_si128(ret[ind], subkey);
+        aes_unroll_impl<ind + 1, todo - 1>().aesenc(ret, subkey);
+    }
+    template<size_t NUMROLL>
+    void round_and_enc(__m128i *ret, aesctr_state *state) const {
+        const __m128i subkey = state->seed[ind];
+        aes_unroll_impl<0, NUMROLL>().aesenc(ret, subkey);
+        aes_unroll_impl<ind + 1, todo - 1>().template round_and_enc<NUMROLL>(ret, state);
+    }
+    void add_store(__m128i *work, aesctr_state *state) const {
+      state->ctr[ind] =
+          _mm_add_epi64(state->ctr[ind], _mm_set_epi64x(0, AESCTR_UNROLL));
+          _mm_storeu_si128(
+              (__m128i *)&state->state[16 * ind],
+              _mm_aesenclast_si128(work[ind], state->seed[AESCTR_ROUNDS]));
+      aes_unroll_impl<ind + 1, todo - 1>().add_store(work, state);
+    }
+};
+
+template<size_t ind>
+struct aes_unroll_impl<ind, 0> {
+    operator()(__m128i *ret, aesctr_state *state) const {}
+    void aesenc(__m128i *ret, __m128i subkey) const {}
+    template<size_t NUMROLL>
+    void round_and_enc(__m128i *ret, aesctr_state *state) const {}
+    void add_store(__m128i *work, aesctr_state *state) const {}
+};
+
+template<typename T, size_t aes_unroll_ct=AESCTR_UNROLL,
+         typename=std::enable_if_t<std::is_integral<T>::value>>
 static inline T aesctr_r(aesctr_state *state) {
   if (__builtin_expect(state->offset >= sizeof(__m128i) * AESCTR_UNROLL, 0)) {
-    __m128i work[AESCTR_UNROLL];
-    for (int i = 0; i < AESCTR_UNROLL; ++i) {
-      work[i] = _mm_xor_si128(state->ctr[i], state->seed[0]);
-    }
-    for (int r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
-      const __m128i subkey = state->seed[r];
-      for (int i = 0; i < AESCTR_UNROLL; ++i) {
-        work[i] = _mm_aesenc_si128(work[i], subkey);
-      }
-    }
-    for (int i = 0; i < AESCTR_UNROLL; ++i) {
-      state->ctr[i] =
-          _mm_add_epi64(state->ctr[i], _mm_set_epi64x(0, AESCTR_UNROLL));
-      _mm_storeu_si128(
-          (__m128i *)&state->state[16 * i],
-          _mm_aesenclast_si128(work[i], state->seed[AESCTR_ROUNDS]));
-    }
+    __m128i work[aes_unroll_ct];
+    aes_unroll_impl<0, aes_unroll_ct>()(work, state);
+    aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<aes_unroll_ct>(work, state);
+    aes_unroll_impl<0, aes_unroll_ct>().add_store(work, state);
     state->offset = 0;
   }
   T output;
@@ -122,16 +150,17 @@ static inline void aesctr_seed(uint64_t seed) {
 
 static inline uint64_t aesctr() { return aesctr_r<uint64_t>(&g_aesctr_state); }
 
-template<typename result_type=uint64_t, typename=std::enable_if_t<std::is_integral<result_type>::value>>
+template<typename GeneratedType=uint64_t, size_t unroll_size=4, typename=std::enable_if_t<std::is_integral<GeneratedType>::value>>
 class AesCtr {
     // Todo: template this to provide random bits of various sizes.
     aesctr_state ctr_;
 public:
+    using result_type = GeneratedType;
     AesCtr(uint64_t seed=0): ctr_{{0}, {0}, {0}, 0} {
         aesctr_seed_r(&ctr_, seed);
     }
     result_type operator()() {
-        return aesctr_r<result_type>(&ctr_);
+        return aesctr_r<result_type, unroll_size>(&ctr_);
     }
     void seed(uint64_t seedval) {
         aesctr_seed_r(&ctr_, seedval);
