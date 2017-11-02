@@ -34,7 +34,7 @@ struct SDBlock {
     //size_t k_, n_, m_;
     // n_: dimension of data we're projecting up or down.
     // k_: ultimate size of the space to which we're projecting.
-    // m_: The size of 
+    // m_: The size of each sub-block
     SDBlock(StructMat &&s, DiagMat &&d): s_(std::forward<StructMat>(s)), d_(std::forward<DiagMat>(d))
     {
         assert(s_.size() == d_.size());

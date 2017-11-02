@@ -2,10 +2,11 @@
 #define _GFRP_STACKSTRUCT_H__
 #include "gfrp/util.h"
 #include "FFHT/fht.h"
+#include "fftw-wrapper/fftw_wrapper.h"
 
 namespace gfrp {
 
-template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation>
+template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
 void fht(VecType<FloatType, VectorOrientation> &vec) {
     throw std::runtime_error("NotImplemented.");
 }
@@ -49,7 +50,7 @@ void fht(const VecType1 &in, VecType2 &out) {
     }
 }
 
-template<typename FloatType>
+template<typename FloatType, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
 struct HadamardBlock {
     size_t n_;
     size_t pow2up_;
@@ -70,6 +71,29 @@ struct HadamardBlock {
         throw std::runtime_error("NotImplemented.");
     }
     HadamardBlock(size_t n): n_(n), pow2up_(roundup64(n_)) {}
+};
+
+template<typename FloatType, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
+struct DCTBlock {
+    fft::FFTWDispatcher<FloatType> fft_;
+    DCTBlock(int n, bool from_c=false, bool to_c=false, fft::tx=fft::REDFT10): fft_(n) {}
+
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) {
+        throw std::runtime_error("NotImplemented.");
+    }
+
+    template<typename OutVector>
+    void apply(OutVector &out) {
+        if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
+            throw std::runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
+        }
+        if(out.size() & (out.size() - 1) == 0) {
+            fht(&out[0], log2_64(out.size()));
+            return;
+        }
+        throw std::runtime_error("NotImplemented.");
+    }
 };
 
 
