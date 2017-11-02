@@ -7,8 +7,10 @@
 // contributed by Samuel Neves
 
 #include <cstddef>
+#include <limits>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 #include <immintrin.h>
 
 namespace aes {
