@@ -41,7 +41,7 @@ class AesCtr {
     // Unrollers
     template<size_t ind, size_t todo>
     struct aes_unroll_impl {
-        operator()(__m128i *ret, AesCtr &state) const {
+        void operator()(__m128i *ret, AesCtr &state) const {
             ret[ind] = _mm_xor_si128(state.ctr_[ind], state.seed_[0]);
             aes_unroll_impl<ind + 1, todo - 1>()(ret, state);
         }
@@ -67,11 +67,11 @@ class AesCtr {
     // Termination conditions
     template<size_t ind>
     struct aes_unroll_impl<ind, 0> {
-        operator()(__m128i *ret, AesCtr &state) const {}
-        void aesenc(__m128i *ret, __m128i subkey) const {}
+        void operator()([[maybe_unused]] __m128i *ret, [[maybe_unused]] AesCtr &state) const {}
+        void aesenc([[maybe_unused]] __m128i *ret, [[maybe_unused]] __m128i subkey) const {}
         template<size_t NUMROLL>
-        void round_and_enc(__m128i *ret, AesCtr &state) const {}
-        void add_store(__m128i *work, AesCtr &state) const {}
+        void round_and_enc([[maybe_unused]] __m128i *ret, [[maybe_unused]] AesCtr &state) const {}
+        void add_store([[maybe_unused]] __m128i *work, [[maybe_unused]] AesCtr &state) const {}
     };
 
 public:
@@ -81,12 +81,13 @@ public:
     }
     result_type operator()() {
         if (__builtin_expect(offset_ >= sizeof(__m128i) * UNROLL_COUNT, 0)) {
-          aes_unroll_impl<0, UNROLL_COUNT>()(work, *this);
-          aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work, *this);
-          aes_unroll_impl<0, UNROLL_COUNT>().add_store(work, *this);
-          offset_ = 0;
+            aes_unroll_impl<0, UNROLL_COUNT>()(work, *this);
+            aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work, *this);
+            aes_unroll_impl<0, UNROLL_COUNT>().add_store(work, *this);
+            offset_ = 0;
         }
-        const auto ret(*reinterpret_cast<result_type *>(state_[offset_]));
+        result_type ret;
+        std::memcpy(&ret, state_ + offset_, sizeof(ret));
         offset_ += sizeof(result_type);
         return ret;
     }
@@ -111,9 +112,7 @@ public:
       AES_ROUND(0x1b, 9);
       AES_ROUND(0x36, 10);
 
-      for (int i = 0; i < UNROLL_COUNT; ++i) {
-          ctr_[i] = _mm_set_epi64x(0, i);
-      }
+      for (unsigned i = 0; i < UNROLL_COUNT; ++i) ctr_[i] = _mm_set_epi64x(0, i);
       offset_ = sizeof(__m128i) * UNROLL_COUNT;
     }
     result_type operator[](size_t count) const {
@@ -123,7 +122,7 @@ public:
         result_type ret[DIV];
         count /= DIV;
         __m128i tmp(_mm_xor_si128(_mm_set_epi64x(0, count), seed_[0]));
-        for (int r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
+        for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
             tmp = _mm_aesenc_si128(tmp, seed_[r]);
         }
         _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
