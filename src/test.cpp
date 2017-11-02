@@ -40,9 +40,11 @@ int main(int argc, char *argv[]) {
     const std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                       niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));
     CompactRademacher<FLOAT_TYPE> cr(size);
+#if 0
     for(size_t i(0); i < cr.size(); ++i)
         std::cerr << "cr at index " << i << " is " << cr[i] << '\n';
     fprintf(stderr, "size: %zu\n", size);
+#endif
     std::vector<double> out(size);
     fft::FFTWDispatcher<double> disp(out.size(), false, false, fft::tx::R2HC);
     disp.make_plan(out.data(), out.data());
