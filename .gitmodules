@@ -1,18 +1,23 @@
 [submodule "FFHT"]
 	path = FFHT
 	url = https://github.com/dnbaker/FFHT
+    branch = master
 [submodule "fastrange"]
 	path = fastrange
 	url = https://github.com/lemire/fastrange
+    branch = master
 [submodule "blaze"]
 	path = blaze
 	url = https://bitbucket.org/blaze-lib/blaze.git
+    branch = master
 [submodule "kspp"]
 	path = kspp
 	url = https://github.com/dnbaker/kspp
+    branch = master
 [submodule "fftw_wrapper"]
 	path = zomg
 	url = https://github.com/dnbaker/fftw_wrapper
+    branch = master
 [submodule "random"]
     branch = develop
 	path = random
