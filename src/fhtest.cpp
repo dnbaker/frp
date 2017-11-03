@@ -14,6 +14,6 @@ int main(int argc, char *argv[]) {
     unormd<double> vals;
     for(auto &el: dps) el = vals(aes);
     std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
-    //gfrp::fht(&dps[0], log2_64(size));
+    gfrp::fht(dps);
     std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
 }
