@@ -1,6 +1,7 @@
 #include <random>
 #include "gfrp/gfrp.h"
 #include "random/include/boost/random/normal_distribution.hpp"
+using namespace gfrp;
 
 template<typename... Types>                                                        
 using unormd = boost::random::detail::unit_normal_distribution<Types...>;
@@ -16,4 +17,12 @@ int main(int argc, char *argv[]) {
     std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
     gfrp::fht(dps);
     std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
+    blaze::DynamicVector<double> sizes(niter);
+    for(auto &el: sizes) {
+        fht(&dps[0], log2_64(size));
+        dps *= 1./std::sqrt(size);
+        std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
+        el = gfrp::sum(dps);
+    }
+    std::cerr << sizes << '\n';
 }
