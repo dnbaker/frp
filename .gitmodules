@@ -11,5 +11,5 @@
 	path = kspp
 	url = https://github.com/dnbaker/kspp
 [submodule "fftw-wrapper"]
-	path = fftw-wrapper
+	path = fftw_wrapper
 	url = https://github.com/dnbaker/fftw-wrapper
