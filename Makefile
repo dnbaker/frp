@@ -27,7 +27,7 @@ OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
 
-EX=$(patsubst src/%.fo,f%,$(EXEC_OBJS)) $(patsubst src/%.o,d%,$(EXEC_OBJS))
+EX=$(patsubst src/%.fo,f%,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 
 
 # If compiling with c++ < 17 and your compiler does not provide
@@ -55,7 +55,7 @@ test/%.o: test/%.cpp $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-d%: src/%.o $(OBJS)
+%: src/%.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 f%: src/%.fo $(OBJS)

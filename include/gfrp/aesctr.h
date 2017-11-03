@@ -14,6 +14,7 @@
 #include <immintrin.h>
 
 namespace aes {
+
 using std::uint64_t;
 using std::uint8_t;
 using std::size_t;
