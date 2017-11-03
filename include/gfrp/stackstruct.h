@@ -2,7 +2,7 @@
 #define _GFRP_STACKSTRUCT_H__
 #include "gfrp/util.h"
 #include "FFHT/fht.h"
-#include "fftw_wrapper/fftw_wrapper.h"
+#include "fftwrapper/fftwrapper.h"
 
 namespace gfrp {
 

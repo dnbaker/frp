@@ -1,5 +1,6 @@
 #include <random>
 #include "gfrp/gfrp.h"
+#include "fftwrapper/fftwrapper.h"
 #include "random/include/boost/random/normal_distribution.hpp"
 using namespace gfrp;
 
@@ -25,4 +26,14 @@ int main(int argc, char *argv[]) {
         el = gfrp::sum(dps);
     }
     std::cerr << sizes << '\n';
+    fft::FFTWDispatcher<float> disp(size);
+    disp.make_plan(&dps[0], &dps[0]);
+    disp.run(&dps[0], &dps[0]);
+    for(size_t i(0); i < size; ++i) {
+        disp.run(&dps[0], &dps[0]);
+        std::cerr << dps << '\n';
+        sizes[i] = gfrp::sum(dps);
+        std::cerr << "ratio: " << sizes[i] / sizes[i == 0 ? i : i - 1] << '\n';
+    }
+    std::cerr << sizes;
 }

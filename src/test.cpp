@@ -5,7 +5,7 @@
 #include <cassert>
 #include "gfrp/gfrp.h"
 #include "FFHT/fht.h"
-#include "fftw_wrapper/fftw_wrapper.h"
+#include "fftwrapper/fftwrapper.h"
 
 using namespace std::chrono;
 
