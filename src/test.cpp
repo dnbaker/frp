@@ -1,7 +1,7 @@
 #include "gfrp/gfrp.h"
 #include "FFHT/fht.h"
 #include <iostream>
-#include "fftw-wrapper/fftw_wrapper.h"
+#include "fftw_wrapper/fftw_wrapper.h"
 #include <cstdlib>
 #include <cstring>
 #include <chrono>
@@ -33,7 +33,6 @@ public:
     ~Timer() {stop(); /* hammertime */ report();}
 };
 
-template<typename T>
 bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
 
 int main(int argc, char *argv[]) {

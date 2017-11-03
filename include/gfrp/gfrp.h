@@ -13,5 +13,6 @@
 #include "gfrp/scaling.h"
 #include "gfrp/stackstruct.h"
 #include "gfrp/jl.h"
+#include "gfrp/aesctr.h"
 
 #endif

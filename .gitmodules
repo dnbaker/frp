@@ -10,9 +10,9 @@
 [submodule "kspp"]
 	path = kspp
 	url = https://github.com/dnbaker/kspp
-[submodule "fftw-wrapper"]
+[submodule "fftw_wrapper"]
 	path = fftw_wrapper
-	url = https://github.com/dnbaker/fftw-wrapper
+	url = https://github.com/dnbaker/fftw_wrapper
 [submodule "random"]
 	path = random
 	url = https://github.com/boostorg/random

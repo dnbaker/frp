@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 #include <climits>
+#include <type_traits>
+#include <tuple>
 #include <cstdint>
 #include "kspp/ks.h"
 #include "FFHT/fast_copy.h"
@@ -69,6 +71,11 @@ auto mean(const Container &c) {
 }
 
 template<class Container>
+auto sum(const Container &c) {
+    return std::accumulate(c.begin(), c.end(), static_cast<std::decay_t<decltype(*c.begin())>>(0));
+}
+
+template<class Container>
 auto meanvar(const Container &c) {
     using FloatType = std::decay_t<decltype(c[0])>;
     FloatType sum(0.), varsum(0.0);
@@ -76,7 +83,7 @@ auto meanvar(const Container &c) {
         for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
     } else {
         for(const auto entry: c) sum += entry, varsum += entry * entry;
-    }
+    
     const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
     varsum -= sum * sum * inv;
     varsum *= inv;
