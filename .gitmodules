@@ -15,10 +15,10 @@
 	url = https://github.com/dnbaker/kspp
     branch = master
 [submodule "fftw_wrapper"]
-	path = zomg
+	path = fftw_wrapper
 	url = https://github.com/dnbaker/fftw_wrapper
     branch = master
 [submodule "random"]
-    branch = develop
 	path = random
 	url = https://github.com/boostorg/random
+    branch = develop
