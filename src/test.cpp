@@ -33,6 +33,7 @@ public:
     ~Timer() {stop(); /* hammertime */ report();}
 };
 
+template<typename T>
 bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
 
 int main(int argc, char *argv[]) {
