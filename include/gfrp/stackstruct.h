@@ -3,7 +3,6 @@
 #include "gfrp/util.h"
 #include "FFHT/fht.h"
 #include "fftw3.h"
-#include "fftwrapper/fftwrapper.h"
 
 namespace gfrp {
 
@@ -167,6 +166,7 @@ struct RFFTBlock {
     }
     std::string fname_wisdom(const char *prefix) const {return std::string(prefix) + WISDOM_PATH;}
     void resize(int n) {
+        if(n == n_) return;
         n = n_;
         blaze::DynamicVector<FloatType> tmpvec(n);
         auto ptr1(&tmpvec[0]);
@@ -174,7 +174,7 @@ struct RFFTBlock {
         destroy();
         plan_ = fft::FFTTypes<FloatType>::r2rplan1d(n_, ptr1, ptr2, R2R_KIND, FLAGS);
     }
-    RFFTBlock(int n, bool oop=false): plan_(nullptr), n_(n), oop_(oop) {
+    RFFTBlock(int n, bool oop=false): plan_(nullptr), n_(0), oop_(oop) {
         resize(n);
         if(std::experimental::filesystem::exists(WISDOM_PATH)) {
             fftw_import_wisdom_from_filename(WISDOM_PATH);
@@ -223,8 +223,17 @@ struct RFFTBlock {
 template<typename FloatType, int FLAGS=FFTW_PATIENT>
 struct DCTBlock: public RFFTBlock<FloatType, FFTW_REDFT10, FLAGS> {
     static constexpr const char *WISDOM_PATH = "wisdom/DCTBlock.wisdom";
-    template<typename... Args>
-    DCTBlock(Args &&... args): RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(std::forward<Args>(args)...) {}
+    template<typename... Args> DCTBlock(Args &&... args):
+        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(std::forward<Args>(args)...)
+        {}
+};
+
+template<typename FloatType, int FLAGS=FFTW_PATIENT>
+struct IDCTBlock: public RFFTBlock<FloatType, FFTW_REDFT01, FLAGS> {
+    static constexpr const char *WISDOM_PATH = "wisdom/IDCTBlock.wisdom";
+    template<typename... Args> IDCTBlock(Args &&... args):
+        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(std::forward<Args>(args)...)
+        {}
 };
 
 } // namespace gfrp

@@ -21,7 +21,7 @@ XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f
-LD=-L.
+LD=-L. -Lfftw-3.3.7
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
@@ -66,6 +66,17 @@ test/%.o: test/%.cpp $(OBJS)
 
 %.o: FFHT/%.c
 	cd FFHT && make $@ && cp $@ .. && cd ..
+
+fftw-3.3.7: fftw-3.3.7.tar.gz
+	tar -zxvf fftw-3.3.7.tar.gz
+
+fftw3.h: fftw-3.3.7
+	cd fftw-3.3.7 && \
+	./configure --enable-avx2 --prefix=$$PWD && make && make install && \
+	./configure --enable-avx2 --prefix=$$PWD --enable-long-double && make && make install &&\
+	./configure --enable-avx2 --prefix=$$PWD --enable-single && make && make install &&\
+	cp api/fftw3.h .. && cd ..
+
 
 tests: clean unit
 

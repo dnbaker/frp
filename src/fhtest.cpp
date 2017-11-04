@@ -1,6 +1,5 @@
 #include <random>
 #include "gfrp/gfrp.h"
-#include "fftwrapper/fftwrapper.h"
 #include "random/include/boost/random/normal_distribution.hpp"
 using namespace gfrp;
 
