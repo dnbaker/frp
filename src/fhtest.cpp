@@ -29,19 +29,9 @@ int main(int argc, char *argv[]) {
     }
     std::cerr << sizes << '\n';
     std::cerr << "now fft\n";
-    auto fplan(fftwf_plan_r2r_1d((int)size, a, b, (fftwf_r2r_kind)fft::REDFT10, FFTW_MEASURE));
-    fftwf_execute(fplan);
-    std::cerr << dps << '\n';
-    std::cerr << dpsout << '\n';
-    for(size_t i(0); i < size; ++i) {
-        std::swap(a, b);
-        fftwf_execute(fplan);
-        // Run
-        std::cerr << dps << '\n';
-        std::cerr << dpsout << '\n';
-        sizes[i] = gfrp::sum(dps);
-        std::cerr << "ratio: " << sizes[i] / sizes[i == 0 ? i : i - 1] << '\n';
-    }
-    std::cerr << sizes;
-    fftwf_destroy_plan(fplan);
+    dpsout = dps;
+    DCTBlock<float> dcblock((int)size, dps.data(), dps.data());
+    std::cerr << 
+    dcblock.execute(dps.data(), dps.data());
+    dcblock.execute(dps.data(), dps.data());
 }
