@@ -58,7 +58,6 @@ class CompactRademacher {
     std::unique_ptr<T, free_delete> data_;
 
     static constexpr FloatType values_[2] {1, -1};
-    static constexpr int32_t  ivalues_[2] {1, -1};
     static constexpr size_t NBITS = sizeof(T) * CHAR_BIT;
     static constexpr size_t SHIFT = log2_64(NBITS);
     static constexpr size_t BITMASK = NBITS - 1;
@@ -77,6 +76,18 @@ public:
     CompactRademacher(const CompactRademacher &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(std::malloc(sizeof(T) * m_))) {
         if(data_ == nullptr) throw std::bad_alloc();
         std::memcpy(data_.get(), other.data_, sizeof(T) * n_);
+    }
+    template<typename AsType>
+    class CompactAs {
+        static constexpr AsType values[2] {static_cast<AsType>(1), static_cast<AsType>(-1)};
+        const CompactRademacher &ref_;
+    public:
+        CompactAs(const CompactRademacher &ref): ref_(ref) {}
+        AsType operator[](size_t index) const {return values[ref_.bool_idx(index)];}
+    };
+    template<typename AsType>
+    CompactAs<AsType> as_type() {
+        return CompactAs<AsType>(*this);
     }
     // For setting to random values
     auto *data() {return data_;}
@@ -111,7 +122,6 @@ public:
     int bool_idx(size_type idx) const {return !(data_.get()[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
 
     FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
-    int at(size_type idx) const {return ivalues_[bool_idx(idx)];}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
         static_assert(std::is_same<std::decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");

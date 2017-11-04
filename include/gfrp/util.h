@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <tuple>
 #include <cstdint>
+#include <experimental/filesystem>
 #include "kspp/ks.h"
 #include "FFHT/fast_copy.h"
 #include "blaze/Math.h"

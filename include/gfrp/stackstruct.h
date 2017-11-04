@@ -150,55 +150,82 @@ struct HadamardBlock {
 
 
 
-template<typename FloatType, fftw_r2r_kind R2R_KIND, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
+template<typename FloatType, fftw_r2r_kind R2R_KIND, int FLAGS=FFTW_PATIENT>
 struct RFFTBlock {
+    static_assert(std::is_floating_point<FloatType>::value, "RFFTBlock must be floating point.");
     using fftplan_t = typename fft::FFTTypes<FloatType>::PlanType;
+    static constexpr const char *WISDOM_PATH = "wisdom/RFFTBlock.wisdom";
 
     fftplan_t plan_;
+    int n_;
+    const bool oop_;
     // Real FFT block
-    RFFTBlock(int n, FloatType *a, FloatType *b=nullptr): plan_(nullptr) {
-        resize(n, a, b);
-    }
-    void resize(int n, FloatType *a, FloatType *b=nullptr) {
-        if(a == nullptr) {
-            blaze::DynamicVector<FloatType> tmpvec(n);
-            a = &tmpvec[0];
-        }
-        if(b == nullptr) b = a;
-        destroy();
-        plan_ = fft::FFTTypes<FloatType>::r2rplan1d(n, a, b, R2R_KIND, FFTW_MEASURE);
-    }
     void destroy() {
         if(plan_) {
             fft::FFTTypes<FloatType>::destroy_fn(plan_);
         }
     }
+    std::string fname_wisdom(const char *prefix) const {return std::string(prefix) + WISDOM_PATH;}
+    void resize(int n) {
+        n = n_;
+        blaze::DynamicVector<FloatType> tmpvec(n);
+        auto ptr1(&tmpvec[0]);
+        auto ptr2(oop_ ? ptr1: &blaze::DynamicVector<FloatType>(n)[0]);
+        destroy();
+        plan_ = fft::FFTTypes<FloatType>::r2rplan1d(n_, ptr1, ptr2, R2R_KIND, FLAGS);
+    }
+    RFFTBlock(int n, bool oop=false): plan_(nullptr), n_(n), oop_(oop) {
+        resize(n);
+        if(std::experimental::filesystem::exists(WISDOM_PATH)) {
+            fftw_import_wisdom_from_filename(WISDOM_PATH);
+        }
+    }
+    template<typename VecType>
+    void execute(VecType &a) {
+        if(n_ != (int)a.size()) {
+            resize((int)a.size());
+        }
+        fft::FFTTypes<FloatType>::r2rexec(plan_, &a[0], &a[0]);
+        a *= std::sqrt(1./(a.size()<<1));
+    }
+    template<typename VecType1, typename VecType2>
+    void execute(const VecType1 &in, VecType2 &out) {
+        if(out.size() < in.size()) throw "ZOMG";
+        if(n_ != in.size()) {
+            resize((int)in.size());
+        }
+        fft::FFTTypes<FloatType>::r2rexec(plan_, &in[0], &out[0]);
+        out *= std::sqrt(1./(out.size()<<1));
+    }
     void execute(FloatType *a, FloatType *b) {
         if(plan_ == nullptr) throw std::runtime_error("ZOMG");
         fft::FFTTypes<FloatType>::r2rexec(plan_, a, b);
     }
-    ~RFFTBlock() {destroy();}
+    ~RFFTBlock() {
+        if(fftw_export_wisdom_to_filename(WISDOM_PATH) == 0) {
+            std::cerr << "Warning: could not export wisdom to " << WISDOM_PATH << '\n';
+        }
+        destroy();
+    }
 
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
-        throw std::runtime_error("NotImplemented.");
+        execute(in, out);
     }
 
     template<typename OutVector>
     void apply(OutVector &out) {
-        if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
-            throw std::runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
-        }
-        if(out.size() & (out.size() - 1) == 0) {
-            fht(&out[0], log2_64(out.size()));
-            return;
-        }
-        throw std::runtime_error("NotImplemented.");
+        execute(out);
     }
+
 };
 
-template<typename FloatType>
-using DCTBlock = RFFTBlock<FloatType, FFTW_REDFT10>;
+template<typename FloatType, int FLAGS=FFTW_PATIENT>
+struct DCTBlock: public RFFTBlock<FloatType, FFTW_REDFT10, FLAGS> {
+    static constexpr const char *WISDOM_PATH = "wisdom/DCTBlock.wisdom";
+    template<typename... Args>
+    DCTBlock(Args &&... args): RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(std::forward<Args>(args)...) {}
+};
 
 } // namespace gfrp
 

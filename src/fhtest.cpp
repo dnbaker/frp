@@ -4,6 +4,21 @@
 #include "random/include/boost/random/normal_distribution.hpp"
 using namespace gfrp;
 
+template<typename T>
+void print_vec(T &vec) {
+    std::string ret("[");
+    for(auto el: vec) ret += std::to_string(el) + ",";
+    ret.back() = '\n';
+    std::fputs(ret.data(), stderr);
+}
+
+
+template<typename T>
+float norm(T &a) {
+    //std::cerr << "val" << std::sqrt(blaze::dot(a, a)) << '\n';
+    return std::sqrt(blaze::dot(a, a));
+}
+
 template<typename... Types>                                                        
 using unormd = boost::random::detail::unit_normal_distribution<Types...>;
 
@@ -17,6 +32,7 @@ int main(int argc, char *argv[]) {
     aes::AesCtr aes(0);
     unormd<float> vals;
     for(auto &el: dps) el = vals(aes);
+#if 0
     std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
     gfrp::fht(dps);
     std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
@@ -29,9 +45,15 @@ int main(int argc, char *argv[]) {
     }
     std::cerr << sizes << '\n';
     std::cerr << "now fft\n";
-    dpsout = dps;
-    DCTBlock<float> dcblock((int)size, dps.data(), dps.data());
-    std::cerr << 
-    dcblock.execute(dps.data(), dps.data());
-    dcblock.execute(dps.data(), dps.data());
+    fast_copy(&dpsout[0], &dps[0], sizeof(float) * size);
+#endif
+    auto sumb(norm(dps));
+    DCTBlock<float> dcblock((int)size);
+    for(size_t i(0); i < niter; ++i) {
+        dcblock.execute(dps);
+        dcblock.execute(dps);
+        std::cerr << "Cur over start: " << norm(dps) / sumb << '\n';
+    }
+    auto suma(norm(dps));
+    std::cerr << "Ratio: " << suma / sumb;
 }

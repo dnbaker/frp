@@ -46,8 +46,6 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "size: %zu\n", size);
 #endif
     std::vector<double> out(size);
-    fft::FFTWDispatcher<double> disp(out.size(), false, false, fft::tx::R2HC);
-    disp.make_plan(out.data(), out.data());
     for(size_t j(0); j < out.size(); ++j) out[j] = cr[j];
     const auto ln(log2_64(size));
     {
@@ -59,8 +57,7 @@ int main(int argc, char *argv[]) {
     {
         Timer time("rad");
         for(size_t i(0); i < niter; ++i)
-            //fsm::rad_fht(cr, &ints[0], ln);
-            disp.run(out.data(), out.data());
+            fsm::rad_fht(cr.template as_type<int8_t>(), &ints[0], ln);
     }
     std::vector<double> out_dumb(size);
     for(size_t i(0); i < size; ++i) out_dumb[i] = cr[i];
