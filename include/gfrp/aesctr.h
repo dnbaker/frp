@@ -66,8 +66,13 @@ class AesCtr {
                   _mm_aesenclast_si128(work[ind], state.seed_[AESCTR_ROUNDS]));
           aes_unroll_impl<ind + 1, todo - 1>().add_store(work, state);
         }
-        void pluseq(__m128i *data, __m128i addn) {
+        template<typename T>
+        void pluseq(T *data, T addn) {
+#if __AVX2__
+            data[ind] = _mm256_add_epi64(data[ind], addn);
+#else
             data[ind] = _mm_add_epi64(data[ind], addn);
+#endif
             aes_unroll_impl<ind + 1, todo - 1>()(data, addn);
         }
     };
@@ -99,13 +104,25 @@ public:
         offset_ += sizeof(result_type);
         return ret;
     }
+#if 0
+    // This code is wrong but might be on the right track.
     void fast_forward(uint64_t index) {
-        const __m128i new_offset =
-                           _mm_set_epi64x(0, (index & (UNROLL_COUNT - 1)) - (uint64_t)(ctr_[0]));
-        if(new_offset) {
+        const uint64_t uval(index & ~(UNROLL_COUNT - 1));
+        if(uval) {
+#if __AVX2__
+            const __m256i new_offset = _mm256_set_epi64x(0, uval, 0, uval);
+            aes_unroll_impl<0, UNROLL_COUNT >> 1>().pluseq((__m256i *)ctr_, new_offset);
+            if constexpr(UNROLL_COUNT & 1) {
+                ctr_[UNROLL_COUNT - 1] = _mm_add_epi64(ctr_[UNROLL_COUNT - 1], _mm_set_epi64x(0, uval));
+            }
+#else
+            const __m128i new_offset = _mm_set_epi64x(0, uval);
             aes_unroll_impl<0, UNROLL_COUNT>().pluseq(ctr_, new_offset);
         }
+#endif
+        offset_ = (index - uval) * sizeof(__m128i);
     }
+#endif
     result_type max() const {return std::numeric_limits<result_type>::max();}
     result_type min() const {return std::numeric_limits<result_type>::min();}
     void seed(uint64_t k) {
