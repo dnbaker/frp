@@ -14,10 +14,6 @@
 	path = kspp
 	url = https://github.com/dnbaker/kspp
     branch = master
-[submodule "fftwrapper"]
-	path = fftwrapper
-	url = https://github.com/dnbaker/fftwrapper
-    branch = master
 [submodule "random"]
 	path = random
 	url = https://github.com/boostorg/random
