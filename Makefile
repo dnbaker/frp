@@ -20,8 +20,8 @@ OPT:=$(OPT) $(FLAGS)
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
-LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f
-LD=-L. -Lfftw-3.3.7
+LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f -lstdc++fs
+LD=-L. -Lfftw-3.3.7/lib
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
@@ -33,7 +33,7 @@ EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/
+INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
@@ -73,7 +73,7 @@ fftw-3.3.7: fftw-3.3.7.tar.gz
 fftw3.h: fftw-3.3.7
 	cd fftw-3.3.7 && \
 	./configure --enable-avx2 --prefix=$$PWD && make && make install && \
-	./configure --enable-avx2 --prefix=$$PWD --enable-long-double && make && make install &&\
+	./configure --prefix=$$PWD --enable-long-double && make && make install &&\
 	./configure --enable-avx2 --prefix=$$PWD --enable-single && make && make install &&\
 	cp api/fftw3.h .. && cd ..
 
