@@ -1,10 +1,8 @@
 #ifndef _GFRP_FSM_H__
 #define _GFRP_FSM_H__
+#include "gfrp/util.h"
 
-namespace fsm { // Fast structured multiplication
-
-using std::uint64_t;
-using std::uint32_t;
+namespace gfrp {namespace fsm { // Fast structured multiplication
 
 template<size_t POW> constexpr uint64_t POWER_2 = 1ull << POW;
 static const uint64_t POW2_LUT [] {
@@ -17,8 +15,8 @@ static const uint64_t POW2_LUT [] {
 // Modified from https://github.com/FALCONN-LIB/FFHT
 template<typename Source, typename DestType>
 void rad_fht(const Source &in, DestType out, uint64_t log_n) {
-    static_assert(std::is_same<std::decay_t<decltype(in[0])>, std::decay_t<decltype(out[0])>>::value, "Source must dereference to the same value as destination.");
-    using FloatType = std::decay_t<decltype(out[0])>;
+    static_assert(is_same<decay_t<decltype(in[0])>, decay_t<decltype(out[0])>>::value, "Source must dereference to the same value as destination.");
+    using FloatType = decay_t<decltype(out[0])>;
     const uint64_t n(_pow2(log_n));
     uint64_t i, j, k;
     FloatType tmp1, tmp2;
@@ -63,6 +61,6 @@ template<typename T>
 constexpr bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
 
 
-}
+}} // namespace gfrp::fsm
 
 #endif // #ifndef _GFRP_FSM_H__

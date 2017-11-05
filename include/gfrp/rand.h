@@ -1,6 +1,7 @@
 #ifndef _GRFP_RAND_H__
 #define _GRFP_RAND_H__
 #include <random>
+#include <ctime>
 #include "fastrange/fastrange.h"
 #include "include/thirdparty/fast_mutex.h"
 #include "gfrp/aesctr.h"
@@ -17,7 +18,7 @@ struct RandTwister {
     static const ResultType MIN     = std::mt19937_64::min();
     static constexpr double MAX_INV = 1. / static_cast<double>(MAX);
 
-    RandTwister(ResultType seed=std::rand()): twister_(seed) {}
+    RandTwister(ResultType seed=0): twister_(seed) {}
     void seed(ResultType seed) {twister_.seed(seed);}
     auto operator()()                              {return twister_();}
     auto operator()(std::mt19937_64 &engine) const {return engine();}
@@ -61,15 +62,15 @@ struct ThreadsafeRandTwister: public RandTwister {
         return ret;
     }
     // Generate a large number of random integers.
-    auto operator()(std::size_t n, ResultType *a) {
+    auto operator()(size_t n, ResultType *a) {
         lock_.lock();
         RandTwister::operator ()(n, a);
         lock_.unlock();
     }
 };
 
-static RandTwister random_twist(std::rand());
-static ThreadsafeRandTwister tsrandom_twist(std::rand());
+static RandTwister random_twist(std::time(nullptr));
+static ThreadsafeRandTwister tsrandom_twist(std::time(nullptr) + 1);
 
 // Based on https://github.com/lemire/FastShuffleExperiments/blob/master/cpp/rangedrand.h
 // map random value to [0,range) with slight bias, redraws to avoid bias if

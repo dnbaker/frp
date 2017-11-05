@@ -28,7 +28,7 @@ public:
     }
     void fill(uint64_t seed, bool orthogonalize=true) {
         aes::AesCtr rng(seed);
-        std::normal_distribution<FloatType> dist(0., std::sqrt(static_cast<FloatType>(m_)));
+        boost::random::detail::unit_normal_distribution<FloatType> dist;
         fill(rng, dist, orthogonalize);
     }
     template<typename InVec, typename OutVec>

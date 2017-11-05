@@ -1,16 +1,21 @@
 #ifndef _GFRP_UTIL_H__
 #define _GFRP_UTIL_H__
-#include <cstdlib>
-#include <cmath>
-#include <limits>
 #include <climits>
-#include <type_traits>
-#include <tuple>
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <experimental/filesystem>
+#include <limits>
+#include <memory>
+#include <tuple>
+#include <type_traits>
+#include <type_traits>
+#include <unordered_set>
 #include "kspp/ks.h"
 #include "FFHT/fast_copy.h"
 #include "blaze/Math.h"
+#include "random/include/boost/random/normal_distribution.hpp"
+#include "random/include/boost/random.hpp"
 
 #ifndef FLOAT_TYPE
 #define FLOAT_TYPE double
@@ -28,7 +33,30 @@ using std::int8_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
 using std::size_t;
-
+using std::enable_if_t;
+using std::decay_t;
+using std::memset;
+using std::memcpy;
+using std::malloc;
+using std::realloc;
+using std::unique_ptr;
+using std::is_arithmetic;
+using std::is_floating_point;
+using std::runtime_error;
+using std::bad_alloc;
+using std::unordered_set;
+using std::forward;
+using std::is_same;
+using std::FILE;
+using std::fprintf;
+using std::sprintf;
+using std::numeric_limits;
+using std::strstr;
+using std::atoi;
+using std::fclose;
+using std::exit;
+using std::cerr;
+using std::cout;
 
 inline constexpr uint64_t roundup(uint64_t x) {
     x--;
@@ -60,7 +88,7 @@ inline constexpr int log2_64(uint64_t value)
 
 template<class Container>
 auto mean(const Container &c) {
-    using FloatType = std::decay_t<decltype(c[0])>;
+    using FloatType = decay_t<decltype(c[0])>;
     FloatType sum(0.);
     if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
         for(const auto entry: c) sum += entry.value();
@@ -73,12 +101,12 @@ auto mean(const Container &c) {
 
 template<class Container>
 auto sum(const Container &c) {
-    return std::accumulate(c.begin(), c.end(), static_cast<std::decay_t<decltype(*c.begin())>>(0));
+    return std::accumulate(c.begin(), c.end(), static_cast<decay_t<decltype(*c.begin())>>(0));
 }
 
 template<class Container>
 auto meanvar(const Container &c) {
-    using FloatType = std::decay_t<decltype(c[0])>;
+    using FloatType = decay_t<decltype(c[0])>;
     FloatType sum(0.), varsum(0.0);
     if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
         for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();

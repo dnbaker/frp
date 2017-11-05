@@ -27,7 +27,7 @@ namespace gfrp {
  *
  */
 
-template<typename FloatType, typename StructMat, typename DiagMat, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
+template<typename FloatType, typename StructMat, typename DiagMat, typename=enable_if_t<is_floating_point<FloatType>::value>>
 struct SDBlock {
     StructMat s_;
     DiagMat   d_;
@@ -35,7 +35,7 @@ struct SDBlock {
     // n_: dimension of data we're projecting up or down.
     // k_: ultimate size of the space to which we're projecting.
     // m_: The size of each sub-block
-    SDBlock(StructMat &&s, DiagMat &&d): s_(std::forward<StructMat>(s)), d_(std::forward<DiagMat>(d))
+    SDBlock(StructMat &&s, DiagMat &&d): s_(forward<StructMat>(s)), d_(forward<DiagMat>(d))
     {
         assert(s_.size() == d_.size());
     }
@@ -49,10 +49,10 @@ struct ScalingBlock {
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     VectorType vec_;
     template<typename...Args>
-    ScalingBlock(Args &&...args): vec_(std::forward<Args>(args)...) {}
+    ScalingBlock(Args &&...args): vec_(forward<Args>(args)...) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        throw std::runtime_error("Not Implemented");
+        throw runtime_error("Not Implemented");
     }
     template<typename Vector>
     void apply(Vector &out) const {
@@ -60,12 +60,12 @@ struct ScalingBlock {
     }
 };
 
-template<typename FloatType, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
 struct AdditionBlock {
     const FloatType v_;
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        throw std::runtime_error("Not Implemented");
+        throw runtime_error("Not Implemented");
     }
     template<typename Vector>
     void apply(Vector &out) const {
@@ -74,7 +74,7 @@ struct AdditionBlock {
     AdditionBlock(FloatType val): v_(val) {}
 };
 
-template<typename FloatType, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
 struct ProductBlock {
     const FloatType v_;
     template<typename InVector, typename OutVector>
@@ -83,7 +83,7 @@ struct ProductBlock {
             out = in;
             apply<OutVector>(out);
         } else {
-            throw std::runtime_error("Not Implemented");
+            throw runtime_error("Not Implemented");
         }
     }
     template<typename Vector>
@@ -98,12 +98,12 @@ struct GaussianScalingBlock: ScalingBlock<FloatType, VectorOrientation, VectorKi
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     VectorType vec_;
     template<typename...Args>
-    GaussianScalingBlock(uint64_t seed=0, FloatType mean=0., FloatType var=1., Args &&...args): vec_(std::forward<Args>(args)...) {
+    GaussianScalingBlock(uint64_t seed=0, FloatType mean=0., FloatType var=1., Args &&...args): vec_(forward<Args>(args)...) {
         gaussian_fill(vec_, seed, mean, var);
     }
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        throw std::runtime_error("Not Implemented");
+        throw runtime_error("Not Implemented");
     }
     template<typename Vector>
     void apply(Vector &out) const {

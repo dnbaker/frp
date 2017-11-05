@@ -13,7 +13,7 @@ void fill_shuffled(Container &con) {
 #if USE_STD
     std::random_shuffle(std::begin(con), std::end(con));
 #else
-    for(std::size_t i(con.size()); i > 1; std::swap(con[rng::random_bounded_nearlydivisionless64(i-1)], con[i-1]), --i);
+    for(size_t i(con.size()); i > 1; std::swap(con[rng::random_bounded_nearlydivisionless64(i-1)], con[i-1]), --i);
 #endif
 }
 

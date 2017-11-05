@@ -28,7 +28,7 @@ enum GramSchmitFlags {
 
 template<typename ValueType>
 void mempluseq(ValueType *data, size_t nelem, ValueType val) {
-    throw std::runtime_error("Not implemented.");
+    throw runtime_error("Not implemented.");
 }
 
 template<>
@@ -260,7 +260,7 @@ void mempluseq<double>(double *data, size_t nelem, double val) {
 
 
 template<typename MatrixType, typename ValueType,
-         typename=std::enable_if_t<std::is_arithmetic<ValueType>::value>>
+         typename=enable_if_t<is_arithmetic<ValueType>::value>>
 MatrixType &operator+=(MatrixType &in, ValueType val) {
     if constexpr(blaze::IsMatrix<MatrixType>::value) {
         if constexpr(blaze::IsSparseMatrix<MatrixType>::value) {
@@ -295,7 +295,7 @@ MatrixType &operator+=(MatrixType &in, ValueType val) {
 }
 
 template<typename MatrixType, typename ValueType,
-         typename=std::enable_if_t<std::is_arithmetic<ValueType>::value>>
+         typename=enable_if_t<is_arithmetic<ValueType>::value>>
 MatrixType &operator-=(MatrixType &in, ValueType val) {
     return in += -val;
 }
@@ -323,10 +323,10 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
             }
             if((tmp = dot(icolumn, icolumn)) == 0.0) {
             }
-            inv_unorms[i] = tmp ? tmp: std::numeric_limits<decltype(tmp)>::max();
+            inv_unorms[i] = tmp ? tmp: numeric_limits<decltype(tmp)>::max();
 #if !NDEBUG
-            if(tmp ==std::numeric_limits<decltype(tmp)>::max())
-                std::fprintf(stderr, "Warning: norm of column %zu (0-based) is 0.0\n", i);
+            if(tmp ==numeric_limits<decltype(tmp)>::max())
+                fprintf(stderr, "Warning: norm of column %zu (0-based) is 0.0\n", i);
 #endif
         }
         if(flags & ORTHONORMALIZE)
@@ -350,7 +350,7 @@ void gram_schmidt(MatrixKind &b, int flags=(FLIP & ORTHONORMALIZE)) {
                 irow -= jrow * dot(irow, jrow) * inv_unorms[j];
             }
             auto tmp(1./dot(irow, irow));
-            inv_unorms[i] = tmp ? tmp: std::numeric_limits<decltype(tmp)>::max();
+            inv_unorms[i] = tmp ? tmp: numeric_limits<decltype(tmp)>::max();
         }
         if(flags & ORTHONORMALIZE)
             for(size_t i(0), nrows(b.rows()); i < nrows; ++i)
@@ -377,7 +377,7 @@ decltype(auto) frobnorm(const MatrixKind &mat) {
 }
 
 template<typename FloatType>
-constexpr inline auto ndball_surface_area(std::size_t nd, FloatType r) {
+constexpr inline auto ndball_surface_area(size_t nd, FloatType r) {
     // http://scipp.ucsc.edu/~haber/ph116A/volume_11.pdf
     // In LaTeX notation: $\frac{2\Pi^{\frac{n}{2}}R^{n-1}}{\Gamma(frac{n}{2})}$
     nd >>= 1;

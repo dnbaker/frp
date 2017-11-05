@@ -18,6 +18,7 @@ namespace aes {
 using std::uint64_t;
 using std::uint8_t;
 using std::size_t;
+using std::numeric_limits;
 
 
 
@@ -32,7 +33,7 @@ using std::size_t;
   } while (0)
 
 
-template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=8, typename=std::enable_if_t<std::is_integral<GeneratedType>::value>>
+template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=8>
 class AesCtr {
     static const size_t AESCTR_ROUNDS = 10;
     uint8_t state_[sizeof(__m128i) * UNROLL_COUNT];
@@ -100,7 +101,7 @@ public:
             offset_ = 0;
         }
         result_type ret;
-        std::memcpy(&ret, state_ + offset_, sizeof(ret));
+        memcpy(&ret, state_ + offset_, sizeof(ret));
         offset_ += sizeof(result_type);
         return ret;
     }
@@ -123,8 +124,8 @@ public:
         offset_ = (index - uval) * sizeof(__m128i);
     }
 #endif
-    result_type max() const {return std::numeric_limits<result_type>::max();}
-    result_type min() const {return std::numeric_limits<result_type>::min();}
+    result_type max() const {return numeric_limits<result_type>::max();}
+    result_type min() const {return numeric_limits<result_type>::min();}
     void seed(uint64_t k) {
         seed(_mm_set_epi64x(0, k));
     }

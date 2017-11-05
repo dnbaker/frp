@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstddef>
 #include "kspp/ks.h"
+#include "gfrp/util.h"
 
 namespace gfrp { namespace mach {
 
@@ -17,7 +18,7 @@ void print_toks(std::vector<ks::KString> &strings) {
     for(const auto &str: strings) tmp.resize(tmp.size() + str.size());
     for(const auto &str: strings) tmp += str, tmp += ',';
     tmp.pop();
-    std::fprintf(stderr, "toks: %s\n", tmp.data());
+    fprintf(stderr, "toks: %s\n", tmp.data());
 }
 
 #ifdef __APPLE__
@@ -37,26 +38,26 @@ struct CacheSizes {
         return reinterpret_cast<ref<size_t [3]>>(*this);
     }
     CacheSizes(size_t l1a, size_t l2a, size_t l3a): l1(l1a), l2(l2a), l3(l3a) {}
-    CacheSizes() {std::memset(this, 0, sizeof(*this));}
+    CacheSizes() {memset(this, 0, sizeof(*this));}
     std::string str() const {
         char buf[64];
-        std::sprintf(buf, "L1:%zu,L2:%zu,L3:%zu", l1, l2, l3);
+        sprintf(buf, "L1:%zu,L2:%zu,L3:%zu", l1, l2, l3);
         return buf;
     }
 };
 
 template<typename SizeType=size_t>
 CacheSizes get_cache_sizes() {
-    std::FILE *fp(popen(CACHE_CMD_STR, "r"));
+    FILE *fp(popen(CACHE_CMD_STR, "r"));
     char buf[1 << 16];
-    std::memset(buf, 0, sizeof(buf));
+    memset(buf, 0, sizeof(buf));
     CacheSizes ret;
     SizeType *ptr;
     char    *line;
-    while((line = std::fgets(buf, sizeof(buf), fp))) {
-        if(std::strstr(line, "ache") == nullptr) continue;
-        if(std::strstr(line, "L") == nullptr) continue;
-        auto toks(ks::toksplit<int>(line, std::strlen(line), 0));
+    while((line = fgets(buf, sizeof(buf), fp))) {
+        if(strstr(line, "ache") == nullptr) continue;
+        if(strstr(line, "L") == nullptr) continue;
+        auto toks(ks::toksplit<int>(line, strlen(line), 0));
         if(toks[0] == "L1i") {
             continue;
         } else if(toks[0] == "L1d") {
@@ -66,22 +67,22 @@ CacheSizes get_cache_sizes() {
         } else if(toks[0] == "L3") {
             ptr = &ret[2];
         } else {
-            std::fclose(fp);
-            std::fprintf(stderr, "DIE (%s)\n", toks[0].data());
-            std::exit(1);
+            fclose(fp);
+            fprintf(stderr, "DIE (%s)\n", toks[0].data());
+            exit(1);
         }
 #ifdef __APPLE__
         const auto &endtok(toks.back());
         const auto &magtok(toks[toks.size() - 2]);
-        *ptr = std::atoi(magtok.data());
+        *ptr = atoi(magtok.data());
         const char sizechar(endtok[0]);
 #else
         const char *tmp(toks.back().data());
-        *ptr = std::atoi(tmp);
-        while(std::isdigit(*tmp)) ++tmp;
+        *ptr = atoi(tmp);
+        while(isdigit(*tmp)) ++tmp;
         const char sizechar(*tmp);
 #endif
-        assert(std::isalpha(sizechar));
+        assert(isalpha(sizechar));
         switch(sizechar) {
             case 'T': case 't': *ptr <<= 40; break;
             case 'G': case 'g': *ptr <<= 30; break;
@@ -90,7 +91,7 @@ CacheSizes get_cache_sizes() {
         }
     }
 
-    std::fclose(fp);
+    fclose(fp);
     return ret;
 }
 

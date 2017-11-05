@@ -4,7 +4,6 @@
 #include "gfrp/linalg.h"
 #include "fastrange/fastrange.h"
 #include <ctime>
-#include <unordered_set>
 
 namespace gfrp {
 
@@ -48,14 +47,14 @@ FWHT is done in-place.
  */
 
 struct free_delete {
-    void operator()(void *ptr) const {std::free(ptr);}
+    void operator()(void *ptr) const {free(ptr);}
 };
 
-template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr<T>, typename=std::enable_if_t<std::is_arithmetic<FloatType>::value>>
+template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr<T>, typename=enable_if_t<is_arithmetic<FloatType>::value>>
 class CompactRademacher {
 
     size_t n_, m_;
-    std::unique_ptr<T, free_delete> data_;
+    unique_ptr<T, free_delete> data_;
 
     static constexpr FloatType values_[2] {1, -1};
     static constexpr size_t NBITS = sizeof(T) * CHAR_BIT;
@@ -67,15 +66,15 @@ class CompactRademacher {
     using size_type = size_t;
 public:
     // Constructors
-    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(std::malloc(sizeof(T) * n_))) {
+    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(malloc(sizeof(T) * n_))) {
         if(n & (BITMASK))
-            throw std::runtime_error(ks::sprintf("Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK).data());
+            throw runtime_error(ks::sprintf("Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK).data());
         randomize(seed);
     }
     CompactRademacher(CompactRademacher &&other) = default;
-    CompactRademacher(const CompactRademacher &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(std::malloc(sizeof(T) * m_))) {
-        if(data_ == nullptr) throw std::bad_alloc();
-        std::memcpy(data_.get(), other.data_, sizeof(T) * n_);
+    CompactRademacher(const CompactRademacher &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(malloc(sizeof(T) * m_))) {
+        if(data_ == nullptr) throw bad_alloc();
+        memcpy(data_.get(), other.data_, sizeof(T) * n_);
     }
     template<typename AsType>
     class CompactAs {
@@ -110,12 +109,12 @@ public:
     void randomize(uint64_t seed) {
         random_fill(reinterpret_cast<uint64_t *>(data_.get()), n_ * sizeof(uint64_t) / sizeof(T), seed);
     }
-    void zero() {std::memset(data_, 0, sizeof(T) * (n_ >> SHIFT));}
+    void zero() {memset(data_, 0, sizeof(T) * (n_ >> SHIFT));}
     void reserve(size_t newsize) {
-        if(newsize & (newsize - 1)) throw std::runtime_error("newsize should be a power of two");
+        if(newsize & (newsize - 1)) throw runtime_error("newsize should be a power of two");
         if(newsize > m_) {
-            auto tmp(static_cast<T*>(std::realloc(data_, sizeof(T) * (newsize >> SHIFT))));
-            if(tmp == nullptr) throw std::bad_alloc();
+            auto tmp(static_cast<T*>(realloc(data_, sizeof(T) * (newsize >> SHIFT))));
+            if(tmp == nullptr) throw bad_alloc();
             data_ = tmp;
         }
     }
@@ -124,9 +123,9 @@ public:
     FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
-        static_assert(std::is_same<std::decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
-        static_assert(std::is_same<std::decay_t<decltype(out[0])>, FloatType>::value, "Output vector should be the same type as this structure.");
-        throw std::runtime_error("Not Implemented.");
+        static_assert(is_same<decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
+        static_assert(is_same<decay_t<decltype(out[0])>, FloatType>::value, "Output vector should be the same type as this structure.");
+        throw runtime_error("Not Implemented.");
     }
 };
 
@@ -141,13 +140,13 @@ public:
     explicit OnlineShuffler(ResultType seed): seed_{seed}, rng_(seed) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        std::fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n");
+        fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n");
         const auto isz(in.size());
         if(isz == out.size()) {
             out = in;
             apply<OutVector>(out);
         } else if(isz > out.size()) {
-            std::unordered_set<uint64_t> indices;
+            unordered_set<uint64_t> indices;
             indices.reserve(out.size());
             while(indices.size() < out.size()) indices.insert(fastrange64(rng_(), isz));
             auto it(out.begin());
@@ -161,7 +160,7 @@ public:
     template<typename Vector>
     void apply(Vector &vec) const {
         rng_.seed(seed_);
-        std::shuffle(std::begin(vec), std::end(vec), rng_);
+        shuffle(begin(vec), end(vec), rng_);
     }
 };
 
@@ -180,7 +179,7 @@ class PRNVector {
     RNG             rng_;
     Distribution   dist_;
 public:
-    using ResultType = std::decay_t<decltype(dist_(rng_))>;
+    using ResultType = decay_t<decltype(dist_(rng_))>;
 private:
     ResultType      val_;
 
@@ -208,7 +207,7 @@ public:
     };
 
 #if 0
-    template<typename=std::enable_if_t<is_instantiation_of<aes::AesCtr, RNG>::value>
+    template<typename=enable_if_t<is_instantiation_of<aes::AesCtr, RNG>::value>
     ResultType operator[](size_t index) const {
         // BAD
         return static_cast<ResultType>(0);
@@ -217,7 +216,7 @@ public:
 
     template<typename... DistArgs>
     PRNVector(uint64_t size, uint64_t seed=0, DistArgs &&... args):
-        seed_{seed}, used_{0}, size_{size}, rng_(seed_), dist_(std::forward<DistArgs>(args)...), val_(gen()) {}
+        seed_{seed}, used_{0}, size_{size}, rng_(seed_), dist_(forward<DistArgs>(args)...), val_(gen()) {}
 
     auto begin() {
         reset();

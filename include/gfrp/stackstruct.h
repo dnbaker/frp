@@ -75,10 +75,10 @@ struct FFTTypes<long double> {
 }
 
 
-template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
+template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation, typename=enable_if_t<is_floating_point<FloatType>::value>>
 void fht(VecType<FloatType, VectorOrientation> &vec) {
     if(vec.size() & (vec.size() - 1)) {
-        throw std::runtime_error(ks::sprintf("vec size %zu not a power of two. NotImplemented.", vec.size()).data());
+        throw runtime_error(ks::sprintf("vec size %zu not a power of two. NotImplemented.", vec.size()).data());
     } else {
         ::fht(&vec[0], log2_64(vec.size()));
     }
@@ -104,7 +104,7 @@ struct is_dense {
 
 template<typename VecType1, typename VecType2>
 void fht(const VecType1 &in, VecType2 &out) {
-    static_assert(std::is_same<typename VecType1::ElementType, typename VecType2::ElementType>::value, "Input vectors must have the same type.");
+    static_assert(is_same<typename VecType1::ElementType, typename VecType2::ElementType>::value, "Input vectors must have the same type.");
     if constexpr(is_dense<VecType1, VecType2>::value) {
         fast_copy(&out[0], &in[0], sizeof(in[0]) * out.size());
         fht(&out[0], log2_64(out.size()));
@@ -114,35 +114,35 @@ void fht(const VecType1 &in, VecType2 &out) {
             if(out.size() == in.size()) {
                 out = in;
                 fht(out);
-            } else throw std::runtime_error("NotImplemented.");
+            } else throw runtime_error("NotImplemented.");
         } else {
             if(out.size() == in.size()) {
                 out = transpose(in);
                 fht(out);
-            } else throw std::runtime_error("NotImplemented.");
+            } else throw runtime_error("NotImplemented.");
         }
     }
 }
 
-template<typename FloatType, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
+template<typename FloatType, typename=enable_if_t<is_floating_point<FloatType>::value>>
 struct HadamardBlock {
     size_t n_;
     size_t pow2up_;
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
-        throw std::runtime_error("NotImplemented.");
+        throw runtime_error("NotImplemented.");
     }
 
     template<typename OutVector>
     void apply(OutVector &out) {
         if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
-            throw std::runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
+            throw runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
         }
         if(out.size() & (out.size() - 1) == 0) {
             fht(&out[0], log2_64(out.size()));
             return;
         }
-        throw std::runtime_error("NotImplemented.");
+        throw runtime_error("NotImplemented.");
     }
     HadamardBlock(size_t n): n_(n), pow2up_(roundup64(n_)) {}
 };
@@ -151,7 +151,7 @@ struct HadamardBlock {
 
 template<typename FloatType, fftw_r2r_kind R2R_KIND, int FLAGS=FFTW_PATIENT>
 struct RFFTBlock {
-    static_assert(std::is_floating_point<FloatType>::value, "RFFTBlock must be floating point.");
+    static_assert(is_floating_point<FloatType>::value, "RFFTBlock must be floating point.");
     using fftplan_t = typename fft::FFTTypes<FloatType>::PlanType;
     static constexpr const char *WISDOM_PATH = "wisdom/RFFTBlock.wisdom";
 
@@ -198,12 +198,12 @@ struct RFFTBlock {
         out *= std::sqrt(1./(out.size()<<1));
     }
     void execute(FloatType *a, FloatType *b) {
-        if(plan_ == nullptr) throw std::runtime_error("ZOMG");
+        if(plan_ == nullptr) throw runtime_error("ZOMG");
         fft::FFTTypes<FloatType>::r2rexec(plan_, a, b);
     }
     ~RFFTBlock() {
         if(fftw_export_wisdom_to_filename(WISDOM_PATH) == 0) {
-            std::cerr << "Warning: could not export wisdom to " << WISDOM_PATH << '\n';
+            cerr << "Warning: could not export wisdom to " << WISDOM_PATH << '\n';
         }
         destroy();
     }
@@ -224,7 +224,7 @@ template<typename FloatType, int FLAGS=FFTW_PATIENT>
 struct DCTBlock: public RFFTBlock<FloatType, FFTW_REDFT10, FLAGS> {
     static constexpr const char *WISDOM_PATH = "wisdom/DCTBlock.wisdom";
     template<typename... Args> DCTBlock(Args &&... args):
-        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(std::forward<Args>(args)...)
+        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(forward<Args>(args)...)
         {}
 };
 
@@ -232,7 +232,7 @@ template<typename FloatType, int FLAGS=FFTW_PATIENT>
 struct IDCTBlock: public RFFTBlock<FloatType, FFTW_REDFT01, FLAGS> {
     static constexpr const char *WISDOM_PATH = "wisdom/IDCTBlock.wisdom";
     template<typename... Args> IDCTBlock(Args &&... args):
-        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(std::forward<Args>(args)...)
+        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(forward<Args>(args)...)
         {}
 };
 
