@@ -63,6 +63,11 @@ inline constexpr uint64_t roundup(uint64_t x) {
     x |= x >> 1; x |= x >> 2; x |= x >> 4; x |= x >> 8; x |= x >> 16; x |= x >> 32;
     return ++x;
 }
+template < template <typename...> class Template, typename T >
+struct is_instantiation_of : std::false_type {};
+
+template < template <typename...> class Template, typename... Args >
+struct is_instantiation_of< Template, Template<Args...> > : std::true_type {};
 
 class Timer {
     using TpType = std::chrono::system_clock::time_point;

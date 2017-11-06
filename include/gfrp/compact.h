@@ -206,7 +206,7 @@ public:
         PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {}
     };
 
-    template<typename=enable_if_t<is_instantiation_of<aes::AesCtr, RNG>::value>
+    template<typename=enable_if_t<aes::is_aes<RNG>::value>>
     ResultType operator[](size_t index) const {
         // BAD
         return static_cast<ResultType>(0);

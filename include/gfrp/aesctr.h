@@ -33,6 +33,9 @@ using std::numeric_limits;
   } while (0)
 
 
+template<typename T>
+struct is_aes: std::false_type {};
+
 template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=8>
 class AesCtr {
     static const size_t AESCTR_ROUNDS = 10;
@@ -163,6 +166,10 @@ public:
     }
 };
 #undef AES_ROUND
+
+template<typename T, size_t n>
+struct is_aes<AesCtr<T, n>>: std::true_type {};
+
 
 } // namespace aes
 
