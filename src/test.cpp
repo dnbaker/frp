@@ -64,6 +64,8 @@ int main(int argc, char *argv[]) {
     PRNVector<std::mt19937_64, std::normal_distribution<float>> prn_vec(size, 0);
 #else
     PRNVector<aes::AesCtr<uint64_t>> prn_vec(size, 0);
+    auto t = prn_vec[14];
+    std::cerr << t << '\n';
 #endif
     for(auto &el: tvec) {
 #if 0
