@@ -20,18 +20,6 @@ bool has_neg(const T &mat) {
     return false;
 }
 
-class Timer {
-    using TpType = std::chrono::system_clock::time_point;
-    std::string name_;
-    TpType start_, stop_;
-public:
-    Timer(std::string &&name=""): name_{name}, start_(std::chrono::system_clock::now()) {}
-    void stop() {stop_ = std::chrono::system_clock::now();}
-    void restart() {start_ = std::chrono::system_clock::now();}
-    void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
-    ~Timer() {stop(); /* hammertime */ report();}
-};
-
 int main(int argc, char *argv[]) {
     const std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                       niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));

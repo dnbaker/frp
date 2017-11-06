@@ -8,6 +8,7 @@ namespace gfrp {
 
 namespace fft {
 
+
 template<typename FloatType>
 struct FFTTypes;
 
@@ -31,6 +32,9 @@ struct FFTTypes<float> {
     static constexpr decltype(&fftwf_plan_dft) c2cplan = &fftwf_plan_dft;
     static constexpr decltype(&fftwf_plan_r2r) r2rplan = &fftwf_plan_r2r;
     static constexpr decltype(&fftwf_plan_r2r_1d) r2rplan1d = &fftwf_plan_r2r_1d;
+    static constexpr decltype(&fftwf_import_wisdom_from_filename) loadfn = &fftwf_import_wisdom_from_filename;
+    static constexpr decltype(&fftwf_export_wisdom_to_filename) storefn = &fftwf_export_wisdom_to_filename;
+    static const char *suffix() {return "f";}
 };
 template<>
 struct FFTTypes<double> {
@@ -52,6 +56,9 @@ struct FFTTypes<double> {
     static constexpr decltype(&fftw_plan_dft) c2cplan = &fftw_plan_dft;
     static constexpr decltype(&fftw_plan_r2r) r2rplan = &fftw_plan_r2r;
     static constexpr decltype(&fftw_plan_r2r_1d) r2rplan1d = &fftw_plan_r2r_1d;
+    static constexpr decltype(&fftw_import_wisdom_from_filename) loadfn = &fftw_import_wisdom_from_filename;
+    static constexpr decltype(&fftw_export_wisdom_to_filename) storefn = &fftw_export_wisdom_to_filename;
+    static const char *suffix() {return "d";}
 };
 template<>
 struct FFTTypes<long double> {
@@ -70,9 +77,12 @@ struct FFTTypes<long double> {
     static constexpr decltype(&fftwl_cost)        costfn = &fftwl_cost;
     static constexpr decltype(&fftwl_plan_dft_r2c) r2cplan = &fftwl_plan_dft_r2c;
     static constexpr decltype(&fftwl_plan_dft_c2r) c2cplan = &fftwl_plan_dft_c2r;
+    static constexpr decltype(&fftwl_import_wisdom_from_filename) loadfn = &fftwl_import_wisdom_from_filename;
+    static constexpr decltype(&fftwl_export_wisdom_to_filename) storefn = &fftwl_export_wisdom_to_filename;
+    static const char *suffix() {return "ld";}
 };
 
-}
+} // namespace fft
 
 
 template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation, typename=enable_if_t<is_floating_point<FloatType>::value>>
@@ -90,12 +100,6 @@ struct is_dense_single {
     static constexpr bool value = blaze::IsDenseVector<Container>::value || blaze::IsDenseMatrix<Container>::value;
 };
 
-#if 0
-template<typename... Containers>
-struct is_dense {
-    static constexpr bool value = is_dense_single<Containers>::value && ...;
-};
-#endif
 template<typename C1, typename C2>
 struct is_dense {
     static constexpr bool value = is_dense_single<C1>::value && is_dense_single<C2>::value;
@@ -147,38 +151,71 @@ struct HadamardBlock {
     HadamardBlock(size_t n): n_(n), pow2up_(roundup64(n_)) {}
 };
 
+namespace rfft {
 
+static const char * names [] {
+    "DCTBlock",
+    "IDCTBlock",
+};
+static const fftw_r2r_kind kinds [] {
+    FFTW_REDFT10,
+    FFTW_REDFT01,
+};
 
-template<typename FloatType, fftw_r2r_kind R2R_KIND, int FLAGS=FFTW_PATIENT>
-struct RFFTBlock {
+}
+
+template<typename FloatType>
+class RFFTBlock {
     static_assert(is_floating_point<FloatType>::value, "RFFTBlock must be floating point.");
     using fftplan_t = typename fft::FFTTypes<FloatType>::PlanType;
-    static constexpr const char *WISDOM_PATH = "wisdom/RFFTBlock.wisdom";
 
     fftplan_t plan_;
-    int n_;
+    fftw_r2r_kind  kind_;
+    int  n_, flags_;
     const bool oop_;
+
+
+public:
+    const char *block_type() const {
+        auto it(std::find(std::begin(rfft::kinds), std::end(rfft::kinds), kind_));
+        return it == std::end(rfft::kinds) ? "UNKNOWN" : rfft::names[it - std::begin(rfft::kinds)];
+    }
+
+    std::string wisdom_fname() const {
+        return std::string(block_type()) + fft::FFTTypes<FloatType>::suffix();
+    }
+    void load_wisdom() {
+        if(std::experimental::filesystem::exists(wisdom_fname().data())) {
+            if(fft::FFTTypes<FloatType>::loadfn(wisdom_fname().data()) == 0) {
+                std::fprintf(stderr, "Could not load wisdom from %s\n", wisdom_fname().data());
+            } else {
+                std::fprintf(stderr, "Loaded wisdom from %s\n", wisdom_fname().data());
+            }
+        }
+    }
     // Real FFT block
     void destroy() {
         if(plan_) {
             fft::FFTTypes<FloatType>::destroy_fn(plan_);
         }
     }
-    std::string fname_wisdom(const char *prefix) const {return std::string(prefix) + WISDOM_PATH;}
+    void set_kind(fftw_r2r_kind kind) { kind_  = kind;}
+    void set_flags(int newflags) { flags_ = newflags;}
     void resize(int n) {
         if(n == n_) return;
-        n = n_;
+        n_ = n;
         blaze::DynamicVector<FloatType> tmpvec(n);
         auto ptr1(&tmpvec[0]);
         auto ptr2(oop_ ? ptr1: &blaze::DynamicVector<FloatType>(n)[0]);
         destroy();
-        plan_ = fft::FFTTypes<FloatType>::r2rplan1d(n_, ptr1, ptr2, R2R_KIND, FLAGS);
+        plan_ = fft::FFTTypes<FloatType>::r2rplan1d(n_, ptr1, ptr2, kind_, flags_);
     }
-    RFFTBlock(int n, bool oop=false): plan_(nullptr), n_(0), oop_(oop) {
+    RFFTBlock(int n, fftw_r2r_kind kind=FFTW_REDFT10,
+              bool oop=false, int flags=FFTW_PATIENT):
+                  plan_(nullptr), kind_(kind), n_(0), flags_(flags), oop_(oop) 
+    {
+        load_wisdom();
         resize(n);
-        if(std::experimental::filesystem::exists(WISDOM_PATH)) {
-            fftw_import_wisdom_from_filename(WISDOM_PATH);
-        }
     }
     template<typename VecType>
     void execute(VecType &a) {
@@ -201,10 +238,13 @@ struct RFFTBlock {
         if(plan_ == nullptr) throw runtime_error("ZOMG");
         fft::FFTTypes<FloatType>::r2rexec(plan_, a, b);
     }
-    ~RFFTBlock() {
-        if(fftw_export_wisdom_to_filename(WISDOM_PATH) == 0) {
-            cerr << "Warning: could not export wisdom to " << WISDOM_PATH << '\n';
+    void store_wisdom() {
+        if(fft::FFTTypes<FloatType>::storefn(wisdom_fname().data()) == 0) {
+            std::fprintf(stderr, "Could not store wisdom at %s\n", wisdom_fname().data());
         }
+    }
+    ~RFFTBlock() {
+        store_wisdom();
         destroy();
     }
 
@@ -220,20 +260,15 @@ struct RFFTBlock {
 
 };
 
-template<typename FloatType, int FLAGS=FFTW_PATIENT>
-struct DCTBlock: public RFFTBlock<FloatType, FFTW_REDFT10, FLAGS> {
-    static constexpr const char *WISDOM_PATH = "wisdom/DCTBlock.wisdom";
-    template<typename... Args> DCTBlock(Args &&... args):
-        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(forward<Args>(args)...)
-        {}
+template<typename FloatType>
+class DCTBlock: public RFFTBlock<FloatType> {
+public:
+    DCTBlock(int n, bool oop=false, int flags=FFTW_PATIENT): RFFTBlock<FloatType>(n, FFTW_REDFT10, oop, flags) {}
 };
-
-template<typename FloatType, int FLAGS=FFTW_PATIENT>
-struct IDCTBlock: public RFFTBlock<FloatType, FFTW_REDFT01, FLAGS> {
-    static constexpr const char *WISDOM_PATH = "wisdom/IDCTBlock.wisdom";
-    template<typename... Args> IDCTBlock(Args &&... args):
-        RFFTBlock<FloatType, FFTW_REDFT10, FLAGS>(forward<Args>(args)...)
-        {}
+template<typename FloatType>
+class IDCTBlock: public RFFTBlock<FloatType> {
+public:
+    IDCTBlock(int n, bool oop=false, int flags=FFTW_PATIENT): RFFTBlock<FloatType>(n, FFTW_REDFT01, oop, flags) {}
 };
 
 } // namespace gfrp
