@@ -55,4 +55,12 @@ int main(int argc, char *argv[]) {
     }
     auto suma(norm(dps));
     std::cerr << "Ratio: " << suma / sumb;
+    auto sv(subvector(dps, dps.size() >> 1, dps.size() >> 1));
+    sv = 0;
+    subvector(dps, 0, dps.size() >> 1) = 1.;
+    std::cerr << "Before: \n";
+    print_vec(dps);
+    gfrp::fht(dps);
+    std::cerr << "Before: \n";
+    print_vec(dps);
 }

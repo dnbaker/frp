@@ -64,6 +64,19 @@ inline constexpr uint64_t roundup(uint64_t x) {
     return ++x;
 }
 
+class Timer {
+    using TpType = std::chrono::system_clock::time_point;
+    std::string name_;
+    TpType start_, stop_;
+public:
+    Timer(std::string &&name=""): name_{name}, start_(std::chrono::system_clock::now()) {}
+    void stop() {stop_ = std::chrono::system_clock::now();}
+    void restart() {start_ = std::chrono::system_clock::now();}
+    void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
+    ~Timer() {stop(); /* hammertime */ report();}
+    void rename(const char *name) {name_ = name;}
+};
+
 inline constexpr int log2_64(uint64_t value)
 {
     // https://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers

@@ -32,9 +32,6 @@ public:
     ~Timer() {stop(); /* hammertime */ report();}
 };
 
-template<typename T>
-bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
-
 int main(int argc, char *argv[]) {
     const std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                       niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));
