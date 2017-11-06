@@ -5,10 +5,10 @@ using namespace gfrp;
 
 template<typename T>
 void print_vec(T &vec) {
-    std::string ret("[");
-    for(auto el: vec) ret += std::to_string(el) + ",";
-    ret.back() = '\n';
-    std::fputs(ret.data(), stderr);
+    std::cerr << std::scientific;
+    std::cerr << "[";
+    for(auto el: vec) std::cerr << el << ",";
+    std::cerr << "]\n";
 }
 
 
@@ -47,11 +47,13 @@ int main(int argc, char *argv[]) {
     fast_copy(&dpsout[0], &dps[0], sizeof(float) * size);
 #endif
     auto sumb(norm(dps));
+    print_vec(dps);
+    std::cerr << "Norm: " << norm(dps) << '\n';
+    //DCTBlock<float, FFTW_WISDOM_ONLY> dcblock((int)size);
     DCTBlock<float> dcblock((int)size);
     for(size_t i(0); i < niter; ++i) {
         dcblock.execute(dps);
         dcblock.execute(dps);
-        std::cerr << "Cur over start: " << norm(dps) / sumb << '\n';
     }
     auto suma(norm(dps));
     std::cerr << "Ratio: " << suma / sumb;
