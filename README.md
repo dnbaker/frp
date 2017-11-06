@@ -11,10 +11,7 @@ Generic Fast Randomized Projections
 ## TODO
 
 
-1. Add Hadamard Fourier Features
-2. Add DCT Fourier Features
-    1. Use FFTW, Spiral, or new implementation. [http://spiral.ece.cmu.edu/dctgen/index.php]
-3. Kernels:
+1. Kernels:
     1. Gaussian [Default, see Recht and Rahimi]
     2. Laplacian [ibid.]
     3. Cauchy [ibid.]
@@ -30,3 +27,11 @@ Generic Fast Randomized Projections
     13. Exponential Semigroup
     14. Reciprocal Semingroup
     15. Arc-Cosine
+
+## TODONE
+1. Add Hadamard Fourier Features
+2. Add DCT Fourier Features
+3. Random Rademacher and other probability distribution arrays
+  1. Both precomputed and PRN-generated.
+
+
