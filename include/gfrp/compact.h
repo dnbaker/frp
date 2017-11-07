@@ -164,31 +164,34 @@ public:
     }
 };
 
-template<typename RNG>
 struct UnchangedRNGDistribution {
+    template<typename RNG>
     auto operator()(RNG &rng) const {return rng();}
     void reset() {}
 };
 
-template<typename RNG=aes::AesCtr<uint64_t>, template <typename> typename Distribution=UnchangedRNGDistribution>
+template<typename RNG=aes::AesCtr<uint64_t>, typename Distribution=UnchangedRNGDistribution>
 class PRNVector {
     // Vector of random values generated
     const uint64_t    seed_;
     uint64_t          used_;
     uint64_t          size_;
     RNG                rng_;
-    Distribution<RNG> dist_;
+    Distribution      dist_;
 public:
     using ResultType = decay_t<decltype(dist_(rng_))>;
 private:
     ResultType      val_;
     struct emit_u64 {
+        RNG rng_;
         using result_type = typename RNG::result_type;
-        result_type val_;
-        auto operator()() const {return val_;}
-        void set(result_type val) {val_ = val;}
+        static constexpr result_type max() {return RNG::max();}
+        static constexpr result_type min() {return RNG::min();}
+        void set(result_type index) {
+            rng_.fast_forward(index);
+        }
+        result_type operator()() {return rng_();}
     } emitter_;
-    //emit_u64 emitter_;
 
 
 public:
@@ -217,8 +220,15 @@ public:
 
     template<typename=enable_if_t<aes::is_aes<RNG>::value>>
     ResultType operator[](size_t index) {
+#if !NDEBUG
+        auto tmp(rng_[index]);
+        emitter_.set(tmp);
+        auto ret(dist_(emitter_));
+        return ret;
+#else
         emitter_.set(rng_[index]);
-        return reinterpret_cast<Distribution<emit_u64> *>(&dist_)->operator()(emitter_);
+        return dist_(emitter_);
+#endif
     }
 
     template<typename... DistArgs>

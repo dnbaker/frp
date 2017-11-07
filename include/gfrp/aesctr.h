@@ -42,7 +42,7 @@ class AesCtr {
     uint8_t state_[sizeof(__m128i) * UNROLL_COUNT];
     __m128i ctr_[UNROLL_COUNT];
     __m128i seed_[AESCTR_ROUNDS + 1];
-    __m128i work[UNROLL_COUNT];
+    __m128i work_[UNROLL_COUNT];
     size_t offset_;
 
     // Unrollers
@@ -63,12 +63,14 @@ class AesCtr {
             aes_unroll_impl<ind + 1, todo - 1>().template round_and_enc<NUMROLL>(ret, state);
         }
         void add_store(__m128i *work, AesCtr &state) const {
-          state.ctr_[ind] =
-              _mm_add_epi64(state.ctr_[ind], _mm_set_epi64x(0, UNROLL_COUNT));
-              _mm_storeu_si128(
-                  (__m128i *)&state.state_[16 * ind],
-                  _mm_aesenclast_si128(work[ind], state.seed_[AESCTR_ROUNDS]));
-          aes_unroll_impl<ind + 1, todo - 1>().add_store(work, state);
+            static_assert(sizeof(__m128i) == 16, "Pretty sure this has to be true.");
+            static const __m128i CTR_ADD =  _mm_set_epi64x(0, UNROLL_COUNT);
+            state.ctr_[ind] =
+                _mm_add_epi64(state.ctr_[ind], CTR_ADD);
+                _mm_storeu_si128(
+                    (__m128i *)&state.state_[sizeof(__m128i) * ind],
+                    _mm_aesenclast_si128(work[ind], state.seed_[AESCTR_ROUNDS]));
+            aes_unroll_impl<ind + 1, todo - 1>().add_store(work, state);
         }
         template<typename T>
         void pluseq(T *data, T addn) {
@@ -98,37 +100,37 @@ public:
     }
     result_type operator()() {
         if (__builtin_expect(offset_ >= sizeof(__m128i) * UNROLL_COUNT, 0)) {
-            aes_unroll_impl<0, UNROLL_COUNT>()(work, *this);
-            aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work, *this);
-            aes_unroll_impl<0, UNROLL_COUNT>().add_store(work, *this);
+            aes_unroll_impl<0, UNROLL_COUNT>()(work_, *this);
+            aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work_, *this);
+            aes_unroll_impl<0, UNROLL_COUNT>().add_store(work_, *this);
             offset_ = 0;
         }
         result_type ret;
         memcpy(&ret, state_ + offset_, sizeof(ret));
         offset_ += sizeof(result_type);
+        std::cerr << "Returning ret = " << ret << '\n';
         return ret;
     }
-#if 0
-    // This code is wrong but might be on the right track.
     void fast_forward(uint64_t index) {
-        const uint64_t uval(index & ~(UNROLL_COUNT - 1));
-        if(uval) {
-#if __AVX2__
-            const __m256i new_offset = _mm256_set_epi64x(0, uval, 0, uval);
-            aes_unroll_impl<0, UNROLL_COUNT >> 1>().pluseq((__m256i *)ctr_, new_offset);
-            if constexpr(UNROLL_COUNT & 1) {
-                ctr_[UNROLL_COUNT - 1] = _mm_add_epi64(ctr_[UNROLL_COUNT - 1], _mm_set_epi64x(0, uval));
-            }
-#else
-            const __m128i new_offset = _mm_set_epi64x(0, uval);
-            aes_unroll_impl<0, UNROLL_COUNT>().pluseq(ctr_, new_offset);
+        static const uint64_t MASK = (sizeof(__m128i) * UNROLL_COUNT / sizeof(GeneratedType) - 1);
+        static_assert((MASK & (MASK + 1)) == 0, "I MUST HAVE THIS NOT WRONG");
+        const uint64_t chunkstart(index & ~(MASK));
+        std::cerr << "For index " << index << " I have chunkstart " << chunkstart << " And leftover " << (index & MASK) << '\n';
+        assert((chunkstart & (MASK)) == 0);
+        for(uint64_t i(0); i < UNROLL_COUNT; ++i) {
+            ctr_[i] = _mm_set_epi64x(0, chunkstart + i);
         }
-#endif
-        offset_ = (index - uval) * sizeof(__m128i);
+        aes_unroll_impl<0, UNROLL_COUNT>()(work_, *this);
+        aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work_, *this);
+        for(uint64_t i(0); i < UNROLL_COUNT; ++i) {
+            _mm_storeu_si128(
+                (__m128i *)&state_[sizeof(__m128i) * i],
+                _mm_aesenclast_si128(work_[i], seed_[AESCTR_ROUNDS]));
+        }
+        offset_ = index & (sizeof(__m128i) * UNROLL_COUNT / sizeof(GeneratedType) - 1);
     }
-#endif
-    result_type max() const {return numeric_limits<result_type>::max();}
-    result_type min() const {return numeric_limits<result_type>::min();}
+    static constexpr result_type max() {return numeric_limits<result_type>::max();}
+    static constexpr result_type min() {return numeric_limits<result_type>::min();}
     void seed(uint64_t k) {
         seed(_mm_set_epi64x(0, k));
     }
@@ -151,18 +153,38 @@ public:
       for (unsigned i = 0; i < UNROLL_COUNT; ++i) ctr_[i] = _mm_set_epi64x(0, i);
       offset_ = sizeof(__m128i) * UNROLL_COUNT;
     }
+#if 0
     result_type operator[](size_t count) const {
         static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(result_type);
         static constexpr unsigned BMASK = DIV - 1;
         const unsigned offset_(count & BMASK);
         result_type ret[DIV];
         count /= DIV;
+        std::fprintf(stderr, "Count: %zu. DIV: %zu. BMASK: %zu\n", count, DIV, BMASK);
         __m128i tmp(_mm_xor_si128(_mm_set_epi64x(0, count), seed_[0]));
         for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
             tmp = _mm_aesenc_si128(tmp, seed_[r]);
         }
         _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
+        std::cerr << "About to return value " << ret[offset_] << '\n';
         return ret[offset_];
+#else
+    result_type operator[](size_t count) const {
+        fast_forward(count);
+        static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(result_type);
+        static constexpr unsigned BMASK = DIV - 1;
+        const unsigned offset_(count & BMASK);
+        result_type ret[DIV];
+        count /= DIV;
+        std::fprintf(stderr, "Count: %zu. DIV: %zu. BMASK: %zu\n", count, DIV, BMASK);
+        __m128i tmp(_mm_xor_si128(_mm_set_epi64x(0, count), seed_[0]));
+        for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
+            tmp = _mm_aesenc_si128(tmp, seed_[r]);
+        }
+        _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
+        std::cerr << "About to return value " << ret[offset_] << '\n';
+        return ret[offset_];
+#endif
     }
 };
 #undef AES_ROUND

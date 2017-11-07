@@ -30,8 +30,14 @@ void random_fill(uint64_t *data, uint64_t len, uint64_t seed=0) {
         sample_fill<Container, type, RNG, Args...>(con, seed, forward<Args>(args)...); \
     }
 
+template<typename FloatType>
+class unit_normal: public boost::random::detail::unit_normal_distribution<FloatType> {
+public:
+    void reset() {}
+};
+
 DEFINE_DIST_FILL(boost::normal_distribution, gaussian)
-DEFINE_DIST_FILL(boost::random::detail::unit_normal_distribution, unit_gaussian)
+DEFINE_DIST_FILL(unit_normal, unit_gaussian)
 DEFINE_DIST_FILL(boost::cauchy_distribution, cauchy)
 DEFINE_DIST_FILL(boost::random::chi_squared_distribution, chisq)
 DEFINE_DIST_FILL(boost::lognormal_distribution, lognormal)
