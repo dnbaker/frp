@@ -5,6 +5,7 @@
 #include <vector>
 #include <chrono>
 #include "gfrp/aesctr.h"
+#include "gfrp/compact.h"
 #include "random/include/boost/random/normal_distribution.hpp"
 
 class Timer {
@@ -74,4 +75,5 @@ int main(int argc, char *argv[]) {
     time_stuff("snd", dsnd, c8, dvals, niter, size);
     time_stuff("u32dbnd", dbnd, c8_16, dvals, niter, size);
     time_stuff("u32dsnd", dsnd, c8_16, dvals, niter, size);
+    gfrp::OnlineShuffler shuf;
 }

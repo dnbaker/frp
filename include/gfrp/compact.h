@@ -2,6 +2,7 @@
 #define _GFRP_CRAD_H__
 #include "gfrp/util.h"
 #include "gfrp/linalg.h"
+#include "gfrp/dist.h"
 #include "fastrange/fastrange.h"
 #include <ctime>
 
@@ -126,41 +127,6 @@ public:
         static_assert(is_same<decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
         static_assert(is_same<decay_t<decltype(out[0])>, FloatType>::value, "Output vector should be the same type as this structure.");
         throw runtime_error("Not Implemented.");
-    }
-};
-
-template<typename SizeType=size_t, typename RNG=aes::AesCtr<uint64_t>>
-class OnlineShuffler {
-    //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
-    //This
-    using ResultType = typename RNG::result_type;
-    const uint64_t seed_;
-    RNG             rng_;
-public:
-    explicit OnlineShuffler(ResultType seed): seed_{seed}, rng_(seed) {}
-    template<typename InVector, typename OutVector>
-    void apply(const InVector &in, OutVector &out) const {
-        fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n");
-        const auto isz(in.size());
-        if(isz == out.size()) {
-            out = in;
-            apply<OutVector>(out);
-        } else if(isz > out.size()) {
-            unordered_set<uint64_t> indices;
-            indices.reserve(out.size());
-            while(indices.size() < out.size()) indices.insert(fastrange64(rng_(), isz));
-            auto it(out.begin());
-            for(const auto index: indices) *it++ = in[index]; // Could consider a sorted map for quicker iteration/cache coherence.
-        } else {
-            for(auto it(out.begin()), eit(out.end()); it != eit;)
-                *it++ = in[fastrange64(rng_(), isz)];
-        }
-        //The naive approach is double memory.
-    }
-    template<typename Vector>
-    void apply(Vector &vec) const {
-        rng_.seed(seed_);
-        shuffle(begin(vec), end(vec), rng_);
     }
 };
 

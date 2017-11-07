@@ -1,5 +1,5 @@
 #ifndef _GFRP_DIST_H__
-#define _GFRP__DIST_H__
+#define _GFRP_DIST_H__
 #include <random>
 #include "gfrp/rand.h"
 #include "gfrp/linalg.h"

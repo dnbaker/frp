@@ -88,9 +88,29 @@ struct ProductBlock {
     }
     template<typename Vector>
     void apply(Vector &out) const {
-        out *= v_;
+        out *= rescale_factor_;
     }
-    ProductBlock(FloatType val): v_(val) {}
+    ProductBlock(FloatType val): v_(val), rescale_factor_(v_) {}
+};
+
+template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
+struct FastFoodGaussianProductBlock: {
+    const FloatType v_;
+    FastFoodGaussianProductBlock(FloatType sigma): v_(1./sigma) {}
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) const {
+        if(in.size() == out.size()) {
+            out = in;
+            apply<OutVector>(out);
+        } else {
+            throw runtime_error("Not Implemented");
+        }
+    }
+    template<typename Vector>
+    void apply(Vector &out) const {
+        const auto tmp(1./std::sqrt(out.size()) * v_);
+        out *= tmp;
+    }
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
@@ -110,6 +130,46 @@ struct GaussianScalingBlock: ScalingBlock<FloatType, VectorOrientation, VectorKi
         out *= vec_;
     }
 };
+
+template<typename SizeType=uint32_t, typename RNG=aes::AesCtr<SizeType>>
+class OnlineShuffler {
+    //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
+    //This
+    using ResultType = typename RNG::result_type;
+    const ResultType seed_;
+    RNG               rng_;
+public:
+    explicit OnlineShuffler(ResultType seed=0): seed_{seed}, rng_(seed) {}
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) const {
+        fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n");
+        const auto isz(in.size());
+        if(isz == out.size()) {
+            out = in;
+            apply<OutVector>(out);
+        } else if(isz > out.size()) {
+            std::fprintf(stderr, "Warning: This means we're just subsampling\n");
+            unordered_set<uint64_t> indices;
+            indices.reserve(out.size());
+            while(indices.size() < out.size()) indices.insert(fastrange64(rng_(), isz));
+            auto it(out.begin());
+            for(const auto index: indices) *it++ = in[index]; // Could consider a sorted map for quicker iteration/cache coherence.
+        } else {
+            std::fprintf(stderr, "Warning: This means we're subsampling with replacement and not caring because sizes are mismatched.\n");
+            for(auto it(out.begin()), eit(out.end()); it != eit;)
+                *it++ = in[fastrange64(rng_(), isz)];
+        }
+        //The naive approach is double memory.
+    }
+    template<typename Vector>
+    void apply(Vector &vec) const {
+        rng_.seed(seed_);
+        for(ResultType i(vec.size() - 1); i > 1; --i) {
+            std::swap(vec[i - 1], fastrange(rng_(), i));
+        }
+    }
+};
+
 
 template<typename... Blocks>
 class SpinBlockTransformer {
