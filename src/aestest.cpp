@@ -58,6 +58,7 @@ int main(int argc, char *argv[]) {
     aes::AesCtr<uint64_t, 32> c32;
     aes::AesCtr<uint64_t, 64> c64;
     aes::AesCtr<uint64_t, 128> c128;
+    aes::AesCtr<uint32_t, 16> c8_16;
     time_aes(c8, vec, "c8", niter);
     time_aes(c16, vec, "c16", niter);
     std::cerr << "sizeof aesctr: " << sizeof(c8) << '\n';
@@ -71,4 +72,6 @@ int main(int argc, char *argv[]) {
     time_stuff("snd", snd, c8, vals, niter, size);
     time_stuff("dbnd", dbnd, c8, dvals, niter, size);
     time_stuff("snd", dsnd, c8, dvals, niter, size);
+    time_stuff("u32dbnd", dbnd, c8_16, dvals, niter, size);
+    time_stuff("u32dsnd", dsnd, c8_16, dvals, niter, size);
 }

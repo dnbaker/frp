@@ -6,6 +6,7 @@
 
 // contributed by Samuel Neves
 
+#include <cassert>
 #include <cstddef>
 #include <limits>
 #include <cstdint>
@@ -108,7 +109,6 @@ public:
         result_type ret;
         memcpy(&ret, state_ + offset_, sizeof(ret));
         offset_ += sizeof(result_type);
-        std::cerr << "Returning ret = " << ret << '\n';
         return ret;
     }
     void fast_forward(uint64_t index) {
@@ -153,20 +153,20 @@ public:
       for (unsigned i = 0; i < UNROLL_COUNT; ++i) ctr_[i] = _mm_set_epi64x(0, i);
       offset_ = sizeof(__m128i) * UNROLL_COUNT;
     }
-#if 0
+#if 1
     result_type operator[](size_t count) const {
         static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(result_type);
         static constexpr unsigned BMASK = DIV - 1;
         const unsigned offset_(count & BMASK);
         result_type ret[DIV];
         count /= DIV;
-        std::fprintf(stderr, "Count: %zu. DIV: %zu. BMASK: %zu\n", count, DIV, BMASK);
+        //std::fprintf(stderr, "Count: %zu. DIV: %zu. BMASK: %zu\n", count, DIV, BMASK);
         __m128i tmp(_mm_xor_si128(_mm_set_epi64x(0, count), seed_[0]));
         for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
             tmp = _mm_aesenc_si128(tmp, seed_[r]);
         }
         _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
-        std::cerr << "About to return value " << ret[offset_] << '\n';
+        //std::cerr << "About to return value " << ret[offset_] << '\n';
         return ret[offset_];
 #else
     result_type operator[](size_t count) const {
