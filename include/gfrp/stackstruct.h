@@ -128,15 +128,15 @@ void fht(const VecType1 &in, VecType2 &out) {
     }
 }
 
-template<typename FloatType, typename=enable_if_t<is_floating_point<FloatType>::value>>
 struct HadamardBlock {
-    size_t n_;
-    size_t pow2up_;
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
-        throw runtime_error("NotImplemented.");
+        if(out.size() == in.size()) {
+            apply(out);
+        } else {
+            throw std::runtime_error("NotImplementedError: HadamardBlock for differing input/output sizes.");
+        }
     }
-
     template<typename OutVector>
     void apply(OutVector &out) {
         if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
@@ -144,11 +144,10 @@ struct HadamardBlock {
         }
         if(out.size() & (out.size() - 1) == 0) {
             fht(&out[0], log2_64(out.size()));
-            return;
+        } else {
+            throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
         }
-        throw runtime_error("NotImplemented.");
     }
-    HadamardBlock(size_t n): n_(n), pow2up_(roundup64(n_)) {}
 };
 
 namespace rfft {
@@ -162,7 +161,7 @@ static const fftw_r2r_kind kinds [] {
     FFTW_REDFT01,
 };
 
-}
+} // namespace rfft
 
 template<typename FloatType>
 class RFFTBlock {

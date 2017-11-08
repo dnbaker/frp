@@ -62,10 +62,10 @@ class CompactRademacher {
     static constexpr size_t SHIFT = log2_64(NBITS);
     static constexpr size_t BITMASK = NBITS - 1;
 
+public:
     using value_type = FloatType;
     using container_type = T;
     using size_type = size_t;
-public:
     // Constructors
     CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(malloc(sizeof(T) * n_))) {
         if(n & (BITMASK))

@@ -4,6 +4,7 @@
 #include "gfrp/linalg.h"
 #include "gfrp/stackstruct.h"
 #include "FFHT/fht.h"
+#include <array>
 
 namespace gfrp {
 /*
@@ -27,7 +28,7 @@ namespace gfrp {
  *
  */
 
-template<typename FloatType, typename StructMat, typename DiagMat, typename=enable_if_t<is_floating_point<FloatType>::value>>
+template<typename StructMat, typename DiagMat>
 struct SDBlock {
     StructMat s_;
     DiagMat   d_;
@@ -41,18 +42,58 @@ struct SDBlock {
     }
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
+        if(out.size() == in.size()) {
+            out = in;
+            apply(out);
+        }
+    }
+    template<typename OutVector>
+    void apply(OutVector &out) {
+        d_.apply(out); // Element-wise multiplication.
+        s_.apply(out); // Structured-matrix multiplication.
     }
 };
 
+enum SubsampleStrategy {
+    FIRST_M = 0,
+    RANDOM_NO_REPLACEMENT = 1,
+    RANDOM_NO_REPLACEMENT_HASH_SET = 2,
+    RANDOM_NO_REPLACEMENT_VEC = 3,
+    RANDOM_W_REPLACEMENT = 4
+};
+
+#if 0
+template<typename FullVector, SmallVector>
+void subsample(const FullVector &in, SmallVector &out, SubsampleStrategy strat, size_t outsz=0) {
+    if(outsz == 0) outsz = out.size();
+    assert(outsz > 0);
+    switch(start) {
+    case FIRST_M:
+        auto sv(subvector(in, 0, outsz));
+        out = sv;
+        return;
+    case RANDOM_NO_REPLACEMENT: [[fallthrough]];
+    case RANDOM_NO_REPLACEMENT_HASH_SET: throw std::runtime_error("");
+    case RANDOM_NO_REPLACEMENT_VEC: throw std::runtime_error("");
+    case RANDOM_W_REPLACEMENT: // Deal withthis with a thing.
+    }
+}
+#endif
+
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
 struct ScalingBlock {
+public:
     using VectorType = VectorKind<FloatType, VectorOrientation>;
+private:
     VectorType vec_;
+public:
     template<typename...Args>
     ScalingBlock(Args &&...args): vec_(forward<Args>(args)...) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        throw runtime_error("Not Implemented");
+        if(out.size() != in.siz()) throw std::runtime_error("NotImplementedError");
+        out = in;
+        apply(out);
     }
     template<typename Vector>
     void apply(Vector &out) const {
@@ -88,14 +129,15 @@ struct ProductBlock {
     }
     template<typename Vector>
     void apply(Vector &out) const {
-        out *= rescale_factor_;
+        out *= v_;
     }
-    ProductBlock(FloatType val): v_(val), rescale_factor_(v_) {}
+    ProductBlock(FloatType val): v_(val) {}
 };
 
 template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
-struct FastFoodGaussianProductBlock: {
+class FastFoodGaussianProductBlock {
     const FloatType v_;
+public:
     FastFoodGaussianProductBlock(FloatType sigma): v_(1./sigma) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
@@ -114,22 +156,40 @@ struct FastFoodGaussianProductBlock: {
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
-struct GaussianScalingBlock: ScalingBlock<FloatType, VectorOrientation, VectorKind> {
+class GaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
+    // This might need a rescaling.
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     VectorType vec_;
+public:
     template<typename...Args>
     GaussianScalingBlock(uint64_t seed=0, FloatType mean=0., FloatType var=1., Args &&...args): vec_(forward<Args>(args)...) {
         gaussian_fill(vec_, seed, mean, var);
     }
-    template<typename InVector, typename OutVector>
-    void apply(const InVector &in, OutVector &out) const {
-        throw runtime_error("Not Implemented");
-    }
-    template<typename Vector>
-    void apply(Vector &out) const {
-        out *= vec_;
+};
+
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
+class UnitGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
+    // This might need a rescaling.
+    using VectorType = VectorKind<FloatType, VectorOrientation>;
+    VectorType vec_;
+public:
+    template<typename...Args>
+    UnitGaussianScalingBlock(uint64_t seed=0, Args &&...args): vec_(forward<Args>(args)...) {
+        assert(vec_.size());
+        unit_gaussian_fill(vec_, seed);
     }
 };
+
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
+class HadamardRademacherSDBlock: public SDBlock<HadamardBlock, CompactRademacher<FloatType>> {
+public:
+    using RademType = CompactRademacher<FloatType>;
+    using HadamType = HadamardBlock;
+    using SDType    = SDBlock<HadamardBlock, CompactRademacher<FloatType>>;
+    HadamardRademacherSDBlock(typename RademType::size_type n):
+        SDType(HadamType(), RademType(n)) {}
+};
+
 
 template<typename SizeType=uint32_t, typename RNG=aes::AesCtr<SizeType>>
 class OnlineShuffler {
@@ -207,6 +267,21 @@ public:
         as(in, out);
     }
 };
+
+#if 0
+
+// First make Gaussian scaling block.
+template<typename FloatType, size_t nblocks=3, SizeType=size_t, bool OverrideBlockCount=false>
+class CompressedJLTransform {
+    
+    static_assert((nblocks & 1) || OverrideBlockCount, "Using an even number of blocks results in provably worse performance."
+                                                       "You probably don't want to do this. If you're sure, change the last [fourth] template argument to true.");
+    
+    CompressedJLTransform(size_t from, size_t to): from_(from), to_(to) {
+        std::memset(seeds_.data
+    }
+};
+#endif
 
 } // namespace gfrp
 

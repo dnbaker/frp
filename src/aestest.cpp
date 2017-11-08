@@ -5,7 +5,7 @@
 #include <vector>
 #include <chrono>
 #include "gfrp/aesctr.h"
-#include "gfrp/compact.h"
+#include "gfrp/spinner.h"
 #include "random/include/boost/random/normal_distribution.hpp"
 
 class Timer {
