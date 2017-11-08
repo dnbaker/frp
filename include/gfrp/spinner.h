@@ -180,14 +180,21 @@ public:
     }
 };
 
-template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
+template<typename FloatType>
 class HadamardRademacherSDBlock: public SDBlock<HadamardBlock, CompactRademacher<FloatType>> {
 public:
     using RademType = CompactRademacher<FloatType>;
     using HadamType = HadamardBlock;
     using SDType    = SDBlock<HadamardBlock, CompactRademacher<FloatType>>;
-    HadamardRademacherSDBlock(typename RademType::size_type n):
-        SDType(HadamType(), RademType(n)) {}
+    using size_type = typename RademType::size_type;
+    HadamardRademacherSDBlock(size_type n, size_type seed):
+        SDType(HadamType(), RademType(n, seed)) {}
+    void resize(size_type newsize) {
+        RademType::resize(newsize);
+    }
+    void seed(size_type seed) {
+        RademType::seed(seed);
+    }
 };
 
 
@@ -268,20 +275,26 @@ public:
     }
 };
 
-#if 0
-
 // First make Gaussian scaling block.
 template<typename FloatType, size_t nblocks=3, SizeType=size_t, bool OverrideBlockCount=false>
-class CompressedJLTransform {
-    
+class CompressedOJLTransform {
+public:
+    using size_type = SizeType;
+    HadamardRademacherSDBlock blocks_[nblocks];
     static_assert((nblocks & 1) || OverrideBlockCount, "Using an even number of blocks results in provably worse performance."
                                                        "You probably don't want to do this. If you're sure, change the last [fourth] template argument to true.");
     
-    CompressedJLTransform(size_t from, size_t to): from_(from), to_(to) {
-        std::memset(seeds_.data
+    CompressedOJLTransform(size_t from, size_t to, const std::vector<size_type> &seeds={}): from_(from), to_(to) {
+        for(size_type i(0); i < nblocks; ++i) {
+            blocks_[i].resize(from);
+            blocks_[i].seed(i >= seeds.size() ? std::time(nullptr): seeds[i]);
+        }
     }
+    // TODO: Apply full transformation, then subsample rows.
+    // Optionally add a (potentially scaled?) Guassian multiplication layer.
 };
-#endif
+
+using COJLT = CompressedOrthogonalJLTransform;
 
 } // namespace gfrp
 

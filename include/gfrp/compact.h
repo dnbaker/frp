@@ -55,6 +55,7 @@ template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::A
 class CompactRademacher {
 
     size_t n_, m_;
+    T       seed_;
     unique_ptr<T, free_delete> data_;
 
     static constexpr FloatType values_[2] {1, -1};
@@ -67,10 +68,10 @@ public:
     using container_type = T;
     using size_type = size_t;
     // Constructors
-    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, data_(static_cast<T *>(malloc(sizeof(T) * n_))) {
+    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, seed_(seed), data_(static_cast<T *>(malloc(sizeof(T) * n_))) {
         if(n & (BITMASK))
-            throw runtime_error(ks::sprintf("Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK).data());
-        randomize(seed);
+            std::fprintf(stderr, "Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK);
+        randomize(seed_);
     }
     CompactRademacher(CompactRademacher &&other) = default;
     CompactRademacher(const CompactRademacher &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(malloc(sizeof(T) * m_))) {
@@ -88,6 +89,11 @@ public:
     template<typename AsType>
     CompactAs<AsType> as_type() {
         return CompactAs<AsType>(*this);
+    }
+    void seed(T seed) {seed_ = seed;}
+    void resize(T new_size) {
+        reserve(new_size);
+        randomize(seed_);
     }
     // For setting to random values
     auto *data() {return data_;}
@@ -112,7 +118,7 @@ public:
     }
     void zero() {memset(data_, 0, sizeof(T) * (n_ >> SHIFT));}
     void reserve(size_t newsize) {
-        if(newsize & (newsize - 1)) throw runtime_error("newsize should be a power of two");
+        fprintf(stderr, "Warning: newsize should (probably) be a power of two\n");
         if(newsize > m_) {
             auto tmp(static_cast<T*>(realloc(data_, sizeof(T) * (newsize >> SHIFT))));
             if(tmp == nullptr) throw bad_alloc();
