@@ -3,6 +3,7 @@
 #include "gfrp/compact.h"
 #include "gfrp/linalg.h"
 #include "gfrp/stackstruct.h"
+#include "gfrp/sample.h"
 #include "FFHT/fht.h"
 #include <array>
 
@@ -53,60 +54,6 @@ struct SDBlock {
     }
 };
 
-enum SubsampleStrategy {
-    FIRST_M = 0,
-    RANDOM_NO_REPLACEMENT = 1,
-    RANDOM_NO_REPLACEMENT_HASH_SET = 1,
-    RANDOM_NO_REPLACEMENT_VEC = 2,
-    RANDOM_W_REPLACEMENT = 3
-};
-
-#if 0
-
-TODO: make precomputed subsample indices for JL transforms and other squashings.
-template<typename FullVector, SmallVector>
-void subsample(const FullVector &in, SmallVector &out, SubsampleStrategy strat, uint64_t seed) {
-    std::fprintf(stderr, "Warning: This always regenates the indices to copy over. The seed must be set the same every time.
-                          You can make and save a reordering if you want to keep it the same later.\n");
-    if(strat == RANDOM_NO_REPLACEMENT_HASH_SET && out.size() < 100) {
-        start = RANDOM_NO_REPLACEMENT_VEC;
-    }
-    switch(strat) {
-        case FIRST_M:
-            auto sv(subvector(in, 0, out.size()));
-            out = sv;
-            break;
-        case RANDOM_NO_REPLACEMENT: [[fallthrough]];
-        case RANDOM_NO_REPLACEMENT_HASH_SET: 
-        {
-            std::unordered_set<unsigned> indices;
-            aes::AesCtr<khint_t> gen(seed);
-            while(indices.size() < out.size()) indices.insert(fastrange(gen(), out.size()));
-            unsigned ind(0);
-            for(const auto el: indices) out[ind++] = in[el];
-        }
-            break;
-        case RANDOM_NO_REPLACEMENT_VEC: {
-            std::vector<unsigned> indices;
-            aes::AesCtr<khint_t> gen(seed);
-            while(indices.size() < out.size()) {
-                auto tmp(fastrange(gen(), out.size()));
-                if(std::find(std::begin(indices), std::end(indices), tmp) == std::end(indices)) {
-                    indices.push_back(tmp);
-                }
-            }
-            for(unsigned i(0); i < out.size(); ++i) out[i] = in[indices[i]];
-        }
-        case RANDOM_W_REPLACEMENT:
-        {
-            for(auto &el: out) {
-                el = in[fastrange(gen(), out.size())];
-            }
-        }
-            break;
-    }
-}
-#endif
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
 struct ScalingBlock {
