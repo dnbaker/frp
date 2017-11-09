@@ -38,7 +38,6 @@ struct SDBlock {
     // m_: The size of each sub-block
     SDBlock(StructMat &&s, DiagMat &&d): s_(forward<StructMat>(s)), d_(forward<DiagMat>(d))
     {
-        assert(s_.size() == d_.size());
     }
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) {
@@ -57,25 +56,54 @@ struct SDBlock {
 enum SubsampleStrategy {
     FIRST_M = 0,
     RANDOM_NO_REPLACEMENT = 1,
-    RANDOM_NO_REPLACEMENT_HASH_SET = 2,
-    RANDOM_NO_REPLACEMENT_VEC = 3,
-    RANDOM_W_REPLACEMENT = 4
+    RANDOM_NO_REPLACEMENT_HASH_SET = 1,
+    RANDOM_NO_REPLACEMENT_VEC = 2,
+    RANDOM_W_REPLACEMENT = 3
 };
 
 #if 0
+
+TODO: make precomputed subsample indices for JL transforms and other squashings.
 template<typename FullVector, SmallVector>
-void subsample(const FullVector &in, SmallVector &out, SubsampleStrategy strat, size_t outsz=0) {
-    if(outsz == 0) outsz = out.size();
-    assert(outsz > 0);
-    switch(start) {
-    case FIRST_M:
-        auto sv(subvector(in, 0, outsz));
-        out = sv;
-        return;
-    case RANDOM_NO_REPLACEMENT: [[fallthrough]];
-    case RANDOM_NO_REPLACEMENT_HASH_SET: throw std::runtime_error("");
-    case RANDOM_NO_REPLACEMENT_VEC: throw std::runtime_error("");
-    case RANDOM_W_REPLACEMENT: // Deal withthis with a thing.
+void subsample(const FullVector &in, SmallVector &out, SubsampleStrategy strat, uint64_t seed) {
+    std::fprintf(stderr, "Warning: This always regenates the indices to copy over. The seed must be set the same every time.
+                          You can make and save a reordering if you want to keep it the same later.\n");
+    if(strat == RANDOM_NO_REPLACEMENT_HASH_SET && out.size() < 100) {
+        start = RANDOM_NO_REPLACEMENT_VEC;
+    }
+    switch(strat) {
+        case FIRST_M:
+            auto sv(subvector(in, 0, out.size()));
+            out = sv;
+            break;
+        case RANDOM_NO_REPLACEMENT: [[fallthrough]];
+        case RANDOM_NO_REPLACEMENT_HASH_SET: 
+        {
+            std::unordered_set<unsigned> indices;
+            aes::AesCtr<khint_t> gen(seed);
+            while(indices.size() < out.size()) indices.insert(fastrange(gen(), out.size()));
+            unsigned ind(0);
+            for(const auto el: indices) out[ind++] = in[el];
+        }
+            break;
+        case RANDOM_NO_REPLACEMENT_VEC: {
+            std::vector<unsigned> indices;
+            aes::AesCtr<khint_t> gen(seed);
+            while(indices.size() < out.size()) {
+                auto tmp(fastrange(gen(), out.size()));
+                if(std::find(std::begin(indices), std::end(indices), tmp) == std::end(indices)) {
+                    indices.push_back(tmp);
+                }
+            }
+            for(unsigned i(0); i < out.size(); ++i) out[i] = in[indices[i]];
+        }
+        case RANDOM_W_REPLACEMENT:
+        {
+            for(auto &el: out) {
+                el = in[fastrange(gen(), out.size())];
+            }
+        }
+            break;
     }
 }
 #endif
@@ -187,13 +215,15 @@ public:
     using HadamType = HadamardBlock;
     using SDType    = SDBlock<HadamardBlock, CompactRademacher<FloatType>>;
     using size_type = typename RademType::size_type;
-    HadamardRademacherSDBlock(size_type n, size_type seed):
+    HadamardRademacherSDBlock(size_type n=0, size_type seed=0):
         SDType(HadamType(), RademType(n, seed)) {}
     void resize(size_type newsize) {
-        RademType::resize(newsize);
+        SDType::s_.resize(newsize);
+        SDType::d_.resize(newsize);
     }
     void seed(size_type seed) {
-        RademType::seed(seed);
+        SDType::s_.seed(seed);
+        SDType::d_.seed(seed);
     }
 };
 
@@ -276,25 +306,59 @@ public:
 };
 
 // First make Gaussian scaling block.
-template<typename FloatType, size_t nblocks=3, SizeType=size_t, bool OverrideBlockCount=false>
+template<typename FloatType, size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
 class CompressedOJLTransform {
+    SizeType from_, to_;
+    std::array<SizeType, nblocks> seeds_;
 public:
     using size_type = SizeType;
-    HadamardRademacherSDBlock blocks_[nblocks];
+    HadamardRademacherSDBlock<FloatType> blocks_[nblocks];
     static_assert((nblocks & 1) || OverrideBlockCount, "Using an even number of blocks results in provably worse performance."
                                                        "You probably don't want to do this. If you're sure, change the last [fourth] template argument to true.");
     
-    CompressedOJLTransform(size_t from, size_t to, const std::vector<size_type> &seeds={}): from_(from), to_(to) {
+    CompressedOJLTransform(size_t from, size_t to, std::array<SizeType, nblocks> &&seeds): seeds_{seeds}
+    {
+        resize(from, to);
+    }
+    CompressedOJLTransform(size_t from, size_t to, size_type seedseed):
+        CompressedOJLTransform(from, to, aes::seed_to_array<size_type, nblocks>(seedseed))
+    {
+    }
+    void resize(size_type newfrom, size_type newto) {
+        resize_from(newfrom);
+        resize_to(newto);
+    }
+    void reseed_impl() {
         for(size_type i(0); i < nblocks; ++i) {
-            blocks_[i].resize(from);
-            blocks_[i].seed(i >= seeds.size() ? std::time(nullptr): seeds[i]);
+            blocks_[i].resize(from_);
+            blocks_[i].seed(seeds_[i]);
         }
+    }
+    void reseed(std::array<SizeType, nblocks> &&seeds) {
+        seeds_ = std::move(seeds);
+        reseed_impl();
+    }
+    void reseed(const std::array<SizeType, nblocks> &seeds) {
+        seeds_ = seeds;
+    }
+    void reseed(size_type newseed) {
+        seeds_ = aes::seed_to_array<size_type, nblocks>(newseed);
+    }
+    void resize_from(size_type newfrom) {
+        for(size_type i(0); i < nblocks; ++i) {
+            blocks_[i].resize(newfrom);
+            blocks_[i].seed(seeds_[i]);
+        }
+    }
+    void resize_to(size_type newto) {
+        to_ = newto;
     }
     // TODO: Apply full transformation, then subsample rows.
     // Optionally add a (potentially scaled?) Guassian multiplication layer.
 };
 
-using COJLT = CompressedOrthogonalJLTransform;
+template<typename FloatType, size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
+using COJLT = CompressedOJLTransform<FloatType, nblocks, SizeType, OverrideBlockCount>;
 
 } // namespace gfrp
 

@@ -6,7 +6,6 @@
 #include <chrono>
 #include "gfrp/aesctr.h"
 #include "gfrp/spinner.h"
-#include "random/include/boost/random/normal_distribution.hpp"
 
 class Timer {
     using TpType = std::chrono::system_clock::time_point;
@@ -52,6 +51,11 @@ using unormd = boost::random::detail::unit_normal_distribution<Types...>;
 
 int main(int argc, char *argv[]) {
     size_t niter(argc > 2 ? std::atoi(argv[2]): 1000), size(argc > 1 ? std::atoi(argv[1]): 1 << 16);
+    int64_t UNROLL_COUNT = 4;
+    const __m128i CTR_ADD = {UNROLL_COUNT, 0};
+    const __m128i CTR_CMP = _mm_set_epi64x(0, UNROLL_COUNT);
+    assert(CTR_ADD[0] == CTR_CMP[0]);
+    assert(CTR_ADD[1] == CTR_CMP[1]);
     std::vector<uint64_t> vec(size);
     aes::AesCtr<uint64_t, 8> c8;
     aes::AesCtr<uint64_t, 4> c4;
@@ -76,4 +80,5 @@ int main(int argc, char *argv[]) {
     time_stuff("u32dbnd", dbnd, c8_16, dvals, niter, size);
     time_stuff("u32dsnd", dsnd, c8_16, dvals, niter, size);
     gfrp::OnlineShuffler shuf;
+    gfrp::CompressedOJLTransform<FLOAT_TYPE> t(size, size / 8, 1440);
 }

@@ -11,6 +11,7 @@
 #include <limits>
 #include <cstdint>
 #include <cstring>
+#include <array>
 #include <type_traits>
 #include <immintrin.h>
 
@@ -49,23 +50,23 @@ class AesCtr {
     // Unrollers
     template<size_t ind, size_t todo>
     struct aes_unroll_impl {
-        void operator()(__m128i *ret, AesCtr &state) const {
+        static constexpr __m128i CTR_ADD = {UNROLL_COUNT, 0};
+        constexpr void operator()(__m128i *ret, AesCtr &state) const {
             ret[ind] = _mm_xor_si128(state.ctr_[ind], state.seed_[0]);
             aes_unroll_impl<ind + 1, todo - 1>()(ret, state);
         }
-        void aesenc(__m128i *ret, __m128i subkey) const {
+        constexpr void aesenc(__m128i *ret, __m128i subkey) const {
             ret[ind] = _mm_aesenc_si128(ret[ind], subkey);
             aes_unroll_impl<ind + 1, todo - 1>().aesenc(ret, subkey);
         }
         template<size_t NUMROLL>
-        void round_and_enc(__m128i *ret, AesCtr &state) const {
+        constexpr void round_and_enc(__m128i *ret, AesCtr &state) const {
             const __m128i subkey = state.seed_[ind];
             aes_unroll_impl<0, NUMROLL>().aesenc(ret, subkey);
             aes_unroll_impl<ind + 1, todo - 1>().template round_and_enc<NUMROLL>(ret, state);
         }
-        void add_store(__m128i *work, AesCtr &state) const {
-            static_assert(sizeof(__m128i) == 16, "Pretty sure this has to be true.");
-            static const __m128i CTR_ADD =  _mm_set_epi64x(0, UNROLL_COUNT);
+        constexpr void add_store(__m128i *work, AesCtr &state) const {
+            assert(CTR_ADD[0] == UNROLL_COUNT && "This better work.");
             state.ctr_[ind] =
                 _mm_add_epi64(state.ctr_[ind], CTR_ADD);
                 _mm_storeu_si128(
@@ -74,7 +75,7 @@ class AesCtr {
             aes_unroll_impl<ind + 1, todo - 1>().add_store(work, state);
         }
         template<typename T>
-        void pluseq(T *data, T addn) {
+        constexpr void pluseq(T *data, T addn) {
 #if __AVX2__
             data[ind] = _mm256_add_epi64(data[ind], addn);
 #else
@@ -96,23 +97,22 @@ class AesCtr {
 
 public:
     using result_type = GeneratedType;
-    AesCtr(uint64_t seedval=0) {
+    constexpr AesCtr(uint64_t seedval=0) {
         seed(seedval);
     }
-    result_type operator()() {
+    constexpr result_type operator()() {
         if (__builtin_expect(offset_ >= sizeof(__m128i) * UNROLL_COUNT, 0)) {
             aes_unroll_impl<0, UNROLL_COUNT>()(work_, *this);
             aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work_, *this);
             aes_unroll_impl<0, UNROLL_COUNT>().add_store(work_, *this);
             offset_ = 0;
         }
-        result_type ret;
-        memcpy(&ret, state_ + offset_, sizeof(ret));
+        const auto ret(*(result_type *)state_ + offset_);
         offset_ += sizeof(result_type);
         return ret;
     }
-    void fast_forward(uint64_t index) {
-        static const uint64_t MASK = (sizeof(__m128i) * UNROLL_COUNT / sizeof(GeneratedType) - 1);
+    static constexpr uint64_t MASK = (sizeof(__m128i) * UNROLL_COUNT / sizeof(GeneratedType) - 1);
+    constexpr void fast_forward(uint64_t index) {
         static_assert((MASK & (MASK + 1)) == 0, "I MUST HAVE THIS NOT WRONG");
         const uint64_t chunkstart(index & ~(MASK));
         std::cerr << "For index " << index << " I have chunkstart " << chunkstart << " And leftover " << (index & MASK) << '\n';
@@ -131,10 +131,10 @@ public:
     }
     static constexpr result_type max() {return numeric_limits<result_type>::max();}
     static constexpr result_type min() {return numeric_limits<result_type>::min();}
-    void seed(uint64_t k) {
+    constexpr void seed(uint64_t k) {
         seed(_mm_set_epi64x(0, k));
     }
-    void seed(__m128i k) {
+    constexpr void seed(__m128i k) {
       seed_[0] = k;
       // D. Lemire manually unrolled following loop since _mm_aeskeygenassist_si128
       // requires immediates
@@ -153,38 +153,18 @@ public:
       for (unsigned i = 0; i < UNROLL_COUNT; ++i) ctr_[i] = _mm_set_epi64x(0, i);
       offset_ = sizeof(__m128i) * UNROLL_COUNT;
     }
-#if 1
-    result_type operator[](size_t count) const {
-        static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(result_type);
-        static constexpr unsigned BMASK = DIV - 1;
+    static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(result_type);
+    static constexpr unsigned BMASK = DIV - 1;
+    constexpr result_type operator[](size_t count) const {
         const unsigned offset_(count & BMASK);
-        result_type ret[DIV];
+        result_type ret[DIV]{0};
         count /= DIV;
-        //std::fprintf(stderr, "Count: %zu. DIV: %zu. BMASK: %zu\n", count, DIV, BMASK);
         __m128i tmp(_mm_xor_si128(_mm_set_epi64x(0, count), seed_[0]));
         for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
             tmp = _mm_aesenc_si128(tmp, seed_[r]);
         }
         _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
-        //std::cerr << "About to return value " << ret[offset_] << '\n';
         return ret[offset_];
-#else
-    result_type operator[](size_t count) const {
-        fast_forward(count);
-        static constexpr unsigned DIV   = sizeof(__m128i) / sizeof(result_type);
-        static constexpr unsigned BMASK = DIV - 1;
-        const unsigned offset_(count & BMASK);
-        result_type ret[DIV];
-        count /= DIV;
-        std::fprintf(stderr, "Count: %zu. DIV: %zu. BMASK: %zu\n", count, DIV, BMASK);
-        __m128i tmp(_mm_xor_si128(_mm_set_epi64x(0, count), seed_[0]));
-        for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
-            tmp = _mm_aesenc_si128(tmp, seed_[r]);
-        }
-        _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
-        std::cerr << "About to return value " << ret[offset_] << '\n';
-        return ret[offset_];
-#endif
     }
 };
 #undef AES_ROUND
@@ -192,6 +172,13 @@ public:
 template<typename T, size_t n>
 struct is_aes<AesCtr<T, n>>: std::true_type {};
 
+template<typename size_type, size_t arrsize>
+constexpr std::array<size_type, arrsize> seed_to_array(size_type seedseed) {
+    std::array<size_type, arrsize> ret{};
+    aes::AesCtr<size_type> gen(seedseed);
+    for(auto &el: ret) el = gen();
+    return ret;
+}
 
 } // namespace aes
 

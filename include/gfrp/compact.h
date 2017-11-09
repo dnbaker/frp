@@ -54,9 +54,8 @@ struct free_delete {
 template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr<T>, typename=enable_if_t<is_arithmetic<FloatType>::value>>
 class CompactRademacher {
 
-    size_t n_, m_;
-    T       seed_;
-    unique_ptr<T, free_delete> data_;
+    T              seed_;
+    std::vector<T> data_;
 
     static constexpr FloatType values_[2] {1, -1};
     static constexpr size_t NBITS = sizeof(T) * CHAR_BIT;
@@ -68,16 +67,13 @@ public:
     using container_type = T;
     using size_type = size_t;
     // Constructors
-    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): n_{n >> SHIFT}, m_{n_}, seed_(seed), data_(static_cast<T *>(malloc(sizeof(T) * n_))) {
+    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): seed_(seed), data_(n >> SHIFT) {
         if(n & (BITMASK))
             std::fprintf(stderr, "Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK);
         randomize(seed_);
     }
     CompactRademacher(CompactRademacher &&other) = default;
-    CompactRademacher(const CompactRademacher &other): n_(other.n_), m_(other.m_), data_(static_cast<T*>(malloc(sizeof(T) * m_))) {
-        if(data_ == nullptr) throw bad_alloc();
-        memcpy(data_.get(), other.data_, sizeof(T) * n_);
-    }
+    CompactRademacher(const CompactRademacher &other) = default;
     template<typename AsType>
     class CompactAs {
         static constexpr AsType values[2] {static_cast<AsType>(1), static_cast<AsType>(-1)};
@@ -92,40 +88,37 @@ public:
     }
     void seed(T seed) {seed_ = seed;}
     void resize(T new_size) {
-        reserve(new_size);
-        randomize(seed_);
+        if(new_size != size()) {
+            data_.resize(new_size >> SHIFT);
+            randomize(seed_);
+        }
     }
     // For setting to random values
     auto *data() {return data_;}
     const auto *data() const {return data_;}
     // For use
-    auto size() const {return n_ << SHIFT;}
-    auto capacity() const {return m_ << SHIFT;}
-    auto nwords() const {return n_;}
+    auto size() const {return data_.size() << SHIFT;}
+    auto capacity() const {return data_.capacity() << SHIFT;}
+    auto nwords() const {return data_.size();}
     auto nbytes() const {return size();}
     template<typename OWordType, typename OFloatType>
     bool operator==(const CompactRademacher<OWordType, OFloatType> &other) const {
         if(size() != other.size()) return false;
         auto odata = other.data();
-        for(size_t i(0);i < n_; ++i)
+        for(size_t i(0);i < data_.size(); ++i)
             if(data_[i] != odata[i])
                 return false;
         return true;
     }
 
     void randomize(uint64_t seed) {
-        random_fill(reinterpret_cast<uint64_t *>(data_.get()), n_ * sizeof(uint64_t) / sizeof(T), seed);
+        random_fill(reinterpret_cast<uint64_t *>(data_.data()), data_.size() * sizeof(T) / sizeof(uint64_t), seed);
     }
-    void zero() {memset(data_, 0, sizeof(T) * (n_ >> SHIFT));}
+    void zero() {memset(data_, 0, sizeof(T) * data_.size());}
     void reserve(size_t newsize) {
-        fprintf(stderr, "Warning: newsize should (probably) be a power of two\n");
-        if(newsize > m_) {
-            auto tmp(static_cast<T*>(realloc(data_, sizeof(T) * (newsize >> SHIFT))));
-            if(tmp == nullptr) throw bad_alloc();
-            data_ = tmp;
-        }
+        data_.reserve(newsize >> SHIFT);
     }
-    int bool_idx(size_type idx) const {return !(data_.get()[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
+    int bool_idx(size_type idx) const {return !(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
 
     FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
     template<typename InVector, typename OutVector>

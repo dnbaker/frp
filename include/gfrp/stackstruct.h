@@ -76,7 +76,10 @@ struct FFTTypes<long double> {
     static constexpr decltype(&fftwl_flops)       flopsfn = &fftwl_flops;
     static constexpr decltype(&fftwl_cost)        costfn = &fftwl_cost;
     static constexpr decltype(&fftwl_plan_dft_r2c) r2cplan = &fftwl_plan_dft_r2c;
-    static constexpr decltype(&fftwl_plan_dft_c2r) c2cplan = &fftwl_plan_dft_c2r;
+    static constexpr decltype(&fftwl_plan_dft_c2r) c2rplan = &fftwl_plan_dft_c2r;
+    static constexpr decltype(&fftwl_plan_dft) c2cplan = &fftwl_plan_dft;
+    static constexpr decltype(&fftwl_plan_r2r) r2rplan = &fftwl_plan_r2r;
+    static constexpr decltype(&fftwl_plan_r2r_1d) r2rplan1d = &fftwl_plan_r2r_1d;
     static constexpr decltype(&fftwl_import_wisdom_from_filename) loadfn = &fftwl_import_wisdom_from_filename;
     static constexpr decltype(&fftwl_export_wisdom_to_filename) storefn = &fftwl_export_wisdom_to_filename;
     static const char *suffix() {return "ld";}
@@ -148,6 +151,10 @@ struct HadamardBlock {
             throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
         }
     }
+    template<typename IntType>
+    void resize([[maybe_unused]] IntType i) {/* Do nothing */}
+    template<typename IntType>
+    void seed([[maybe_unused]] IntType i) {/* Do nothing */}
 };
 
 namespace rfft {
