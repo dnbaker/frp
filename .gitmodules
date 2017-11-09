@@ -18,6 +18,3 @@
 	path = random
 	url = https://github.com/boostorg/random
     branch = develop
-[submodule "klib"]
-	path = klib
-	url = https://github.com/attractivechaos/klib
