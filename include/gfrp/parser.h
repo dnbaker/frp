@@ -47,18 +47,18 @@ public:
         fp_(open(path, mode)), bufsz_(bufsz), cnksz_(chunk_size),
         buf_(bufsz), sep_(sep), line_char_(line_char), nlines_(0), offset_(0)
     {
-        if(fp == nullptr) throw std::bad_alloc();
+        if(fp_ == nullptr) throw std::bad_alloc();
     }
     SizeType read_chunk(SizeType pos) {
-        auto nread(read(fp_ + pos, buf_.data(), std::min(cnksz_, bufsz_ - ks.l)));
-        ks.l += nread;
+        auto nread(read(fp_ + pos, buf_.data(), std::min(cnksz_, bufsz_ - buf_.l)));
+        buf_.l += nread;
         return nread;
     }
     int fill_buf() {
         SizeType c;
         SizeType pos(starts_.size() ? starts_.back(): 0);
         while((c = read_chunk(pos)) == cnksz_) pos += c;
-        return (ks.l < bufsz_) ? 0: EOF;
+        return (buf_.size() < bufsz_) ? 0: EOF;
     }
     void line_split() {
         auto ntoks(ks::split(buf_.data(), line_char_, buf_.size(), starts_));
@@ -67,12 +67,12 @@ public:
     void parse_next_line(VecType &data) {
         // Dense
         if(offset_ + 1 >= starts_.size()) {
-            std::memmove(buf_.data(), buf_.data() + starts_.back(), bufbuf_.size() - starts_.back());
+            std::memmove(buf_.data(), buf_.data() + starts_.back(), buf_.size() - starts_.back());
             // STuff.
         }
         char *p(buf_.data() + starts_[offset_++]);
         auto toks(ks::split<SizeType>(p, sep_));
-        if constexpr(std::is_arithmetic<decay_t<decltype(data[0])>>::value) {
+        if constexpr(std::is_arithmetic<std::decay_t<decltype(data[0])>>::value) {
             for(size_t i(0); i < toks.size(); ++i) {
                 data[i] = std::atof(p + toks[i]);
             }
