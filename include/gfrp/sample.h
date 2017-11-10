@@ -78,14 +78,16 @@ OutVector subsample(const FullVector &in, SubsampleStrategy strat, uint64_t seed
 template<template <typename> typename SetContainer=std::unordered_set, typename SizeType=unsigned>
 class CachedSubsampler {
 
-    const SizeType in_;
+    SizeType in_;
     std::vector<SizeType> indices;
 
 public:
     CachedSubsampler(SizeType in, SizeType out, SizeType seed=0): in_(in) {
-        auto idxset(random_set_in_range<SetContainer, SizeType>(out, in, seed));
-        indices = std::vector<SizeType>(std::begin(idxset), std::end(idxset));
-        std::sort(indices.begin(), indices.end()); // For better memory access pattern.
+        {
+            auto idxset(random_set_in_range<SetContainer, SizeType>(out, in, seed));
+            indices = std::vector<SizeType>(std::begin(idxset), std::end(idxset));
+        }
+        sort(); // For better memory access pattern.
     }
     template<typename Vec1, typename Vec2>
     void apply(const Vec1 &in, Vec2 &out) {
@@ -93,6 +95,38 @@ public:
         auto oit(out.begin());
         for(const auto ind: indices) *oit++ = in[ind];
     }
+    void resize(SizeType newin, SizeType newout, SizeType seed=0) {
+        if(newin == in_) {
+            if(newout == indices.size()) return;
+            aes::AesCtr<SizeType> gen(seed ? seed: newin * newout + newin*newin*newin/newout);
+            if(newout > indices.size()) {
+                SetContainer<SizeType> tmp(indices.begin(), indices.end());
+                while(tmp.size() < newout) tmp.insert(fastrange(gen(), in_));
+                indices = std::vector<SizeType>(std::begin(tmp), std::end(tmp));
+                return;
+            } else {
+                SetContainer<SizeType> torm;
+                while(indices.size() - torm.size() > newout)
+                    torm.insert(fastrange(gen(), in_));
+                {
+                    std::vector<SizeType> swapper;
+                    swapper.reserve(newout);
+                    for(SizeType i(0); i < indices.size(); ++i)
+                        if(torm.find(i) == torm.end())
+                            swapper.push_back(indices[i]);
+                    std::swap(swapper, indices);
+                }
+            }
+        } else {
+            in_ = newin;
+            {
+                auto idxset(random_set_in_range<SetContainer, SizeType>(newout, in_, seed));
+                indices = std::vector<SizeType>(std::begin(idxset), std::end(idxset));
+            }
+            sort();
+        }
+    }
+    void sort() {std::sort(indices.begin(), indices.end());}
 
     // TODO: Add the cached subsampler.
 };

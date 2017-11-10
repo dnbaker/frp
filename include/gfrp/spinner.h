@@ -6,6 +6,7 @@
 #include "gfrp/sample.h"
 #include "FFHT/fht.h"
 #include <array>
+#include <functional>
 
 namespace gfrp {
 /*
@@ -253,17 +254,30 @@ public:
 };
 
 // First make Gaussian scaling block.
-template<typename FloatType, size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
+template<typename FloatType, size_t nblocks=3, typename SizeType=unsigned, bool OverrideBlockCount=false>
 class CompressedOJLTransform {
     SizeType from_, to_;
     std::array<SizeType, nblocks> seeds_;
+    CachedSubsampler<std::unordered_set> sampler_;
+/*
+enum SubsampleStrategy {
+    FIRST_M = 0,
+    RANDOM_NO_REPLACEMENT = 1,
+    RANDOM_NO_REPLACEMENT_HASH_SET = 2,
+    RANDOM_NO_REPLACEMENT_VEC = 3,
+    RANDOM_W_REPLACEMENT = 4
+};
+*/
 public:
     using size_type = SizeType;
     HadamardRademacherSDBlock<FloatType> blocks_[nblocks];
     static_assert((nblocks & 1) || OverrideBlockCount, "Using an even number of blocks results in provably worse performance."
                                                        "You probably don't want to do this. If you're sure, change the last [fourth] template argument to true.");
     
-    CompressedOJLTransform(size_t from, size_t to, std::array<SizeType, nblocks> &&seeds): seeds_{seeds}
+    CompressedOJLTransform(size_t from, size_t to, std::array<SizeType, nblocks> &&seeds):
+        seeds_{seeds},
+        sampler_(from, to, std::accumulate(seeds_.begin(), seeds_.end(),
+                                           (SizeType)0, std::bit_xor<SizeType>()))
     {
         resize(from, to);
     }
@@ -272,6 +286,7 @@ public:
     {
     }
     void resize(size_type newfrom, size_type newto) {
+        sampler_.resize(newfrom, newto);
         resize_from(newfrom);
         resize_to(newto);
     }
@@ -299,6 +314,14 @@ public:
     }
     void resize_to(size_type newto) {
         to_ = newto;
+    }
+    template<typename Vec1, typename Vec2>
+    void transform(const Vec1 &in, Vec2 &out) {
+        Vec2 tmp(in); // Copy.
+        for(auto it(blocks_.rbegin()), eit(blocks_.rend()); it != eit; ++it) {
+            it->apply(tmp);
+        }
+        out = subvector(tmp, 0, to_); // Copy result out.
     }
     // TODO: Apply full transformation, then subsample rows.
     // Optionally add a (potentially scaled?) Guassian multiplication layer.
