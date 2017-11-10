@@ -148,6 +148,7 @@ int main(int argc, char *argv[]) {
             assert(seq[i] == ram[i]);
         }
     }
+    CachedSubsampler<std::unordered_set, unsigned> cs(size, 100);
 #if 0
     gaussian_fill(tvec);
     SpinBlockType spinner(size, size, size, std::tuple{CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size), CompactRademacher<FLOAT_TYPE>(size)});

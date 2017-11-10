@@ -9,6 +9,7 @@
 #include "gfrp/compact.h"
 #include "gfrp/fsm.h"
 #include "gfrp/mach.h"
+#include "gfrp/sample.h"
 #include "gfrp/spinner.h"
 #include "gfrp/scaling.h"
 #include "gfrp/stackstruct.h"
