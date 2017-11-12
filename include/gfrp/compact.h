@@ -125,7 +125,23 @@ public:
     void apply(const InVector &in, OutVector &out) {
         static_assert(is_same<decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
         static_assert(is_same<decay_t<decltype(out[0])>, FloatType>::value, "Output vector should be the same type as this structure.");
-        throw runtime_error("Not Implemented.");
+        out = in;
+        apply(out);
+    }
+    template<typename VectorType>
+    void apply(VectorType &vec) {
+        if(vec.size() != size()) {
+            if(vec.size() > size())
+                throw std::runtime_error("Vector is too big for he gotdam feet");
+            std::fprintf(stderr, "Warning: CompactRademacher is too small. Only affecting elements in my size.\n");
+        }
+#if USE_OPENMP
+        #pragma omp parallel for schedule(dynamic, 8192)
+#endif
+        // Think about loading words and working my way manually.
+        for(T i = 0; i < size(); ++i) {
+            vec[i] *= operator[](i);
+        }
     }
 };
 

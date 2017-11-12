@@ -175,7 +175,8 @@ public:
     }
     template<typename VecType>
     void apply(VecType &in) {
-        
+        SDType::d_.apply(in);
+        SDType::s_.apply(in);
     }
 };
 

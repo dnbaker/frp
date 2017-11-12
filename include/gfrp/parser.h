@@ -70,16 +70,18 @@ class LineReader {
     size_t     bufsz_;
     ssize_t      len_;
     char       *data_;
+    const std::string comment_lines_;
 
     /*
       Reads through a file line by line just once. Will add more functionality later.
      */
 public:
     LineReader(const char *path,
-               char delim='\n', size_t bufsz=0, io::CType ctype=io::UNKNOWN):
+               char delim='\n', size_t bufsz=0, io::CType ctype=io::UNKNOWN, std::string comment_lines="#"):
         fp_(nullptr), path_(path), ctype_(ctype >= 0 ? ctype: io::infer_ctype(path_)),
         delim_(delim), bufsz_(bufsz),
-        len_(0), data_(bufsz_ ? (char *)std::malloc(bufsz_): nullptr)
+        len_(0), data_(bufsz_ ? (char *)std::malloc(bufsz_): nullptr),
+        comment_lines_(std::move(comment_lines))
     {
     }
     ~LineReader() {
@@ -96,6 +98,9 @@ public:
         }
         LineIterator &operator++() {
             ref_.len_ = getdelim(&ref_.data_, &ref_.bufsz_, ref_.delim_, ref_.fp_);
+            if(good())
+                if(std::find(ref_.comment_lines_.begin(), ref_.comment_lines_.end(), ref_.data_[0]) != ref_.comment_lines_.end())
+                    return this->operator++();
             return *this;
         }
         using uivec_t = std::vector<unsigned>;
@@ -103,8 +108,8 @@ public:
         ssize_t len() const {return ref_.len();}
         char *data() {return ref_.data();}
         const char *data() const {return ref_.data();}
-        bool operator!=(const LineIterator &other) const {return good();}
-        bool operator<(const LineIterator &other)  const {return good();}
+        bool operator!=([[maybe_unused]] const LineIterator &other) const {return good();}
+        bool operator< ([[maybe_unused]] const LineIterator &other) const {return good();}
         char &operator[](size_t index) {return data()[index];}
         const char &operator[](size_t index) const {return data()[index];}
         bool good() const {return ref_.len_ != -1;}

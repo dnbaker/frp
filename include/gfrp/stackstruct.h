@@ -114,7 +114,7 @@ void fht(const VecType1 &in, VecType2 &out) {
     static_assert(is_same<typename VecType1::ElementType, typename VecType2::ElementType>::value, "Input vectors must have the same type.");
     if constexpr(is_dense<VecType1, VecType2>::value) {
         fast_copy(&out[0], &in[0], sizeof(in[0]) * out.size());
-        fht(&out[0], log2_64(out.size()));
+        ::fht(&out[0], log2_64(out.size()));
         return;
     } else {
         if constexpr(blaze::TransposeFlag<VecType1>::value == blaze::TransposeFlag<VecType2>::value) {
@@ -145,8 +145,8 @@ struct HadamardBlock {
         if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
             throw runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
         }
-        if(out.size() & (out.size() - 1) == 0) {
-            fht(&out[0], log2_64(out.size()));
+        if((out.size() & (out.size() - 1)) == 0) {
+            ::fht(&out[0], log2_64(out.size()));
         } else {
             throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
         }
