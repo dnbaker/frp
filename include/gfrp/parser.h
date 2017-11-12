@@ -98,6 +98,8 @@ public:
             ref_.len_ = getdelim(&ref_.data_, &ref_.bufsz_, ref_.delim_, ref_.fp_);
             return *this;
         }
+        using uivec_t = std::vector<unsigned>;
+
         ssize_t len() const {return ref_.len();}
         char *data() {return ref_.data();}
         const char *data() const {return ref_.data();}
@@ -106,6 +108,30 @@ public:
         char &operator[](size_t index) {return data()[index];}
         const char &operator[](size_t index) const {return data()[index];}
         bool good() const {return ref_.len_ != -1;}
+        // TODO: speed this up by avoiding making a vector of positions and just parse in the first pass.
+        template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
+        void set(VectorType<FloatType, Orientation> &ret, uivec_t &offsets, const int delim=',') {
+            if constexpr(blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value)
+                blaze::reset(ret);
+            ks::split(data(), delim, len(), offsets);
+            if(offsets.size() != ret.size()) {
+                ret.resize(offsets.size());
+                std::fprintf(stderr, "Warning: ret is now %zu in size.\n", ret.size());
+                //throw std::runtime_error(ks::sprintf("Wrong sizes. Number of fields: %zu. Size of array: %zu\n", offsets.size(), ret.size()).data());
+            }
+#ifdef USE_OPENMP
+#pragma message("use openmp")
+            #pragma omp parallel for schedule(dynamic, 8192)
+#endif
+            for(unsigned i = 0; i < offsets.size(); ++i) {
+                ret[i] = std::atof(data() + offsets[i]);
+            }
+        }
+        template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
+        void set(VectorType<FloatType, Orientation> &ret, const int delim=',') {
+            uivec_t offsets;
+            set(ret, offsets, delim);
+        }
     };
     LineIterator begin() {
         using namespace io;

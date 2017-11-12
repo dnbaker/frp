@@ -173,6 +173,10 @@ public:
         SDType::s_.seed(seed);
         SDType::d_.seed(seed);
     }
+    template<typename VecType>
+    void apply(VecType &in) {
+        
+    }
 };
 
 
@@ -318,10 +322,14 @@ public:
     template<typename Vec1, typename Vec2>
     void transform(const Vec1 &in, Vec2 &out) {
         Vec2 tmp(in); // Copy.
-        for(auto it(blocks_.rbegin()), eit(blocks_.rend()); it != eit; ++it) {
-            it->apply(tmp);
-        }
+        transform_inplace(tmp);
         out = subvector(tmp, 0, to_); // Copy result out.
+    }
+    template<typename Vec1>
+    void transform_inplace(Vec1 &in) {
+        for(auto it(std::rbegin(blocks_)), eit(std::rend(blocks_)); it != eit; ++it) {
+            it->apply(in);
+        }
     }
     // TODO: Apply full transformation, then subsample rows.
     // Optionally add a (potentially scaled?) Guassian multiplication layer.

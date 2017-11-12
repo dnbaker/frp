@@ -15,5 +15,6 @@
 #include "gfrp/stackstruct.h"
 #include "gfrp/jl.h"
 #include "gfrp/aesctr.h"
+#include "gfrp/parser.h"
 
 #endif
