@@ -128,14 +128,33 @@ public:
 #pragma message("use openmp")
             #pragma omp parallel for schedule(dynamic, 8192)
 #endif
-            for(unsigned i = 0; i < offsets.size(); ++i) {
+            for(unsigned i = 0; i < std::min(ret.size(), offsets.size()); ++i) {
                 ret[i] = std::atof(data() + offsets[i]);
             }
         }
         template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
         void set(VectorType<FloatType, Orientation> &ret, const int delim=',') {
-            uivec_t offsets;
-            set(ret, offsets, delim);
+            char *p(data()), *line_end(p + len());
+            size_t i(0), e(ret.size());
+            while(p < line_end) {
+                ret[i++] = std::atof(p);
+                if(((p = std::strchr(p, delim)) == nullptr) | (i == e)) break;
+                ++p;
+            }
+        }
+        template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
+        int sparse_set(VectorType<FloatType, Orientation> &ret, const int delim=' ') {
+            char *p(data()), *line_end(p + len());
+            const int label(std::atoi(p));
+            blaze::reset(ret);
+            if((p = std::strchr(p, ' ')) == nullptr) return label;
+            ++p;
+            while(p < line_end) {
+                ret[std::atoi(p) - 1] = std::atof(std::strchr(p, ':') + 1);
+                if((p = std::strchr(p, delim)) == nullptr) break;
+                ++p;
+            }
+            return label;
         }
     };
     LineIterator begin() {
