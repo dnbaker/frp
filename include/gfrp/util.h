@@ -22,6 +22,7 @@
 #endif
 
 namespace gfrp {
+using namespace std::literals;
 using std::uint64_t;
 using std::uint32_t;
 using std::uint16_t;
