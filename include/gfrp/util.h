@@ -106,6 +106,11 @@ inline constexpr int log2_64(uint64_t value)
 }
 
 template<class Container>
+auto normsq(const Container &c) {
+    return dot(c, c);
+}
+
+template<class Container>
 auto mean(const Container &c) {
     using FloatType = decay_t<decltype(c[0])>;
     FloatType sum(0.);

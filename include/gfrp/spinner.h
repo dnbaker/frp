@@ -165,6 +165,7 @@ public:
     HadamardRademacherSDBlock(size_type n=0, size_type seed=0):
         SDType(HadamType(), RademType(n, seed)) {}
     void resize(size_type newsize) {
+        newsize = roundup(newsize);
         SDType::s_.resize(newsize);
         SDType::d_.resize(newsize);
     }
@@ -180,7 +181,7 @@ public:
     template<typename FloatType>
     void apply(FloatType *in) const {
         SDType::d_.apply(in);
-        SDType::s_.apply(in,  SDType::d_.size());
+        SDType::s_.apply(in,  log2_64(SDType::d_.size()));
     }
 };
 

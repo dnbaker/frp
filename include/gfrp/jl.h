@@ -64,6 +64,8 @@ public:
         resize_from(newfrom);
         resize_to(newto);
     }
+    size_t from_size() const {return from_;}
+    size_t to_size()   const {return to_;}
     void reseed_impl() {
         for(size_type i(0); i < nblocks; ++i) {
             blocks_[i].seed(seeds_[i]);

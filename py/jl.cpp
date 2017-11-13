@@ -27,17 +27,19 @@ PYBIND11_MODULE(jl, m) {
             jlt.transform_inplace((float *)resbuf.ptr);
             return result;
         }, "Apply JL transform on float array, copying the input to an output array before performing.")
-        .def("apply_inplace", [&](const OJLTransform<3> &jlt, py::array_t<double> &input) -> py::array_t<double> & {
+        .def("apply_inplace", [](const OJLTransform<3> &jlt, py::array_t<double> input) -> py::array_t<double> {
             input.resize({roundup(input.size())});
             auto buf = input.request();
             jlt.transform_inplace((double *)buf.ptr);
             return input;
         }, "Apply JL transform on double array in-place, resizing up to nearest power of two if necessary.")
-        .def("apply_inplace", [&](const OJLTransform<3> &jlt, py::array_t<float> &input) -> py::array_t<float> & {
-            input.resize({roundup(input.size())});
+        .def("apply_inplace", [](const OJLTransform<3> &jlt, py::array_t<float> input) -> py::array_t<float> {
+            input.resize({roundup(input.size())}, false);
             auto buf = input.request();
             jlt.transform_inplace((float *)buf.ptr);
             return input;
         }, "Apply JL transform on double array in-place, resizing up to nearest power of two if necessary.")
-        .def("reseed", py::overload_cast<size_t>(&OJLTransform<3>::reseed));
+        .def("reseed", py::overload_cast<size_t>(&OJLTransform<3>::reseed))
+        .def("from_size", &OJLTransform<3>::from_size)
+        .def("to_size", &OJLTransform<3>::to_size);
 }

@@ -114,7 +114,7 @@ void fht(const VecType1 &in, VecType2 &out) {
     static_assert(is_same<typename VecType1::ElementType, typename VecType2::ElementType>::value, "Input vectors must have the same type.");
     if constexpr(is_dense<VecType1, VecType2>::value) {
         fast_copy(&out[0], &in[0], sizeof(in[0]) * out.size());
-        ::fht(&out[0], log2_64(out.size()));
+        fht(out);
         return;
     } else {
         if constexpr(blaze::TransposeFlag<VecType1>::value == blaze::TransposeFlag<VecType2>::value) {
@@ -146,15 +146,20 @@ struct HadamardBlock {
             throw runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
         }
         if((out.size() & (out.size() - 1)) == 0) {
-            ::fht(&out[0], log2_64(out.size()));
+            fht(out);
         } else {
             throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
         }
     }
     template<typename FloatType>
     void apply(FloatType *pos, size_t nelem) const {
-        if(nelem > 48) nelem = log2_64(nelem);
+        if(nelem > 48) {
+            std::fprintf(stderr, "Warning: apply *should* take a log2 value. You're passing an impossibly large size.\n");
+            nelem = log2_64(nelem);
+        }
         ::fht(pos, nelem);
+        const FloatType div(1./std::sqrt(static_cast<FloatType>(1 << nelem)));
+        for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] *= div; // Could be vectorized.
     }
     template<typename IntType>
     void resize([[maybe_unused]] IntType i) {/* Do nothing */}
