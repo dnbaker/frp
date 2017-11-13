@@ -60,6 +60,7 @@ public:
     {
     }
     void resize(size_type newfrom, size_type newto) {
+        newfrom = roundup(newfrom);
         resize_from(newfrom);
         resize_to(newto);
     }
@@ -89,19 +90,19 @@ public:
         to_ = newto;
     }
     template<typename Vec1, typename Vec2>
-    void transform(const Vec1 &in, Vec2 &out) {
+    void transform(const Vec1 &in, Vec2 &out) const {
         Vec2 tmp(in); // Copy.
         transform_inplace(tmp);
         out = subvector(tmp, 0, to_); // Copy result out.
     }
-    template<typename Vec1>
-    void transform_inplace(Vec1 &in) {
+    template<typename Vec1, typename=std::enable_if_t<blaze::IsVector<Vec1>::value>>
+    void transform_inplace(Vec1 &in) const {
         for(auto it(std::rbegin(blocks_)), eit(std::rend(blocks_)); it != eit; ++it) {
             it->apply(in);
         }
     }
-    template<typename FloatType>
-    void transform_inplace(FloatType *in) {
+    template<typename FloatType, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
+    void transform_inplace(FloatType *in) const {
         for(auto it(std::rbegin(blocks_)), eit(std::rend(blocks_)); it != eit; ++it) {
             it->apply(in);
         }

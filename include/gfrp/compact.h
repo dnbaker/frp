@@ -83,7 +83,7 @@ public:
         AsType operator[](size_t index) const {return values[ref_.bool_idx(index)];}
     };
     template<typename AsType>
-    CompactAs<AsType> as_type() {
+    CompactAs<AsType> as_type() const {
         return CompactAs<AsType>(*this);
     }
     void seed(T seed) {seed_ = seed;}
@@ -121,19 +121,19 @@ public:
 
     FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
     template<typename InVector, typename OutVector>
-    void apply(const InVector &in, OutVector &out) {
+    void apply(const InVector &in, OutVector &out) const {
         static_assert(is_same<decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
         static_assert(is_same<decay_t<decltype(out[0])>, FloatType>::value, "Output vector should be the same type as this structure.");
         out = in;
         apply(out);
     }
     template<typename FloatType2>
-    void apply(FloatType2 *vec) {
+    void apply(FloatType2 *vec) const {
         auto tmp(as_type<FloatType2>());
         for(T i = 0; i < size(); ++i) vec[i] *= tmp[i];
     }
     template<typename VectorType>
-    void apply(VectorType &vec) {
+    void apply(VectorType &vec) const {
         auto tmp(as_type<std::decay_t<decltype(vec[0])>>());
         if(vec.size() != size()) {
             if(vec.size() > size())
@@ -170,17 +170,6 @@ public:
     using ResultType = decay_t<decltype(dist_(rng_))>;
 private:
     ResultType      val_;
-    struct emit_u64 {
-        RNG rng_;
-        using result_type = typename RNG::result_type;
-        static constexpr result_type max() {return RNG::max();}
-        static constexpr result_type min() {return RNG::min();}
-        void set(result_type index) {
-            rng_.fast_forward(index);
-        }
-        result_type operator()() {return rng_();}
-    } emitter_;
-
 
 public:
 
@@ -203,21 +192,6 @@ public:
         }
         PRNIterator(PRNVector<RNG, Distribution> *prn_vec): ref_(prn_vec) {}
     };
-
-
-
-    template<typename=enable_if_t<aes::is_aes<RNG>::value>>
-    ResultType operator[](size_t index) {
-#if !NDEBUG
-        auto tmp(rng_[index]);
-        emitter_.set(tmp);
-        auto ret(dist_(emitter_));
-        return ret;
-#else
-        emitter_.set(rng_[index]);
-        return dist_(emitter_);
-#endif
-    }
 
     template<typename... DistArgs>
     PRNVector(uint64_t size, uint64_t seed=0, DistArgs &&... args):

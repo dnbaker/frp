@@ -173,12 +173,12 @@ public:
         SDType::d_.seed(seed);
     }
     template<typename VecType>
-    void apply(VecType &in) {
+    void apply(VecType &in) const {
         SDType::d_.apply(in);
         SDType::s_.apply(in);
     }
     template<typename FloatType>
-    void apply(FloatType *in) {
+    void apply(FloatType *in) const {
         SDType::d_.apply(in);
         SDType::s_.apply(in,  SDType::d_.size());
     }

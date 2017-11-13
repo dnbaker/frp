@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    size_t vecsize(roundup64(nd));
+    size_t vecsize(roundup(nd));
     
     if(nd < 0 || target_dim < 0 || target_dim >= nd) {
         goto usage;

@@ -133,7 +133,7 @@ void fht(const VecType1 &in, VecType2 &out) {
 
 struct HadamardBlock {
     template<typename InVector, typename OutVector>
-    void apply(const InVector &in, OutVector &out) {
+    void apply(const InVector &in, OutVector &out) const {
         if(out.size() == in.size()) {
             apply(out);
         } else {
@@ -141,7 +141,7 @@ struct HadamardBlock {
         }
     }
     template<typename OutVector>
-    void apply(OutVector &out) {
+    void apply(OutVector &out) const {
         if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
             throw runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
         }
@@ -152,7 +152,7 @@ struct HadamardBlock {
         }
     }
     template<typename FloatType>
-    void apply(FloatType *pos, size_t nelem) {
+    void apply(FloatType *pos, size_t nelem) const {
         if(nelem > 48) nelem = log2_64(nelem);
         ::fht(pos, nelem);
     }

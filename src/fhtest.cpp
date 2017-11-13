@@ -24,7 +24,7 @@ using unormd = boost::random::detail::unit_normal_distribution<Types...>;
 int main(int argc, char *argv[]) {
     std::size_t size(argc <= 1 ? 1 << 16: std::strtoull(argv[1], 0, 10)),
                 niter(argc <= 2 ? 1000: std::strtoull(argv[2], 0, 10));
-    size = roundup64(size);
+    size = roundup(size);
     blaze::DynamicVector<float> dps(size);
     blaze::DynamicVector<float> dpsout(size);
     float *a(&dps[0]), *b(&dpsout[0]);
