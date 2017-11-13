@@ -164,7 +164,7 @@ void mempluseq<int64_t>(int64_t *data, size_t nelem, int64_t val) {
 #define store_fn _mm_storeu_si128
 #define add_fn _mm_add_epi64
     using ValType = __m128i;
-    const ValType vval(_mm_set1_epi64(val));
+    const ValType vval(_mm_set1_epi64x(val));
 #else
     while(nelem--) *data += val;
     return;

@@ -175,8 +175,10 @@ struct is_aes<AesCtr<T, n>>: std::true_type {};
 template<typename size_type, size_t arrsize>
 constexpr std::array<size_type, arrsize> seed_to_array(size_type seedseed) {
     std::array<size_type, arrsize> ret{};
+    std::fprintf(stderr, "ret: %zu, %zu, %zu\n", ret[0], ret[1], ret[2]);
     aes::AesCtr<size_type> gen(seedseed);
     for(auto &el: ret) el = gen();
+    std::fprintf(stderr, "after ret: %zu, %zu, %zu\n", ret[0], ret[1], ret[2]);
     return ret;
 }
 

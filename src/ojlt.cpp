@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     }
     LineReader ic(argv[optind]);
     std::ofstream ofs(optind + 1 < argc ? argv[optind + 1]: "/dev/stdout");
-    CompressedOJLTransform<3> jl(nd, target_dim, seed);
+    OJLTransform<3> jl(nd, target_dim, seed);
     std::vector<unsigned> tmp;
     blaze::DynamicVector<FLOAT_TYPE> vec(vecsize);
 #if USE_OPENMP
