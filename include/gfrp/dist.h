@@ -20,7 +20,9 @@ void sample_fill(Container &con, uint64_t seed, DistArgs &&... args) {
 
 template<typename RNG=aes::AesCtr<uint64_t>>
 void random_fill(uint64_t *data, uint64_t len, uint64_t seed=0) {
+#if 0
     if(seed == 0) fprintf(stderr, "Warning: seed for random_fill is 0\n");
+#endif
     for(RNG gen(seed); len; data[--len] = gen());
 }
 

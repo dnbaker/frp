@@ -80,7 +80,9 @@ int main(int argc, char *argv[]) {
     time_stuff("u32dsnd", dsnd, c8_16, dvals, niter, size);
     gfrp::OnlineShuffler shuf;
     gfrp::OJLTransform<3> t(size, size / 8, 1440);
+#if 0
     aes::AesCtr test(1337);
     for(size_t i(0); i < 1000; ++i)
         std::cerr << test() << '\n';
+#endif
 }

@@ -58,8 +58,6 @@ public:
     OJLTransform(size_t from, size_t to, size_type seedseed):
         OJLTransform(from, to, aes::seed_to_array<size_type, nblocks>(seedseed))
     {
-        std::fprintf(stderr, "Creating transform of from %zu to %zu and seed %zu\n", from, to, (size_t)seedseed);
-        for(auto &seed: seeds_) std::cerr << "Seed: " << seed << '\n';
     }
     void resize(size_type newfrom, size_type newto) {
         resize_from(newfrom);
@@ -67,8 +65,8 @@ public:
     }
     void reseed_impl() {
         for(size_type i(0); i < nblocks; ++i) {
-            blocks_[i].resize(from_);
             blocks_[i].seed(seeds_[i]);
+            blocks_[i].resize(from_);
         }
     }
     void reseed(std::array<SizeType, nblocks> &&seeds) {

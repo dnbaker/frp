@@ -111,7 +111,6 @@ public:
     }
 
     void randomize(uint64_t seed) {
-        std::cerr << "Randomizing with seed " << seed << '\n';
         random_fill(reinterpret_cast<uint64_t *>(data_.data()), data_.size() * sizeof(T) / sizeof(uint64_t), seed);
     }
     void zero() {memset(data_, 0, sizeof(T) * data_.size());}
