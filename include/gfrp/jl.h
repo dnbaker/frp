@@ -79,8 +79,7 @@ public:
         reseed_impl();
     }
     void reseed(size_type newseed) {
-        seeds_ = aes::seed_to_array<size_type, nblocks>(newseed);
-        reseed_impl();
+        reseed(aes::seed_to_array<size_type, nblocks>(newseed));
     }
     void resize_from(size_type newfrom) {
         from_ = newfrom;
