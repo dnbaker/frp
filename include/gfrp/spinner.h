@@ -156,12 +156,11 @@ public:
     }
 };
 
-template<typename FloatType>
-class HadamardRademacherSDBlock: public SDBlock<HadamardBlock, CompactRademacher<FloatType>> {
+class HadamardRademacherSDBlock: public SDBlock<HadamardBlock, CompactRademacher> {
 public:
-    using RademType = CompactRademacher<FloatType>;
+    using RademType = CompactRademacher;
     using HadamType = HadamardBlock;
-    using SDType    = SDBlock<HadamardBlock, CompactRademacher<FloatType>>;
+    using SDType    = SDBlock<HadamType, RademType>;
     using size_type = typename RademType::size_type;
     HadamardRademacherSDBlock(size_type n=0, size_type seed=0):
         SDType(HadamType(), RademType(n, seed)) {}
@@ -177,6 +176,11 @@ public:
     void apply(VecType &in) {
         SDType::d_.apply(in);
         SDType::s_.apply(in);
+    }
+    template<typename FloatType>
+    void apply(FloatType *in) {
+        SDType::d_.apply(in);
+        SDType::s_.apply(in,  SDType::d_.size());
     }
 };
 
@@ -258,31 +262,19 @@ public:
     }
 };
 
-// First make Gaussian scaling block.
-template<typename FloatType, size_t nblocks=3, typename SizeType=unsigned, bool OverrideBlockCount=false>
+template<size_t nblocks=3, typename SizeType=unsigned, bool OverrideBlockCount=false>
 class CompressedOJLTransform {
     SizeType from_, to_;
     std::array<SizeType, nblocks> seeds_;
-    CachedSubsampler<std::unordered_set> sampler_;
-/*
-enum SubsampleStrategy {
-    FIRST_M = 0,
-    RANDOM_NO_REPLACEMENT = 1,
-    RANDOM_NO_REPLACEMENT_HASH_SET = 2,
-    RANDOM_NO_REPLACEMENT_VEC = 3,
-    RANDOM_W_REPLACEMENT = 4
-};
-*/
+    //CachedSubsampler<std::unordered_set> sampler_;
 public:
     using size_type = SizeType;
-    HadamardRademacherSDBlock<FloatType> blocks_[nblocks];
+    HadamardRademacherSDBlock blocks_[nblocks];
     static_assert((nblocks & 1) || OverrideBlockCount, "Using an even number of blocks results in provably worse performance."
                                                        "You probably don't want to do this. If you're sure, change the last [fourth] template argument to true.");
     
     CompressedOJLTransform(size_t from, size_t to, std::array<SizeType, nblocks> &&seeds):
-        seeds_{seeds},
-        sampler_(from, to, std::accumulate(seeds_.begin(), seeds_.end(),
-                                           (SizeType)0, std::bit_xor<SizeType>()))
+        seeds_{seeds}
     {
         resize(from, to);
     }
@@ -291,7 +283,6 @@ public:
     {
     }
     void resize(size_type newfrom, size_type newto) {
-        sampler_.resize(newfrom, newto);
         resize_from(newfrom);
         resize_to(newto);
     }
@@ -307,15 +298,15 @@ public:
     }
     void reseed(const std::array<SizeType, nblocks> &seeds) {
         seeds_ = seeds;
+        reseed_impl();
     }
     void reseed(size_type newseed) {
         seeds_ = aes::seed_to_array<size_type, nblocks>(newseed);
+        reseed_impl();
     }
     void resize_from(size_type newfrom) {
-        for(size_type i(0); i < nblocks; ++i) {
-            blocks_[i].resize(newfrom);
-            blocks_[i].seed(seeds_[i]);
-        }
+        from_ = newfrom;
+        reseed_impl();
     }
     void resize_to(size_type newto) {
         to_ = newto;
@@ -332,12 +323,18 @@ public:
             it->apply(in);
         }
     }
-    // TODO: Apply full transformation, then subsample rows.
+    template<typename FloatType>
+    void transform_inplace(FloatType *in) {
+        for(auto it(std::rbegin(blocks_)), eit(std::rend(blocks_)); it != eit; ++it) {
+            it->apply(in);
+        }
+    }
+    // Downstream application has to subsample itself.
     // Optionally add a (potentially scaled?) Guassian multiplication layer.
 };
 
-template<typename FloatType, size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
-using COJLT = CompressedOJLTransform<FloatType, nblocks, SizeType, OverrideBlockCount>;
+template<size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
+using COJLT = CompressedOJLTransform<nblocks, SizeType, OverrideBlockCount>;
 
 } // namespace gfrp
 

@@ -151,6 +151,11 @@ struct HadamardBlock {
             throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
         }
     }
+    template<typename FloatType>
+    void apply(FloatType *pos, size_t nelem) {
+        if(nelem > 48) nelem = log2_64(nelem);
+        ::fht(pos, nelem);
+    }
     template<typename IntType>
     void resize([[maybe_unused]] IntType i) {/* Do nothing */}
     template<typename IntType>

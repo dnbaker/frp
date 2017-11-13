@@ -1,8 +1,7 @@
 #ifndef _JL_H__
 #define _JL_H__
 #include <random>
-#include "gfrp/util.h"
-#include "gfrp/linalg.h"
+#include "gfrp/spinner.h"
 
 namespace gfrp {
 

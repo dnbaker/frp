@@ -51,11 +51,11 @@ struct free_delete {
     void operator()(void *ptr) const {free(ptr);}
 };
 
-template<typename FloatType=FLOAT_TYPE, typename T=uint64_t, typename RNG=aes::AesCtr<T>, typename=enable_if_t<is_arithmetic<FloatType>::value>>
-class CompactRademacher {
-
+template<typename T=uint64_t, typename RNG=aes::AesCtr<T>>
+class CompactRademacherTemplate {
     T              seed_;
     std::vector<T> data_;
+    using FloatType = FLOAT_TYPE;
 
     static constexpr FloatType values_[2] {1, -1};
     static constexpr size_t NBITS = sizeof(T) * CHAR_BIT;
@@ -67,19 +67,19 @@ public:
     using container_type = T;
     using size_type = size_t;
     // Constructors
-    CompactRademacher(size_t n=0, uint64_t seed=std::time(nullptr)): seed_(seed), data_(n >> SHIFT) {
+    CompactRademacherTemplate(size_t n=0, uint64_t seed=std::time(nullptr)): seed_(seed), data_(n >> SHIFT) {
         if(n & (BITMASK))
             std::fprintf(stderr, "Warning: n is not evenly divisible by BITMASK size. (n: %zu). (bitmask: %zu)\n", n, BITMASK);
         randomize(seed_);
     }
-    CompactRademacher(CompactRademacher &&other) = default;
-    CompactRademacher(const CompactRademacher &other) = default;
+    CompactRademacherTemplate(CompactRademacherTemplate &&other) = default;
+    CompactRademacherTemplate(const CompactRademacherTemplate &other) = default;
     template<typename AsType>
     class CompactAs {
         static constexpr AsType values[2] {static_cast<AsType>(1), static_cast<AsType>(-1)};
-        const CompactRademacher &ref_;
+        const CompactRademacherTemplate &ref_;
     public:
-        CompactAs(const CompactRademacher &ref): ref_(ref) {}
+        CompactAs(const CompactRademacherTemplate &ref): ref_(ref) {}
         AsType operator[](size_t index) const {return values[ref_.bool_idx(index)];}
     };
     template<typename AsType>
@@ -101,8 +101,7 @@ public:
     auto capacity() const {return data_.capacity() << SHIFT;}
     auto nwords() const {return data_.size();}
     auto nbytes() const {return size();}
-    template<typename OWordType, typename OFloatType>
-    bool operator==(const CompactRademacher<OWordType, OFloatType> &other) const {
+    bool operator==(const CompactRademacherTemplate &other) const {
         if(size() != other.size()) return false;
         auto odata = other.data();
         for(size_t i(0);i < data_.size(); ++i)
@@ -128,22 +127,30 @@ public:
         out = in;
         apply(out);
     }
+    template<typename FloatType2>
+    void apply(FloatType2 *vec) {
+        auto tmp(as_type<FloatType2>());
+        for(T i = 0; i < size(); ++i) vec[i] *= tmp[i];
+    }
     template<typename VectorType>
     void apply(VectorType &vec) {
+        auto tmp(as_type<std::decay_t<decltype(vec[0])>>());
         if(vec.size() != size()) {
             if(vec.size() > size())
                 throw std::runtime_error("Vector is too big for he gotdam feet");
-            std::fprintf(stderr, "Warning: CompactRademacher is too small. Only affecting elements in my size.\n");
+            std::fprintf(stderr, "Warning: CompactRademacherTemplate is too small. Only affecting elements in my size.\n");
         }
 #if USE_OPENMP
         #pragma omp parallel for schedule(dynamic, 8192)
 #endif
         // Think about loading words and working my way manually.
         for(T i = 0; i < size(); ++i) {
-            vec[i] *= operator[](i);
+            vec[i] *= tmp[i];
         }
     }
 };
+
+using CompactRademacher = CompactRademacherTemplate<uint64_t>;
 
 struct UnchangedRNGDistribution {
     template<typename RNG>

@@ -80,5 +80,5 @@ int main(int argc, char *argv[]) {
     time_stuff("u32dbnd", dbnd, c8_16, dvals, niter, size);
     time_stuff("u32dsnd", dsnd, c8_16, dvals, niter, size);
     gfrp::OnlineShuffler shuf;
-    gfrp::CompressedOJLTransform<FLOAT_TYPE> t(size, size / 8, 1440);
+    gfrp::CompressedOJLTransform<3> t(size, size / 8, 1440);
 }
