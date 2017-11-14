@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    size_t vecsize(nd);
     
     if(target_dim < 0) {
         goto usage;
@@ -38,6 +37,7 @@ int main(int argc, char *argv[]) {
         nd = countchars(fline.data(), ',') + 1;
         std::fprintf(stderr, "Counted %i fields\n", nd);
     }
+    size_t vecsize(nd);
     if(target_dim >= nd) {
         goto usage;
     }
