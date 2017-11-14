@@ -65,7 +65,7 @@ CType infer_ctype(const std::string &path) {
 class LineReader {
     FILE         *fp_;
     std::string path_;
-    io::CType      ctype_;
+    io::CType  ctype_;
     char       delim_;
     size_t     bufsz_;
     ssize_t      len_;
@@ -124,22 +124,31 @@ public:
                 std::fprintf(stderr, "Warning: ret is now %zu in size.\n", ret.size());
                 //throw std::runtime_error(ks::sprintf("Wrong sizes. Number of fields: %zu. Size of array: %zu\n", offsets.size(), ret.size()).data());
             }
+            size_t i;
 #ifdef USE_OPENMP
 #pragma message("use openmp")
             #pragma omp parallel for schedule(dynamic, 8192)
 #endif
-            for(unsigned i = 0; i < std::min(ret.size(), offsets.size()); ++i) {
+            for(i = 0; i < std::min(ret.size(), offsets.size()); ++i) {
                 ret[i] = std::atof(data() + offsets[i]);
+            }
+            if constexpr(!blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value) {
+                std::memset(&ret[i], 0, (ret.size() - i) * sizeof(FloatType)); // Zero the last elements in array.
             }
         }
         template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
         void set(VectorType<FloatType, Orientation> &ret, const int delim=',') {
+            if constexpr(blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value)
+                blaze::reset(ret);
             char *p(data()), *line_end(p + len());
             size_t i(0), e(ret.size());
             while(p < line_end) {
                 ret[i++] = std::atof(p);
                 if(((p = std::strchr(p, delim)) == nullptr) | (i == e)) break;
                 ++p;
+            }
+            if constexpr(!blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value) {
+                std::memset(&ret[i], 0, (ret.size() - i) * sizeof(FloatType)); // Zero the last elements in array.
             }
         }
         template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
@@ -159,13 +168,20 @@ public:
     };
     LineIterator begin() {
         using namespace io;
-        if(fp_) fclose(fp_);
+        if(fp_) {
+            fclose(fp_);
+            std::fprintf(stderr, "Closing!\n");
+        }
+        std::fprintf(stderr, "Opening!\n");
         switch(ctype_) {
             case UNCOMPRESSED: fp_ = fopen(path_.data(), "r"); break;
             case ZLIB:         fp_ = popen((zlibcmd  + path_).data(), "r"); break;
             case BZIP2:        fp_ = popen((bzip2cmd + path_).data(), "r"); break;
             case ZSTD:         fp_ = popen((zstdcmd  + path_).data(), "r"); break;
             default:           throw std::runtime_error("Unexpected ctype code: " + std::to_string((int)ctype_));
+        }
+        if(fp_ == nullptr) {
+            throw std::runtime_error(ks::sprintf("Could not open file at %s", path_.data()).data());
         }
         LineIterator ret(*this);
         return ++ret;
