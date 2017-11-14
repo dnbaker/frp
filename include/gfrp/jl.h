@@ -1,4 +1,4 @@
-#ifndef _JL_H__
+eifndef _JL_H__
 #define _JL_H__
 #include <random>
 #include "gfrp/spinner.h"
@@ -67,12 +67,6 @@ public:
     }
     size_t from_size() const {return from_;}
     size_t to_size()   const {return to_;}
-    void reseed_impl() {
-    }
-    void reseed(std::array<SizeType, nblocks> &&seeds) {
-        seeds_ = std::move(seeds);
-        reseed(seeds_);
-    }
     void reseed(const std::array<SizeType, nblocks> &seeds) {
         seeds_ = seeds;
         resize_from(from_);
