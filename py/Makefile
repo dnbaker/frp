@@ -17,3 +17,6 @@ MFLAGS=-msse4.1 -mavx2 -march=native
 %.cpython.so: %.cpp
 	$(CXX) -undefined dynamic_lookup $(INCLUDES) -O3 -Wall $(MFLAGS) $(INC) -shared -std=c++17 -fPIC `python3 -m pybind11 --includes` $< -o $*$(SUF) && \
     ln -fs $*$(SUF) $@
+
+clean:
+	rm -f *cpython.so

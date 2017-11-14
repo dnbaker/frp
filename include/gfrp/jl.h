@@ -60,6 +60,7 @@ public:
     {
     }
     void resize(size_type newfrom, size_type newto) {
+        //std::fprintf(stderr, "Resizing from %zu to %zu (rounded up %zu)\n", from_, roundup(newfrom), newfrom);
         newfrom = roundup(newfrom);
         resize_from(newfrom);
         resize_to(newto);
@@ -67,25 +68,24 @@ public:
     size_t from_size() const {return from_;}
     size_t to_size()   const {return to_;}
     void reseed_impl() {
-        for(size_type i(0); i < nblocks; ++i) {
-            blocks_[i].seed(seeds_[i]);
-            blocks_[i].resize(from_);
-        }
     }
     void reseed(std::array<SizeType, nblocks> &&seeds) {
         seeds_ = std::move(seeds);
-        reseed_impl();
+        reseed(seeds_);
     }
     void reseed(const std::array<SizeType, nblocks> &seeds) {
         seeds_ = seeds;
-        reseed_impl();
+        resize_from(from_);
     }
     void reseed(size_type newseed) {
         reseed(aes::seed_to_array<size_type, nblocks>(newseed));
     }
     void resize_from(size_type newfrom) {
         from_ = newfrom;
-        reseed_impl();
+        for(size_type i(0); i < nblocks; ++i) {
+            blocks_[i].seed(seeds_[i]);
+            blocks_[i].resize(from_);
+        }
     }
     void resize_to(size_type newto) {
         to_ = newto;

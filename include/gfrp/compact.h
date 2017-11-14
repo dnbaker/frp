@@ -89,7 +89,7 @@ public:
     void seed(T seed) {seed_ = seed;}
     void resize(T new_size) {
         if(new_size != size()) {
-            data_.resize(new_size >> SHIFT);
+            data_.resize(std::max(static_cast<T>(1), new_size >> SHIFT));
             randomize(seed_);
         }
     }
