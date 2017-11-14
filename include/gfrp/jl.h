@@ -1,4 +1,4 @@
-eifndef _JL_H__
+#ifndef _JL_H__
 #define _JL_H__
 #include <random>
 #include "gfrp/spinner.h"

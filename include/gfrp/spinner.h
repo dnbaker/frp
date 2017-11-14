@@ -166,7 +166,8 @@ public:
         SDType(HadamType(), RademType(n, seed)) {}
     void resize(size_type newsize) {
         if(newsize & (newsize - 1))
-            std::fprintf(stderr, "[W:%s] Resizing HR block to new size of %zu (from %zu, rounded up %zu)\n", __PRETTY_FUNCTION__ roundup(newsize), SDType::d_.size(), newsize);
+            std::fprintf(stderr, "[W:%s] Resizing HR block to new size of %zu (from %zu, rounded up %zu)\n",
+                         __PRETTY_FUNCTION__, (size_t)roundup(newsize), SDType::d_.size(), newsize);
         newsize = roundup(newsize);
         SDType::s_.resize(newsize);
         SDType::d_.resize(newsize);

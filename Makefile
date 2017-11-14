@@ -1,4 +1,4 @@
-.PHONY=all tests clean obj
+.PHONY=all tests clean obj python
 ifndef CXX
 CXX=g++
 endif
@@ -41,7 +41,7 @@ endif
 
 OBJS:=$(OBJS) fht.o fast_copy.o
 
-all: $(OBJS) $(EX)
+all: $(OBJS) $(EX) python
 print-%  : ; @echo $* = $($*)
 
 obj: $(OBJS) $(EXEC_OBJS)
@@ -76,6 +76,9 @@ fftw3.h: fftw-3.3.7
 	./configure --prefix=$$PWD --enable-long-double && make && make install &&\
 	./configure --enable-avx2 --prefix=$$PWD --enable-single && make && make install &&\
 	cp api/fftw3.h .. && cd ..
+
+python:
+	cd py && make
 
 
 tests: clean unit
