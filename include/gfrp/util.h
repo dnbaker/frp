@@ -109,6 +109,10 @@ template<class Container>
 auto normsq(const Container &c) {
     return dot(c, c);
 }
+template<class Container>
+auto norm(const Container &c) {
+    return std::sqrt(dot(c, c));
+}
 
 template<class Container>
 auto mean(const Container &c) {

@@ -75,6 +75,7 @@ public:
     void apply(Vector &out) const {
         out *= vec_;
     }
+    FloatType vec_norm() const {return std::sqrt(normsq(vec_));}
 };
 
 template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
@@ -110,7 +111,7 @@ struct ProductBlock {
     ProductBlock(FloatType val): v_(val) {}
 };
 
-template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
+template<typename FloatType, typename=enable_if_t<is_floating_point<FloatType>::value>>
 class FastFoodGaussianProductBlock {
     const FloatType v_;
 public:
@@ -126,8 +127,26 @@ public:
     }
     template<typename Vector>
     void apply(Vector &out) const {
-        const auto tmp(1./std::sqrt(out.size()) * v_);
+        const auto tmp(v_/std::sqrt(out.size()));
         out *= tmp;
+    }
+};
+
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
+class RandomGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
+    // This is the S in Fastfood.
+    using VectorType = VectorKind<FloatType, VectorOrientation>;
+    VectorType vec_;
+public:
+    template<typename...Args>
+    RandomGaussianScalingBlock(FloatType GNorm, uint64_t seed, Args &&...args): vec_(forward<Args>(args)...) {
+        unit_gaussian_fill(vec_, seed);
+        vec_ *= 1./std::sqrt(GNorm);
+        std::fprintf(stderr, "This is probably wrong. I just don't know what the right thing to do here is.\n");
+    }
+    template<typename VectorType>
+    void apply(VectorType &vec) {
+        throw std::runtime_error("NotImplemented.");
     }
 };
 

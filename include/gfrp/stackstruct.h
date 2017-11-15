@@ -165,6 +165,11 @@ struct HadamardBlock {
     void resize([[maybe_unused]] IntType i) {/* Do nothing */}
     template<typename IntType>
     void seed([[maybe_unused]] IntType i) {/* Do nothing */}
+    HadamardBlock([[maybe_unused]] size_t size=0) {
+#if !NDEBUG
+        std::fprintf(stderr, "Warning: HadamardBlock has a size parameter so it can share an interface with FFT-type blocks.");
+#endif
+    }
 };
 
 namespace rfft {
@@ -203,7 +208,7 @@ public:
     void load_wisdom() {
         if(std::experimental::filesystem::exists(wisdom_fname().data())) {
             if(fft::FFTTypes<FloatType>::loadfn(wisdom_fname().data()) == 0) {
-                std::fprintf(stderr, "Could not load wisdom from %s\n", wisdom_fname().data());
+                throw std::runtime_error(ks::sprintf("Could not load wisdom from %s\n", wisdom_fname()).data());
             } else {
                 std::fprintf(stderr, "Loaded wisdom from %s\n", wisdom_fname().data());
             }

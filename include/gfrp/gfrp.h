@@ -16,5 +16,6 @@
 #include "gfrp/jl.h"
 #include "gfrp/aesctr.h"
 #include "gfrp/parser.h"
+#include "gfrp/kernel.h"
 
 #endif
