@@ -165,10 +165,8 @@ struct HadamardBlock {
     void resize([[maybe_unused]] IntType i) {/* Do nothing */}
     template<typename IntType>
     void seed([[maybe_unused]] IntType i) {/* Do nothing */}
-    HadamardBlock([[maybe_unused]] size_t size=0) {
-#if !NDEBUG
-        std::fprintf(stderr, "Warning: HadamardBlock has a size parameter so it can share an interface with FFT-type blocks.");
-#endif
+    HadamardBlock(size_t size=0) {
+        if(size != 0) std::fprintf(stderr, "HadamardBlock being created with a nonzero size %zu\n", size);
     }
 };
 

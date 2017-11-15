@@ -29,6 +29,7 @@ static const DoubleSIMD dinc = _mm_set_pd(0.5, 0);
 #endif
 
 
+
 namespace ff {
 
 template<typename Vec>
@@ -56,29 +57,29 @@ template<typename FloatType, typename RandomScalingBlock=RandomGaussianScalingBl
          typename GaussianMatrixType=UnitGaussianScalingBlock<FloatType>,
          typename FirstSBlockType=HadamardBlock, typename LastSBlockType=FirstSBlockType>
 class KernelBlock {
-    // Implements the Gaussian Fastfood kernel.
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
-    CompactRademacher     cr_;
-    FirstSBlockType       fb_;
-    OnlineShuffler<size_t>  shuffler_;
-    GaussianMatrixType    gm_; // Can use PRNVector instead to trade CPU for memory.
-    LastSBlockType        lb_;
-    RandomGaussianScalingBlock<FloatType> rgb_;
-    FastFoodGaussianProductBlock<FloatType> ffs_;
-    
+    using SpinTransformer =
+        SpinBlockTransformer<FastFoodGaussianProductBlock<FloatType>,
+                             RandomGaussianScalingBlock<FloatType>, LastSBlockType,
+                             GaussianMatrixType, OnlineShuffler<size_t>, FirstSBlockType,
+                             CompactRademacher>;
+    SpinTransformer tx_;
+
 public:
     using float_type = FloatType;
     KernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1):
         final_output_size_(size),
-        cr_(transform_size(), (seed ^ (size * size)) + seed),
-        fb_(transform_size()),
-        shuffler_(seed),
-        gm_(seed * seed),
-        lb_(transform_size()),
-        rgb_(gm_.vec_norm(), seed + seed * seed - size * size),
-        ffs_(sigma)
+        tx_(
+            std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
+                   RandomGaussianScalingBlock<FloatType>(1., seed + seed * seed - size * size, transform_size()),
+                   LastSBlockType(transform_size()),
+                   GaussianMatrixType(seed * seed),
+                   OnlineShuffler<size_t>(seed),
+                   FirstSBlockType(transform_size()),
+                   CompactRademacher(transform_size(), (seed ^ (size * size)) + seed)))
     {
         if(final_output_size_ & (final_output_size_ - 1)) throw std::runtime_error("GaussianKernel's size should be a power of two.");
+        std::get<1>(tx_.get_tuple()).rescale(std::get<3>(tx_.get_tuple()));
     }
     size_t transform_size() const {return final_output_size_ >> 1;}
     template<typename InputType, typename OutputType>
@@ -91,17 +92,7 @@ public:
         subvector(out, 0, in.size()) = in; // Copy input to output space.
 
         auto half_vector(subvector(out, 0, transform_size()));
-        apply_matrices(half_vector);
-    }
-    template<typename VectorType>
-    void apply_matrices(VectorType &half_vector) {
-        cr_.apply(half_vector);
-        fb_.apply(half_vector);
-        shuffler_.apply(half_vector);
-        gm_.apply(half_vector);
-        lb_.apply(half_vector);
-        rgb_.apply(half_vector);
-        ffs_.apply(half_vector);
+        tx_.apply(half_vector);   
     }
 };
 

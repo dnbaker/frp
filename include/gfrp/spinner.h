@@ -141,12 +141,16 @@ public:
     template<typename...Args>
     RandomGaussianScalingBlock(FloatType GNorm, uint64_t seed, Args &&...args): vec_(forward<Args>(args)...) {
         unit_gaussian_fill(vec_, seed);
-        vec_ *= 1./std::sqrt(GNorm);
+        if(GNorm != 1.0) vec_ *= 1./std::sqrt(GNorm);
         std::fprintf(stderr, "This is probably wrong. I just don't know what the right thing to do here is.\n");
     }
     template<typename VectorType>
     void apply(VectorType &vec) {
         throw std::runtime_error("NotImplemented.");
+    }
+    template<typename VectorType>
+    void rescale(const VectorType &other) {
+        throw std::runtime_error("NotImplemented. Should somehow use the sqrt of the vector norm of G");
     }
 };
 
@@ -252,17 +256,16 @@ public:
 template<typename... Blocks>
 class SpinBlockTransformer {
     // This variadic template allows me to mix various kinds of blocks, so long as they perform operations
-    size_t k_, n_, m_;
     std::tuple<Blocks...> blocks_;
     static constexpr size_t NBLOCKS = std::tuple_size<decltype(blocks_)>::value;
 public:
-    SpinBlockTransformer(size_t k, size_t n, size_t m, Blocks &&... blocks):
-        k_(k), n_(n), m_(m), blocks_(blocks...) {}
+    SpinBlockTransformer(Blocks &&... blocks):
+        blocks_(blocks...) {}
 
-    SpinBlockTransformer(size_t k, size_t n, size_t m, std::tuple<Blocks...> &&blocks):
-        k_(k), n_(n), m_(m), blocks_(std::move(blocks)) {}
+    SpinBlockTransformer(std::tuple<Blocks...> &&blocks):
+        blocks_(std::move(blocks)) {}
 
-// Template magic for unrolling from the back.
+    // Template magic for unrolling from the back.
     template<typename OutVector, size_t Index>
     struct ApplicationStruct {
         void operator()(OutVector &out) const {
@@ -284,6 +287,13 @@ public:
         ApplicationStruct<OutVector, NBLOCKS - 1> as;
         as(in, out);
     }
+    template<typename OutVector>
+    void apply(OutVector out) {
+        std::get<NBLOCKS - 1>().apply(out);
+        ApplicationStruct<OutVector, NBLOCKS - 1> as;
+        as(out);
+    }
+    auto &get_tuple() {return blocks_;}
 };
 
 } // namespace gfrp

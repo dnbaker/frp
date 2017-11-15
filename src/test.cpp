@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
     }
     using SpinBlockType = SpinBlockTransformer<CompactRademacher, CompactRademacher, CompactRademacher, HadamardBlock, GaussianScalingBlock<FLOAT_TYPE>>;
     auto tuple = std::make_tuple(CompactRademacher(size), CompactRademacher(size), CompactRademacher(size), HadamardBlock(), GaussianScalingBlock<FLOAT_TYPE>(1337));
-    SpinBlockType spinner(size, size, size, std::move(tuple));
+    SpinBlockType spinner(std::move(tuple));
     JLTransform<blaze::DynamicMatrix<float>> jlt(24, 1000);
     jlt.fill(1337);
     auto sizes(mach::get_cache_sizes());

@@ -41,6 +41,7 @@ public:
 
 template<size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
 class OJLTransform {
+    // TODO: consider switching this back over to a SpinBlockTransformer.
     SizeType from_, to_;
     std::array<SizeType, nblocks> seeds_;
     //CachedSubsampler<std::unordered_set> sampler_;
@@ -95,11 +96,32 @@ public:
         for(auto it(std::rbegin(blocks_)), eit(std::rend(blocks_)); it != eit; ++it) {
             it->apply(in);
         }
+        in *= std::sqrt(static_cast<double>(from_) / to_);
     }
     template<typename FloatType, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
     void transform_inplace(FloatType *in) const {
         for(auto it(std::rbegin(blocks_)), eit(std::rend(blocks_)); it != eit; ++it) {
             it->apply(in);
+        }
+        const FloatType mul(std::sqrt(static_cast<double>(from_) / to_));
+        if constexpr(std::is_same<FloatType, float>::value) {
+            __m256 vmul(_mm256_set1_ps(mul));
+            FloatType *ptr(in), *end(ptr + to_);
+            while(end - ptr > (ptrdiff_t)(sizeof(__m256) / sizeof(FloatType))) {
+                _mm256_storeu_ps(ptr, _mm256_mul_ps(_mm256_loadu_ps(ptr), vmul));
+                ptr += sizeof(__m256) / sizeof(FloatType);
+            }
+            while(ptr < end) *ptr++ *= mul;
+        } else if constexpr(std::is_same<FloatType, double>::value) {
+            __m256d vmul(_mm256_set1_pd(mul));
+            FloatType *ptr(in), *end(ptr + to_);
+            while(end - ptr > sizeof(__m256d) / sizeof(FloatType)) {
+                _mm256_storeu_pd(ptr, _mm256_mul_pd(_mm256_loadu_pd(ptr), vmul));
+                ptr += sizeof(__m256d) / sizeof(FloatType);
+            }
+            while(ptr < end) *ptr++ *= mul;
+        } else {
+            for(size_t i(0); i < to_; ++i) in[i] *= mul;
         }
     }
     // Downstream application has to subsample itself.
