@@ -39,26 +39,18 @@ public:
     auto size() const {return matrix_.rows() * matrix_.columns();}
 };
 
-template<size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
-class OJLTransform {
-    // TODO: consider switching this back over to a SpinBlockTransformer.
-    SizeType from_, to_;
-    std::array<SizeType, nblocks> seeds_;
-    //CachedSubsampler<std::unordered_set> sampler_;
+class OrthogonalJLTransform {
+    size_t from_, to_;
+    std::vector<HadamardRademacherSDBlock> blocks_;
+    std::vector<uint64_t> seeds_;
 public:
-    using size_type = SizeType;
-    HadamardRademacherSDBlock blocks_[nblocks];
-    static_assert((nblocks & 1) || OverrideBlockCount, "Using an even number of blocks results in provably worse performance."
-                                                       "You probably don't want to do this. If you're sure, change the last [fourth] template argument to true.");
-    
-    OJLTransform(size_t from, size_t to, std::array<SizeType, nblocks> &&seeds):
-        seeds_{seeds}
+    using size_type = uint64_t;
+
+    OrthogonalJLTransform(size_t from, size_t to, uint64_t seed, size_t nblocks=3): from_(roundup(from)), to_(to)
     {
-        resize(from, to);
-    }
-    OJLTransform(size_t from, size_t to, size_type seedseed):
-        OJLTransform(from, to, aes::seed_to_array<size_type, nblocks>(seedseed))
-    {
+        aes::AesCtr<uint64_t> gen(seed);
+        while(seeds_.size() < nblocks) seeds_.push_back(gen());
+        for(const auto seed: seeds_) blocks_.emplace_back(from, seed);
     }
     void resize(size_type newfrom, size_type newto) {
         //std::fprintf(stderr, "Resizing from %zu to %zu (rounded up %zu)\n", from_, roundup(newfrom), newfrom);
@@ -68,16 +60,14 @@ public:
     }
     size_t from_size() const {return from_;}
     size_t to_size()   const {return to_;}
-    void reseed(const std::array<SizeType, nblocks> &seeds) {
-        seeds_ = seeds;
-        resize_from(from_);
-    }
     void reseed(size_type newseed) {
-        reseed(aes::seed_to_array<size_type, nblocks>(newseed));
+        seeds_.clear();
+        aes::AesCtr<uint64_t> gen(newseed);
+        while(seeds_.size() < nblocks()) seeds_.push_back(gen());
     }
     void resize_from(size_type newfrom) {
         from_ = newfrom;
-        for(size_type i(0); i < nblocks; ++i) {
+        for(size_type i(0); i < nblocks(); ++i) {
             blocks_[i].seed(seeds_[i]);
             blocks_[i].resize(from_);
         }
@@ -85,6 +75,7 @@ public:
     void resize_to(size_type newto) {
         to_ = newto;
     }
+    size_t nblocks() const {return blocks_.size();}
     template<typename Vec1, typename Vec2>
     void transform(const Vec1 &in, Vec2 &out) const {
         Vec2 tmp(in); // Copy.
@@ -115,7 +106,7 @@ public:
         } else if constexpr(std::is_same<FloatType, double>::value) {
             __m256d vmul(_mm256_set1_pd(mul));
             FloatType *ptr(in), *end(ptr + to_);
-            while(end - ptr > sizeof(__m256d) / sizeof(FloatType)) {
+            while(end - ptr > (ptrdiff_t)(sizeof(__m256d) / sizeof(FloatType))) {
                 _mm256_storeu_pd(ptr, _mm256_mul_pd(_mm256_loadu_pd(ptr), vmul));
                 ptr += sizeof(__m256d) / sizeof(FloatType);
             }
@@ -128,8 +119,8 @@ public:
     // Optionally add a (potentially scaled?) Guassian multiplication layer.
 };
 
-template<size_t nblocks=3, typename SizeType=size_t, bool OverrideBlockCount=false>
-using COJLT = OJLTransform<nblocks, SizeType, OverrideBlockCount>;
+using OJLTransform = OrthogonalJLTransform;
+using OJLT = OJLTransform;
 
 } // namespace gfrp
 

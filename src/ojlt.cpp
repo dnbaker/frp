@@ -6,10 +6,11 @@ using namespace gfrp;
 
 int main(int argc, char *argv[]) {
     std::ios_base::sync_with_stdio(false);
-    int co, nd(-1), target_dim(-1);
+    int co, nd(-1), target_dim(-1), nblocks(3);
     size_t seed(-1), vecbufsz(1 << 18);
-    while((co = getopt(argc, argv, "s:m:n:th?")) >= 0) {
+    while((co = getopt(argc, argv, "N:s:m:n:th?")) >= 0) {
         switch(co) {
+            case 'N': nblocks = atoi(optarg); break;
             case 'n': nd = atoi(optarg); break;
             case 'm': target_dim = atoi(optarg); break;
             case 's': seed = strtoull(optarg, nullptr, 10); break;
@@ -27,6 +28,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    if((nblocks & 1) != 0) std::fprintf(stderr, "Warning: Using an even numbe of blocks causes provably higher error rates.\n");
     
     if(target_dim < 0) {
         goto usage;
@@ -43,7 +45,7 @@ int main(int argc, char *argv[]) {
     }
     FILE *ofp(optind + 1 < argc ? fopen(argv[optind + 1], "w"): stdout);
     const int fn(fileno(ofp));
-    OJLTransform<3> jl(nd, target_dim, seed);
+    OJLTransform jl(nd, target_dim, seed, nblocks);
     ks::string str(vecbufsz);
 #if PARALLEL_PARSE
     std::vector<unsigned> tmp;

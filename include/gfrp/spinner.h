@@ -186,7 +186,7 @@ public:
     using SDType    = SDBlock<HadamType, RademType>;
     using size_type = typename RademType::size_type;
     HadamardRademacherSDBlock(size_type n=0, size_type seed=0):
-        SDType(HadamType(), RademType(n, seed)) {}
+        SDType(HadamType(), RademType(roundup(n), seed)) {}
     void resize(size_type newsize) {
         if(newsize & (newsize - 1))
             std::fprintf(stderr, "[W:%s] Resizing HR block to new size of %zu (from %zu, rounded up %zu)\n",
