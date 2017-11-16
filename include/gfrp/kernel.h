@@ -4,6 +4,40 @@
 
 namespace gfrp {
 
+template<typename FloatType>
+struct SIMDTypes;
+    
+struct SIMDTypes {
+    template<typename FloatType>
+    struct SIMDType;
+    template<>
+    struct SIMDType<float> {
+#if _FEATURE_AVX512F
+        using SIMDType = __m512;
+        static const SIMDType inc = _mm512_set_ps(0.5, 0, 0.5, 0,
+                                                     0.5, 0, 0.5, 0,
+                                                     0.5, 0, 0.5, 0,
+                                                     0.5, 0, 0.5, 0);
+#elif __AVX2__
+        using SIMDType = __m256;
+        static const SingleSIMD inc = _mm256_set_ps(0.5, 0, 0.5, 0,
+                                                     0.5, 0, 0.5, 0);
+#elif __SSE2__
+        using SingleSIMD = __m128;
+        static const SingleSIMD inc = _mm_set_ps(0.5, 0, 0.5, 0);
+#else
+#error("Didnt' build this for a no-SIMD system.")
+#endif
+    };
+    struct SIMDType<double> {
+        using DoubleSIMD = __m512d;
+        static const DoubleSIMD inc =
+            _mm512_set_pd(0.5, 0, 0.5, 0,
+                          0.5, 0, 0.5, 0);
+    };
+    // By adding these to a vector and calling
+};
+
 #if _FEATURE_AVX512F
 using SingleSIMD = __m512;
 using DoubleSIMD = __m512d;
@@ -21,8 +55,8 @@ static const SingleSIMD finc = _mm256_set_ps(0.5, 0, 0.5, 0,
 static const DoubleSIMD dinc = _mm256_set_pd(0.5, 0, 0.5, 0);
 #elif __SSE2__
 using SingleSIMD = __m128;
-using DoubleSIMD = __m128d;
 static const SingleSIMD finc = _mm_set_ps(0.5, 0, 0.5, 0);
+using DoubleSIMD = __m128d;
 static const DoubleSIMD dinc = _mm_set_pd(0.5, 0);
 #else
 #define NO_SIMD

@@ -179,13 +179,14 @@ public:
     }
 };
 
-class HadamardRademacherSDBlock: public SDBlock<HadamardBlock, CompactRademacher> {
+template<typename RademacherType>
+class HRBlock: public SDBlock<HadamardBlock, RademacherType> {
 public:
-    using RademType = CompactRademacher;
+    using RademType = RademacherType;
     using HadamType = HadamardBlock;
     using SDType    = SDBlock<HadamType, RademType>;
     using size_type = typename RademType::size_type;
-    HadamardRademacherSDBlock(size_type n=0, size_type seed=0):
+    HRBlock(size_type n=0, size_type seed=0):
         SDType(HadamType(), RademType(roundup(n), seed)) {}
     void resize(size_type newsize) {
         if(newsize & (newsize - 1))
@@ -211,6 +212,8 @@ public:
         SDType::s_.apply(in,  l2s);
     }
 };
+
+using HadamardRademacherSDBlock = HRBlock<CompactRademacher>;
 
 
 template<typename SizeType=uint32_t, typename RNG=aes::AesCtr<SizeType>>

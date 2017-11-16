@@ -21,6 +21,28 @@
 #define FLOAT_TYPE double
 #endif
 
+#ifdef __GNUC__
+#  ifndef likely
+#    define likely(x) __builtin_expect((x),1)
+#  endif
+#  ifndef unlikely
+#    define unlikely(x) __builtin_expect((x),0)
+#  endif
+#  ifndef UNUSED
+#    define UNUSED(x) __attribute__((unused)) x
+#  endif
+#else
+#  ifndef likely
+#    define likely(x) (x)
+#  endif
+#  ifndef unlikely
+#    define unlikely(x) (x)
+#  endif
+#  ifndef UNUSED
+#    define UNUSED(x) (x)
+#  endif
+#endif
+
 namespace gfrp {
 using namespace std::literals;
 using std::uint64_t;

@@ -51,6 +51,43 @@ struct free_delete {
     void operator()(void *ptr) const {free(ptr);}
 };
 
+class PRNRademacher {
+    size_t      n_;
+    uint64_t seed_;
+public:
+    PRNRademacher(size_t n=0, uint64_t seed=0): n_(n), seed_(seed) {
+        std::fprintf(stderr, "[D:%s] n: %zu. seed: %zu\n", __PRETTY_FUNCTION__, n_, size_t(seed_));
+    }
+    auto size() const {return n_;}
+    void resize(size_t newsize) {n_ = newsize;}
+
+    template<typename Container>
+    void apply(Container &c) {
+        aes::AesCtr<uint64_t> gen(seed_); // Intentional shadow.
+        uint64_t val;
+        using ArithType = std::decay_t<decltype(c[0])>;
+        const ArithType lut[2] = {static_cast<ArithType>(1), static_cast<ArithType>(-1)};
+        for(size_t i(0), e(c.size()); i < e; ++i) {
+            if(unlikely((i & ((CHAR_BIT * sizeof(uint64_t)) - 1)) == 0))
+                val = gen();
+            c[i] *= lut[val & 1]; val >>= 1;
+        }
+    }
+
+    template<typename ArithType>
+    void apply(ArithType *c, size_t nitems=0) {
+        aes::AesCtr<uint64_t> gen(seed_);
+        uint64_t val;
+        if(nitems == 0) nitems = n_;
+        const ArithType lut[2] = {static_cast<ArithType>(1), static_cast<ArithType>(-1)};
+        for(size_t i(0); i < nitems; ++i) {
+            if(unlikely((i & ((CHAR_BIT * sizeof(uint64_t)) - 1)) == 0))
+                val = gen();
+            c[i] *= lut[val & 1]; val >>= 1;
+        }
+    }
+};
+
 template<typename T=uint64_t, typename RNG=aes::AesCtr<T>>
 class CompactRademacherTemplate {
     T              seed_;
