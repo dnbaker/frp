@@ -4,6 +4,7 @@
 #include "gfrp/linalg.h"
 #include "gfrp/stackstruct.h"
 #include "gfrp/sample.h"
+#include "gfrp/tx.h"
 #include "FFHT/fht.h"
 #include <array>
 #include <functional>
@@ -249,8 +250,47 @@ public:
     template<typename Vector>
     void apply(Vector &vec) const {
         rng_.seed(seed_);
-        for(ResultType i(vec.size() - 1); i > 1; --i) {
+        for(ResultType i(vec.size()); i > 1; --i) {
             std::swap(vec[i - 1], fastrange(rng_(), i));
+        }
+    }
+};
+
+template<typename SizeType=uint32_t>
+class PrecomputedShuffler {
+    //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
+    std::vector<SizeType> indices_;
+public:
+    PrecomputedShuffler(SizeType size, SizeType seed): indices_(size) {
+        aes::AesCtr<SizeType> gen(seed);
+        for(SizeType i(size); i > 1; --i) indices_[i - 1] = fastrange(gen(), i);
+    }
+    template<typename Vector>
+    void apply(Vector &vec) const {
+        for(SizeType i(vec.size() - 1); i > 1; --i)
+            std::swap(vec[i], vec[indices_[i]]);
+    }
+    template<typename Vector1, typename Vector2>
+    void apply(const Vector1 &in, Vector2 &out) const {
+        out = in;
+        apply(out);
+    }
+};
+
+template<typename SizeType=uint32_t>
+class LutShuffler {
+    //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
+    std::vector<SizeType> indices_;
+public:
+    LutShuffler(SizeType size, SizeType seed): indices_(make_shuffled<std::vector<SizeType>>(size)) {}
+    template<typename Vector>
+    void apply(Vector &vec) const {
+        throw std::runtime_error("This doesn't work.");
+    }
+    template<typename Vector1, typename Vector2>
+    void apply(const Vector1 &in, Vector2 &out) const {
+        for(SizeType i(0); i < in.size(); ++i) {
+            out[i] = in[indices_[i]];
         }
     }
 };

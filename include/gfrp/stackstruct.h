@@ -1,5 +1,6 @@
 #ifndef _GFRP_STACKSTRUCT_H__
 #define _GFRP_STACKSTRUCT_H__
+#include <fstream>
 #include "gfrp/util.h"
 #include "FFHT/fht.h"
 #include "fftw3.h"
@@ -204,7 +205,7 @@ public:
         return std::string(block_type()) + fft::FFTTypes<FloatType>::suffix();
     }
     void load_wisdom() {
-        if(std::experimental::filesystem::exists(wisdom_fname().data())) {
+        if(std::ifstream(wisdom_fname().data()).good()) {
             if(fft::FFTTypes<FloatType>::loadfn(wisdom_fname().data()) == 0) {
                 throw std::runtime_error(ks::sprintf("Could not load wisdom from %s\n", wisdom_fname()).data());
             } else {

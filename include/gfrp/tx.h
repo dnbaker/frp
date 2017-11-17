@@ -8,12 +8,14 @@
 namespace gfrp {
 
 template<class Container>
-void fill_shuffled(Container &con) {
+void fill_shuffled(uint64_t seed, Container &con) {
+    // Note: this does not permit the setting of a seed. This should probably be changed.
     std::iota(std::begin(con), std::end(con), static_cast<std::decay_t<decltype(con[0])>>(0));
 #if USE_STD
     std::random_shuffle(std::begin(con), std::end(con));
 #else
-    for(size_t i(con.size()); i > 1; std::swap(con[rng::random_bounded_nearlydivisionless64(i-1)], con[i-1]), --i);
+    aes::AesCtr<uint64_t> gen(seed);
+    for(size_t i(con.size()); i > 1; std::swap(con[rng::random_bounded_nearlydivisionless64(i-1, gen)], con[i-1]), --i);
 #endif
 }
 
