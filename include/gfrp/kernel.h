@@ -4,88 +4,14 @@
 
 namespace gfrp {
 
-#if 0
-template<typename FloatType>
-struct SIMDTypes;
-    
-struct SIMDTypes {
-    template<typename FloatType>
-    struct SIMDType;
-    template<>
-    struct SIMDType<float> {
-#if _FEATURE_AVX512F
-        using SIMDType = __m512;
-        static const SIMDType inc = _mm512_set_ps(0.5, 0, 0.5, 0,
-                                                  0.5, 0, 0.5, 0,
-                                                  0.5, 0, 0.5, 0,
-                                                  0.5, 0, 0.5, 0);
-#elif __AVX2__
-        using SIMDType = __m256;
-        static const SingleSIMD inc = _mm256_set_ps(0.5, 0, 0.5, 0,
-                                                    0.5, 0, 0.5, 0);
-#elif __SSE2__
-        using SingleSIMD = __m128;
-        static const SingleSIMD inc = _mm_set_ps(0.5, 0, 0.5, 0);
-#else
-#error("Didnt' build this for a no-SIMD system.")
-#endif
-    };
-    struct SIMDType<double> {
-        using DoubleSIMD = __m512d;
-        static const DoubleSIMD inc =
-            _mm512_set_pd(0.5, 0, 0.5, 0,
-                          0.5, 0, 0.5, 0);
-    };
-    // By adding these to a vector and calling
-};
-
-#endif
-
-#if _FEATURE_AVX512F
-using SingleSIMD = __m512;
-using DoubleSIMD = __m512d;
-static const SingleSIMD finc = _mm512_set_ps(0.5, 0, 0.5, 0,
-                                             0.5, 0, 0.5, 0,
-                                             0.5, 0, 0.5, 0,
-                                             0.5, 0, 0.5, 0);
-static const DoubleSIMD dinc = _mm512_set_pd(0.5, 0, 0.5, 0,
-                                             0.5, 0, 0.5, 0);
-#elif __AVX2__
-using SingleSIMD = __m256;
-using DoubleSIMD = __m256d;
-static const SingleSIMD finc = _mm256_set_ps(0.5, 0, 0.5, 0,
-                                             0.5, 0, 0.5, 0);
-static const DoubleSIMD dinc = _mm256_set_pd(0.5, 0, 0.5, 0);
-#elif __SSE2__
-using SingleSIMD = __m128;
-static const SingleSIMD finc = _mm_set_ps(0.5, 0, 0.5, 0);
-using DoubleSIMD = __m128d;
-static const DoubleSIMD dinc = _mm_set_pd(0.5, 0);
-#else
-#define NO_SIMD
-#endif
-
-
-
 namespace ff {
 
-template<typename Vec>
-void lower_upper_copy(Vec &a) {
-    throw std::runtime_error("This copies the lower half of a vector into its upper half for purposes of applying the Gaussian finalizer. NotImplemented.");
-}
 struct GaussianFinalizer {
     template<typename VecType>
     void apply(VecType &in) {
         assert((in.size() & (in.size() - 1)) == 0);
-#if NO_SIMD
-        throw std::runtime_error("No SIMD, have to write later.");
-#else
-        lower_upper_copy(in);
-        for(size_t i(in.size()); i >= 1; --i) {
-            throw std::runtime_error("Multiply each entry by n^(-1/2) and apply cos to the entry above and sin to the entry below.");
-            // Then add to the block using finc/dinc.
-        }
-#endif
+        for(uint32_t i(in.size()>>1); i; --i) in[(i<<1) - 1] = (in[(i-1)<<1] = in[i - 1]) + 0.5;
+        in = cos(in);
     }
 };
 

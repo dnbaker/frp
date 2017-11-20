@@ -34,7 +34,7 @@ EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I`python3-config --includes` -I/opt/intel/include
+INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
