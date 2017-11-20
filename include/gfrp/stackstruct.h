@@ -89,6 +89,16 @@ struct FFTTypes<long double> {
 } // namespace fft
 
 
+template<typename VecType>
+void fht(VecType &vec) {
+    if(vec.size() & (vec.size() - 1)) {
+        throw runtime_error(ks::sprintf("vec size %zu not a power of two. NotImplemented.", vec.size()).data());
+    } else {
+        ::fht(&vec[0], log2_64(vec.size()));
+    }
+    vec *= 1. / std::sqrt(vec.size());
+}
+
 template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation, typename=enable_if_t<is_floating_point<FloatType>::value>>
 void fht(VecType<FloatType, VectorOrientation> &vec) {
     if(vec.size() & (vec.size() - 1)) {

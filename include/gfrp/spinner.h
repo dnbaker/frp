@@ -147,7 +147,7 @@ public:
     }
     template<typename VectorType>
     void apply(VectorType &vec) {
-        throw std::runtime_error("NotImplemented.");
+        ScalingBlock<FloatType, VectorOrientation, VectorKind>::apply(vec);
     }
     void rescale(FloatType newnorm) {
         vec_ *= 1./(ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm() * newnorm);
@@ -174,6 +174,9 @@ class UnitGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation
 public:
     template<typename...Args>
     UnitGaussianScalingBlock(uint64_t seed=0, Args &&...args): vec_(forward<Args>(args)...) {
+        if(vec_.size() == 0) {
+            throw std::runtime_error(ks::sprintf("Vec size %zu and seed %zu for UnitGaussianScalingBlock.", vec_.size(), (size_t)seed).data());
+        }
         assert(vec_.size());
         unit_gaussian_fill(vec_, seed);
     }
@@ -222,7 +225,7 @@ class OnlineShuffler {
     //This
     using ResultType = typename RNG::result_type;
     const ResultType seed_;
-    RNG               rng_;
+    mutable RNG       rng_;
 public:
     explicit OnlineShuffler(ResultType seed=0): seed_{seed}, rng_(seed) {}
     template<typename InVector, typename OutVector>
@@ -250,7 +253,7 @@ public:
     void apply(Vector &vec) const {
         rng_.seed(seed_);
         for(ResultType i(vec.size()); i > 1; --i) {
-            std::swap(vec[i - 1], fastrange(rng_(), i));
+            std::swap(vec[i - 1], vec[fastrange(rng_(), i)]);
         }
     }
 };
@@ -310,29 +313,34 @@ public:
     // Template magic for unrolling from the back.
     template<typename OutVector, size_t Index>
     struct ApplicationStruct {
+        SpinBlockTransformer &ref_;
+        ApplicationStruct(SpinBlockTransformer &ref): ref_(ref) {}
         void operator()(OutVector &out) const {
-            std::get<Index - 1>(blocks_).apply(out);
-            ApplicationStruct<OutVector, Index - 1>()(out);
+            std::get<Index - 1>(ref_.blocks_).apply(out);
+            ApplicationStruct<OutVector, Index - 1> as(ref_);
+            as(out);
         }
     };
     template<typename OutVector>
     struct ApplicationStruct<OutVector, 1> {
+        SpinBlockTransformer &ref_;
+        ApplicationStruct(SpinBlockTransformer &ref): ref_(ref) {}
         void operator()(OutVector &out) const {
-            std::get<0>(blocks_).apply(out);
+            std::get<0>(ref_.blocks_).apply(out);
         }
     };
     // Use it: last block is applied from in to out (as it needs to consume input).
     // All prior blocks, in reverse order, are applied in-place on out.
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector out) {
-        std::get<NBLOCKS - 1>().apply(in, out);
-        ApplicationStruct<OutVector, NBLOCKS - 1> as;
+        std::get<NBLOCKS - 1>(blocks_).apply(in, out);
+        ApplicationStruct<OutVector, NBLOCKS - 1> as(*this);
         as(in, out);
     }
     template<typename OutVector>
     void apply(OutVector out) {
-        std::get<NBLOCKS - 1>().apply(out);
-        ApplicationStruct<OutVector, NBLOCKS - 1> as;
+        std::get<NBLOCKS - 1>(blocks_).apply(out);
+        ApplicationStruct<OutVector, NBLOCKS - 1> as(*this);
         as(out);
     }
     auto &get_tuple() {return blocks_;}

@@ -42,7 +42,7 @@ public:
             std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
                    RandomGaussianScalingBlock<FloatType>(1., seed + seed * seed - size * size, transform_size()),
                    LastSBlockType(transform_size()),
-                   GaussianMatrixType(seed * seed),
+                   GaussianMatrixType(seed * seed, transform_size()),
                    OnlineShuffler<size_t>(seed),
                    FirstSBlockType(transform_size()),
                    CompactRademacher(transform_size(), (seed ^ (size * size)) + seed)))
@@ -95,7 +95,7 @@ public:
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
             std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
-                         out.size(), blocks_.size(), in.size(), roundup(in.size()));
+                         out.size(), blocks_.size(), in.size(), (size_t)roundup(in.size()));
             out.resize((blocks_.size() << 1) * in_rounded);
         }
         in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
