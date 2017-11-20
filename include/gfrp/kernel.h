@@ -10,8 +10,14 @@ struct GaussianFinalizer {
     template<typename VecType>
     void apply(VecType &in) {
         assert((in.size() & (in.size() - 1)) == 0);
-        for(uint32_t i(in.size()>>1); i; --i) in[(i<<1) - 1] = (in[(i-1)<<1] = in[i - 1]) + 0.5;
+        for(u32 i(in.size()>>1); i; --i)
+            in[(i<<1)-1] = (in[(i-1)<<1] = in[i-1]) + 0.5;
         in = cos(in);
+        /* This can be accelerated using SLEEF.
+           Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
+           The great thing about sleef is that it does not require the use of intel-only materials.
+           This could be a nice addition to Blaze downstream.
+        */
     }
 };
 
@@ -19,7 +25,7 @@ struct GaussianFinalizer {
 template<typename FloatType, typename RandomScalingBlock=RandomGaussianScalingBlock<FloatType>,
          typename GaussianMatrixType=UnitGaussianScalingBlock<FloatType>,
          typename FirstSBlockType=HadamardBlock, typename LastSBlockType=FirstSBlockType>
-class KernelBlock {
+class FastFoodKernelBlock {
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
     using SpinTransformer =
         SpinBlockTransformer<FastFoodGaussianProductBlock<FloatType>,
@@ -30,7 +36,7 @@ class KernelBlock {
 
 public:
     using float_type = FloatType;
-    KernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1):
+    FastFoodKernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1):
         final_output_size_(size),
         tx_(
             std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
@@ -41,8 +47,9 @@ public:
                    FirstSBlockType(transform_size()),
                    CompactRademacher(transform_size(), (seed ^ (size * size)) + seed)))
     {
-        if(final_output_size_ & (final_output_size_ - 1)) throw std::runtime_error("GaussianKernel's size should be a power of two.");
-        std::get<1>(tx_.get_tuple()).rescale(std::get<3>(tx_.get_tuple()));
+        if(final_output_size_ & (final_output_size_ - 1))
+            throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
+        std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
     }
     size_t transform_size() const {return final_output_size_ >> 1;}
     template<typename InputType, typename OutputType>
@@ -63,7 +70,7 @@ template<typename KernelBlock,
          typename Finalizer=GaussianFinalizer>
 class Kernel {
     std::vector<KernelBlock> blocks_;
-    Finalizer        finalizer_;
+    Finalizer             finalizer_;
 
 public:
     using FloatType = typename KernelBlock::float_type;
@@ -73,10 +80,11 @@ public:
            Args &&... args):
         finalizer_(std::forward<Args>(args)...)
     {
-        stacked_size    = roundup(stacked_size);
         size_t input_ru = roundup(input_size);
-        assert(stacked_size >= input_ru << 1);
-        size_t nblocks = (stacked_size >> 1) / input_ru + !!((stacked_size >> 1) % input_ru);
+        if(stacked_size <= input_ru << 1) throw std::runtime_error("ZOMG");
+        stacked_size   += input_ru - (stacked_size & (input_ru - 1));
+        stacked_size  <<= 1;
+        size_t nblocks = (stacked_size >> 1) / input_ru;
         aes::AesCtr gen(seed);
         while(blocks_.size() < nblocks) {
             blocks_.emplace_back(input_ru, sigma, gen());
@@ -84,15 +92,18 @@ public:
     }
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
-        if(double(out.size() >> 1) / blocks_.size() != double(in.size())) {
-            throw std::runtime_error("Unexpected sizes. (out: %zu. in: %zu)\n", out.size(), in.size());
+        size_t in_rounded(roundup(in.size()));
+        if(out.size() != (blocks_.size() << 1) * in_rounded) {
+            std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                         out.size(), blocks_.size(), in.size(), roundup(in.size()));
+            out.resize((blocks_.size() << 1) * in_rounded);
         }
-        size_t inru(roundup(in.size()));
+        in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
 #ifdef USE_OPENMP
         #pragma omp parallel for
 #endif
         for(size_t i = 0; i < blocks_.size(); ++i) {
-            auto sv(subvector(out, inru * i, inru));
+            auto sv(subvector(out, in_rounded * i, in_rounded));
             blocks_[i].apply(sv, in);
             finalizer_.apply(sv);
         }

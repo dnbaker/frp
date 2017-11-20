@@ -142,16 +142,15 @@ public:
     template<typename...Args>
     RandomGaussianScalingBlock(FloatType GNorm, uint64_t seed, Args &&...args): vec_(forward<Args>(args)...) {
         unit_gaussian_fill(vec_, seed);
-        if(GNorm != 1.0) vec_ *= 1./std::sqrt(GNorm);
-        std::fprintf(stderr, "This is probably wrong. I just don't know what the right thing to do here is.\n");
+        vec_ *= 1./std::sqrt(GNorm);
+        // There's probably some further renormalization to do.
     }
     template<typename VectorType>
     void apply(VectorType &vec) {
         throw std::runtime_error("NotImplemented.");
     }
-    template<typename VectorType>
-    void rescale(const VectorType &other) {
-        throw std::runtime_error("NotImplemented. Should somehow use the sqrt of the vector norm of G");
+    void rescale(FloatType newnorm) {
+        vec_ *= 1./(ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm() * newnorm);
     }
 };
 

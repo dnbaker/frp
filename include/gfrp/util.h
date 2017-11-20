@@ -80,6 +80,8 @@ using std::fclose;
 using std::exit;
 using std::cerr;
 using std::cout;
+using u32 = uint32_t;
+using u64 = uint64_t;
 
 inline constexpr uint64_t roundup(uint64_t x) {
     x--;
