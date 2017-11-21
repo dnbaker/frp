@@ -53,6 +53,7 @@ public:
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
         std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
+#if 0
         std::fprintf(stderr, "Sizes: %zu, %zu, %zu, %zu, %zu, %zu, %zu\n", std::get<0>(tx_.get_tuple()).size(), 
                      std::get<1>(tx_.get_tuple()).size(),
                      std::get<2>(tx_.get_tuple()).size(),
@@ -64,6 +65,7 @@ public:
         static_assert(std::is_same<std::decay_t<decltype(std::get<3>(tx_.get_tuple()))>, UnitGaussianScalingBlock<FloatType>>::value, "I should have this correct.");
         if(std::get<1>(tx_.get_tuple()).size() == 0) throw std::runtime_error("Didn't it just say it was nonzero?");
         if(std::get<3>(tx_.get_tuple()).size() == 0) throw std::runtime_error("Didn't it just say 3's was nonzero?");
+#endif
     }
     size_t transform_size() const {return final_output_size_ >> 1;}
     template<typename InputType, typename OutputType>
@@ -74,11 +76,16 @@ public:
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
         auto copysv(subvector(out, 0, in.size()));
-        std::fprintf(stderr, "copying in to copysv. (Sizes: copysv - %zu, in - %zu)\n", copysv.size(), in.size());
+        //std::fprintf(stderr, "copying in to copysv. (Sizes: copysv - %zu, in - %zu)\n", copysv.size(), in.size());
+        ks::string tmp;
         copysv = in; // Copy input to output space.
+        tmp += '[';
+        for(const auto el: copysv) tmp.sprintf("%e,", el);
+        tmp.back() = ']';
+        std::fprintf(stderr, "After copying input vector to output vector: %s\n", tmp.data());
 
         auto half_vector(subvector(out, 0, transform_size()));
-        std::fprintf(stderr, "half vector is size %zu out of out size %zu\n", half_vector.size(), out.size());
+        //std::fprintf(stderr, "half vector is size %zu out of out size %zu\n", half_vector.size(), out.size());
         tx_.apply(half_vector);   
     }
 };
@@ -121,12 +128,21 @@ public:
 #ifdef USE_OPENMP
         #pragma omp parallel for
 #endif
+        ks::string tmp;
         for(size_t i = 0; i < blocks_.size(); ++i) {
             auto sv(subvector(out, in_rounded * i, in_rounded));
-            std::fprintf(stderr, "Applying block %zu\n", i);
+            tmp.puts("[Block ");
+            tmp.putl(i);
+            tmp.puts("] before: ");
+            ksprint(sv, tmp);
             blocks_[i].apply(sv, in);
-            std::fprintf(stderr, "Applying finalizer\n");
+            tmp.sprintf("\nAfter block, before finalizer: ");
+            ksprint(sv, tmp);
             finalizer_.apply(sv);
+            tmp.puts("\nAfter finalizer: ");
+            ksprint(sv, tmp);
+            tmp.putc_('\n');
+            tmp.write(stderr), tmp.clear();
         }
     }
 };

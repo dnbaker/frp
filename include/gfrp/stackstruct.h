@@ -155,7 +155,7 @@ struct HadamardBlock {
     }
     template<typename OutVector>
     void apply(OutVector &out) const {
-        std::fprintf(stderr, "[%s] Calling fht on size %zu.\n", __PRETTY_FUNCTION__, out.size());
+        //std::fprintf(stderr, "[%s] Calling fht on size %zu.\n", __PRETTY_FUNCTION__, out.size());
         if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
             throw runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
         }
@@ -164,11 +164,11 @@ struct HadamardBlock {
         } else {
             throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
         }
-        std::fprintf(stderr, "[%s] Called fht on size %zu.\n", __PRETTY_FUNCTION__, out.size());
+        //std::fprintf(stderr, "[%s] Called fht on size %zu.\n", __PRETTY_FUNCTION__, out.size());
     }
     template<typename FloatType>
     void apply(FloatType *pos, size_t nelem) const {
-        std::fprintf(stderr, "[%s] Calling fht on size %zu.\n", __PRETTY_FUNCTION__, (size_t)(1ull << nelem));
+        //std::fprintf(stderr, "[%s] Calling fht on size %zu.\n", __PRETTY_FUNCTION__, (size_t)(1ull << nelem));
         if(nelem > 48) {
             std::fprintf(stderr, "Warning: apply *should* take a log2 value. You're passing an impossibly large size.\n");
             nelem = log2_64(nelem);
@@ -176,14 +176,14 @@ struct HadamardBlock {
         ::fht(pos, nelem);
         const FloatType div(1./std::sqrt(static_cast<FloatType>(1 << nelem)));
         for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] *= div; // Could be vectorized.
-        std::fprintf(stderr, "[%s] Called fht on size %zu.\n", __PRETTY_FUNCTION__, (size_t)(1ull << nelem));
+        //std::fprintf(stderr, "[%s] Called fht on size %zu.\n", __PRETTY_FUNCTION__, (size_t)(1ull << nelem));
     }
     template<typename IntType>
     void resize([[maybe_unused]] IntType i) {/* Do nothing */}
     template<typename IntType>
     void seed([[maybe_unused]] IntType i) {/* Do nothing */}
     HadamardBlock(size_t size=0) {
-        if(size != 0) std::fprintf(stderr, "HadamardBlock being created with a nonzero size %zu\n", size);
+        //if(size != 0) std::fprintf(stderr, "HadamardBlock being created with a nonzero size %zu\n", size);
     }
     size_t size() const {return -1;} // This is a lie.
 };

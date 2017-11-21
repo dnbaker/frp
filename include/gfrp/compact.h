@@ -171,14 +171,14 @@ public:
     }
     template<typename VectorType>
     void apply(VectorType &vec) const {
-        std::fprintf(stderr, "Applying %s vector of size %zu.\n", __PRETTY_FUNCTION__, vec.size());
+        //std::fprintf(stderr, "Applying %s vector of size %zu.\n", __PRETTY_FUNCTION__, vec.size());
         auto tmp(as_type<std::decay_t<decltype(vec[0])>>());
         if(vec.size() != size()) {
             if(vec.size() > size())
                 throw std::runtime_error("Vector is too big for he gotdam feet");
             std::fprintf(stderr, "Warning: CompactRademacherTemplate is too big. Only affecting elements in my size (%zu) vs vector size (%zu). Any F*Ts might not be so kind.\n", size_t(size()), size_t(vec.size()));
         }
-        std::fprintf(stderr, "Applyied %s vector of size %zu.\n", __PRETTY_FUNCTION__, vec.size());
+        //std::fprintf(stderr, "Applyied %s vector of size %zu.\n", __PRETTY_FUNCTION__, vec.size());
 #if 0
 #if USE_OPENMP
         #pragma omp parallel for schedule(dynamic, 8192)
