@@ -12,7 +12,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
-OPT:= -flto -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE -DUSE_OPENMP \
+OPT:= -flto -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
         -mveclibabi=svml  -funsafe-math-optimizations -ftree-vectorize
 OS:=$(shell uname)
 
@@ -34,7 +34,7 @@ EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include
+INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I sleef/build/include/
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
@@ -86,6 +86,12 @@ tests: clean unit
 
 unit: $(OBJS) $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+
+sleef/build: sleef
+	mkdir sleef/build
+
+sleef/build/include/sleef.h: sleef/build
+	cd $< && cmake .. && make && cd ../..
 
 clean:
 	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o gfrp/src/*o && cd FFHT && make clean && cd ..

@@ -9,7 +9,7 @@ namespace ff {
 struct GaussianFinalizer {
     template<typename VecType>
     void apply(VecType &in) {
-        assert((in.size() & (in.size() - 1)) == 0);
+        if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
         for(u32 i(in.size()>>1); i; --i)
             in[(i<<1)-1] = (in[(i-1)<<1] = in[i-1]) + 0.5;
         in = cos(in);
@@ -23,33 +23,47 @@ struct GaussianFinalizer {
 
 
 template<typename FloatType, typename RandomScalingBlock=RandomGaussianScalingBlock<FloatType>,
-         typename GaussianMatrixType=UnitGaussianScalingBlock<FloatType>,
          typename FirstSBlockType=HadamardBlock, typename LastSBlockType=FirstSBlockType>
 class FastFoodKernelBlock {
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
     using SpinTransformer =
         SpinBlockTransformer<FastFoodGaussianProductBlock<FloatType>,
-                             RandomGaussianScalingBlock<FloatType>, LastSBlockType,
-                             GaussianMatrixType, OnlineShuffler<size_t>, FirstSBlockType,
+                             RandomScalingBlock, LastSBlockType,
+                             UnitGaussianScalingBlock<FloatType>, OnlineShuffler<size_t>, FirstSBlockType,
                              CompactRademacher>;
+    /*
+    18446744073709551615, 0, 18446744073709551615, 0, 18446744073709551615, 18446744073709551615, 65536
+    */
     SpinTransformer tx_;
 
 public:
     using float_type = FloatType;
+    using GaussianMatrixType = UnitGaussianScalingBlock<FloatType>;
     FastFoodKernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1):
-        final_output_size_(size),
+        final_output_size_(size << 1),
         tx_(
             std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
-                   RandomGaussianScalingBlock<FloatType>(1., seed + seed * seed - size * size, transform_size()),
-                   LastSBlockType(transform_size()),
-                   GaussianMatrixType(seed * seed, transform_size()),
+                   RandomScalingBlock(1., seed + seed * seed - size * size, size),
+                   LastSBlockType(size),
+                   GaussianMatrixType(seed * seed, size),
                    OnlineShuffler<size_t>(seed),
-                   FirstSBlockType(transform_size()),
-                   CompactRademacher(transform_size(), (seed ^ (size * size)) + seed)))
+                   FirstSBlockType(size),
+                   CompactRademacher(size, (seed ^ (size * size)) + seed)))
     {
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
         std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
+        std::fprintf(stderr, "Sizes: %zu, %zu, %zu, %zu, %zu, %zu, %zu\n", std::get<0>(tx_.get_tuple()).size(), 
+                     std::get<1>(tx_.get_tuple()).size(),
+                     std::get<2>(tx_.get_tuple()).size(),
+                     std::get<3>(tx_.get_tuple()).size(),
+                     std::get<4>(tx_.get_tuple()).size(),
+                     std::get<5>(tx_.get_tuple()).size(),
+                     std::get<6>(tx_.get_tuple()).size());
+        static_assert(std::is_same<std::decay_t<decltype(std::get<1>(tx_.get_tuple()))>, RandomScalingBlock>::value, "I should have this correct.");
+        static_assert(std::is_same<std::decay_t<decltype(std::get<3>(tx_.get_tuple()))>, UnitGaussianScalingBlock<FloatType>>::value, "I should have this correct.");
+        if(std::get<1>(tx_.get_tuple()).size() == 0) throw std::runtime_error("Didn't it just say it was nonzero?");
+        if(std::get<3>(tx_.get_tuple()).size() == 0) throw std::runtime_error("Didn't it just say 3's was nonzero?");
     }
     size_t transform_size() const {return final_output_size_ >> 1;}
     template<typename InputType, typename OutputType>
@@ -59,9 +73,12 @@ public:
         }
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
-        subvector(out, 0, in.size()) = in; // Copy input to output space.
+        auto copysv(subvector(out, 0, in.size()));
+        std::fprintf(stderr, "copying in to copysv. (Sizes: copysv - %zu, in - %zu)\n", copysv.size(), in.size());
+        copysv = in; // Copy input to output space.
 
         auto half_vector(subvector(out, 0, transform_size()));
+        std::fprintf(stderr, "half vector is size %zu out of out size %zu\n", half_vector.size(), out.size());
         tx_.apply(half_vector);   
     }
 };
@@ -81,8 +98,10 @@ public:
         finalizer_(std::forward<Args>(args)...)
     {
         size_t input_ru = roundup(input_size);
-        if(stacked_size <= input_ru << 1) throw std::runtime_error("ZOMG");
-        stacked_size   += input_ru - (stacked_size & (input_ru - 1));
+        stacked_size = std::max(stacked_size, input_ru << 1);
+        if(stacked_size % input_ru)
+            stacked_size = input_ru - (stacked_size % input_ru);
+        if(stacked_size % input_ru) std::fprintf(stderr, "Stacked size is not evenly divisible.\n"), exit(1);
         stacked_size  <<= 1;
         size_t nblocks = (stacked_size >> 1) / input_ru;
         aes::AesCtr gen(seed);
@@ -95,7 +114,7 @@ public:
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
             std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
-                         out.size(), blocks_.size(), in.size(), (size_t)roundup(in.size()));
+                         out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size()));
             out.resize((blocks_.size() << 1) * in_rounded);
         }
         in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
@@ -104,7 +123,9 @@ public:
 #endif
         for(size_t i = 0; i < blocks_.size(); ++i) {
             auto sv(subvector(out, in_rounded * i, in_rounded));
+            std::fprintf(stderr, "Applying block %zu\n", i);
             blocks_[i].apply(sv, in);
+            std::fprintf(stderr, "Applying finalizer\n");
             finalizer_.apply(sv);
         }
     }

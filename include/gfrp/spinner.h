@@ -74,9 +74,22 @@ public:
     }
     template<typename Vector>
     void apply(Vector &out) const {
+#if !NDEBUG
+        try {
+#endif
         out *= vec_;
+#if !NDEBUG
+        } catch (std::invalid_argument &ex) {
+            std::fprintf(stderr, "Failed to multiply. Input array size %zu. vec array size %zu\n", out.size(), vec_.size());
+
+            throw(ex);
+
+        }
+#endif
+    
     }
     FloatType vec_norm() const {return std::sqrt(normsq(vec_));}
+    size_t size() const {return vec_.size();}
 };
 
 template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
@@ -131,6 +144,7 @@ public:
         const auto tmp(v_/std::sqrt(out.size()));
         out *= tmp;
     }
+    size_t size() const {return -1;}
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
@@ -141,17 +155,19 @@ class RandomGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientati
 public:
     template<typename...Args>
     RandomGaussianScalingBlock(FloatType GNorm, uint64_t seed, Args &&...args): vec_(forward<Args>(args)...) {
+        std::fprintf(stderr, "[%s] Size of scaling block: %zu\n", __PRETTY_FUNCTION__, vec_.size());
         unit_gaussian_fill(vec_, seed);
+        if(vec_.size() == 0) std::exit(1);
         vec_ *= 1./std::sqrt(GNorm);
+        assert(vec_.size() && "vec must have nonzero size after gnorm");
         // There's probably some further renormalization to do.
     }
-    template<typename VectorType>
-    void apply(VectorType &vec) {
-        ScalingBlock<FloatType, VectorOrientation, VectorKind>::apply(vec);
-    }
     void rescale(FloatType newnorm) {
+        assert(vec_.size() && "vec must have nonzero size before");
         vec_ *= 1./(ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm() * newnorm);
+        assert(vec_.size() && "vec must have nonzero size after");
     }
+    size_t size() const {return vec_.size();}
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
@@ -162,6 +178,7 @@ class GaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, Ve
 public:
     template<typename...Args>
     GaussianScalingBlock(uint64_t seed=0, FloatType mean=0., FloatType var=1., Args &&...args): vec_(forward<Args>(args)...) {
+        if(vec_.size() == 0) std::fprintf(stderr, "Empty GSB\n"), std::exit(1);
         gaussian_fill(vec_, seed, mean, var);
     }
 };
@@ -175,11 +192,16 @@ public:
     template<typename...Args>
     UnitGaussianScalingBlock(uint64_t seed=0, Args &&...args): vec_(forward<Args>(args)...) {
         if(vec_.size() == 0) {
-            throw std::runtime_error(ks::sprintf("Vec size %zu and seed %zu for UnitGaussianScalingBlock.", vec_.size(), (size_t)seed).data());
+            std::fprintf(stderr, "Vec size %zu and seed %zu for UnitGaussianScalingBlock.", vec_.size(), (size_t)seed);
+            exit(1);
+        } else {
+            std::fprintf(stderr, "Nonzero vec size %zu and seed %zu for UnitGaussianScalingBlock.", vec_.size(), (size_t)seed);
         }
-        assert(vec_.size());
+        if(vec_.size() == 0) throw std::runtime_error("UG can't be 0 size before filling");
         unit_gaussian_fill(vec_, seed);
+        if(vec_.size() == 0) throw std::runtime_error("UG can't be 0 size after filling");
     }
+    size_t size() const {return vec_.size();}
 };
 
 template<typename RademacherType>
@@ -251,11 +273,14 @@ public:
     }
     template<typename Vector>
     void apply(Vector &vec) const {
+        std::fprintf(stderr, "Applying %s vector of size %zu.\n", __PRETTY_FUNCTION__, vec.size());
         rng_.seed(seed_);
         for(ResultType i(vec.size()); i > 1; --i) {
             std::swap(vec[i - 1], vec[fastrange(rng_(), i)]);
         }
+        std::fprintf(stderr, "Applyied %s vector of size %zu.\n", __PRETTY_FUNCTION__, vec.size());
     }
+    size_t size() const {return -1;}
 };
 
 template<typename SizeType=uint32_t>
@@ -305,10 +330,16 @@ class SpinBlockTransformer {
     static constexpr size_t NBLOCKS = std::tuple_size<decltype(blocks_)>::value;
 public:
     SpinBlockTransformer(Blocks &&... blocks):
-        blocks_(blocks...) {}
+        blocks_(blocks...)
+    {
+        std::fprintf(stderr, "[%s] Made with tuple constructor.\n", __PRETTY_FUNCTION__);
+    }
 
     SpinBlockTransformer(std::tuple<Blocks...> &&blocks):
-        blocks_(std::move(blocks)) {}
+        blocks_(std::move(blocks))
+    {
+        std::fprintf(stderr, "[%s] Made with tuple constructor.\n", __PRETTY_FUNCTION__);
+    }
 
     // Template magic for unrolling from the back.
     template<typename OutVector, size_t Index>
@@ -318,7 +349,16 @@ public:
         void operator()(OutVector &out) const {
             std::get<Index - 1>(ref_.blocks_).apply(out);
             ApplicationStruct<OutVector, Index - 1> as(ref_);
+#if !NDEBUG
+        try {
+#endif
             as(out);
+#if !NDEBUG
+        } catch (std::invalid_argument &ex) {
+            std::fprintf(stderr, "what: %s. Index: %zu. out size: %zu\n", ex.what(), Index, out.size());
+            throw(ex);
+        }
+#endif
         }
     };
     template<typename OutVector>
@@ -332,15 +372,18 @@ public:
     // Use it: last block is applied from in to out (as it needs to consume input).
     // All prior blocks, in reverse order, are applied in-place on out.
     template<typename InVector, typename OutVector>
-    void apply(const InVector &in, OutVector out) {
+    void apply(const InVector &in, OutVector &out) {
+        std::fprintf(stderr, "Trying to apply %zu, %zu\n", in.size(), out.size());
         std::get<NBLOCKS - 1>(blocks_).apply(in, out);
         ApplicationStruct<OutVector, NBLOCKS - 1> as(*this);
-        as(in, out);
+        as(out);
     }
     template<typename OutVector>
-    void apply(OutVector out) {
+    void apply(OutVector &out) {
+        std::fprintf(stderr, "[%s:%d] Trying to apply on size %zu\n", __PRETTY_FUNCTION__, __LINE__, out.size());
         std::get<NBLOCKS - 1>(blocks_).apply(out);
         ApplicationStruct<OutVector, NBLOCKS - 1> as(*this);
+        std::fprintf(stderr, "[%s:%d] Applied on size %zu\n", __PRETTY_FUNCTION__, __LINE__, out.size());
         as(out);
     }
     auto &get_tuple() {return blocks_;}
