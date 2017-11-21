@@ -8,10 +8,13 @@ namespace ff {
 
 struct GaussianFinalizer {
     template<typename VecType>
-    void apply(VecType &in) {
+    void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
-        for(u32 i(in.size()>>1); i; --i)
-            in[(i<<1)-1] = (in[(i-1)<<1] = in[i-1]) + 0.5;
+        for(u32 i(in.size()>>1); i; --i) {
+            in[(i-1)<<1] = in[i-1];
+            in[(i<<1)-1] = in[(i - 1)<<1] + 0.5;
+            std::fprintf(stderr, "About to cosinify: %f, %f. Indices: from %u to %u, %u\n", in[(i<<1)-1], in[(i-1)<<1], i-1, (i-1)<<1, (i<<1)-1);
+        }
         in = cos(in);
         /* This can be accelerated using SLEEF.
            Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
@@ -52,7 +55,7 @@ public:
     {
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
-        std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
+        //std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
 #if 0
         std::fprintf(stderr, "Sizes: %zu, %zu, %zu, %zu, %zu, %zu, %zu\n", std::get<0>(tx_.get_tuple()).size(), 
                      std::get<1>(tx_.get_tuple()).size(),

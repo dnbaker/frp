@@ -179,6 +179,14 @@ void ksprint(const T &view, ks::string &buf, bool scientific=true) {
     buf.pop();
 }
 
+template<typename T>
+void pv(const T &view, FILE *fp=stderr) {
+    ks::string str;
+    ksprint(view, str);
+    str.write(fp);
+}
+
+
 size_t countchars(const char *line, int delim) {
     size_t ret(0);
     while(*line && *line != '\n') ret += (*line++ == delim);

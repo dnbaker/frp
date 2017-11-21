@@ -21,8 +21,20 @@ int main(int argc, char *argv[]) {
     KernelType kernel(outsize, size, 1., 1337);
     blaze::DynamicVector<FLOAT_TYPE> out(outsize << 1);
     blaze::DynamicVector<FLOAT_TYPE> in(size);
+    ff::GaussianFinalizer gf;
+    blaze::DynamicVector<FLOAT_TYPE> dv(1 << 5);
+    for(size_t i(0); i < 1 << 4; ++i) {
+        dv[i] = std::acos(2. * M_PI / (1 << 4));
+    }
+
+    ks::string str(ks::sprintf("Before: "));
+    ksprint(dv, str);
+    str.sprintf("\nAfter: ");
+    gf.apply(dv);
+    gf.apply(dv);
+    ksprint(dv, str);
+    str.write(stderr); str.clear();
     unit_gaussian_fill(in, 1338);
-    ks::string str;
     ksprint(in, str);
     std::fprintf(stderr, "in: '%s'\n", str.data());
     str.clear();

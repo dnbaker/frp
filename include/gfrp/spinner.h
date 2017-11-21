@@ -78,7 +78,6 @@ struct ScalingBlock {
 #if !NDEBUG
         } catch (std::invalid_argument &ex) {
             std::fprintf(stderr, "Failed to multiply. Input array size %zu. vec array size %zu\n", out.size(), vec_.size());
-
             throw(ex);
 
         }
@@ -149,16 +148,21 @@ class RandomGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientati
     // This is the S in Fastfood.
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
+    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 public:
     template<typename...Args>
     RandomGaussianScalingBlock(FloatType g_norm, uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
         //std::fprintf(stderr, "[%s] Size of scaling block: %zu\n", __PRETTY_FUNCTION__, vec_.size());
         unit_gaussian_fill(vec_, seed);
-        rescale(g_norm);
+        //rescale(g_norm);
+        std::fprintf(stderr, "Norm before rescale: %f\n", vec_norm());
+        rescale(M_PI_2/vec_.size());
+        std::fprintf(stderr, "Norm after rescale: %f\n", vec_norm());
+        rescale(M_PI_2/vec_.size());
         // There's probably some further renormalization to do.
     }
     void rescale(FloatType newnorm) {
-        vec_ *= 1./(ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm() * newnorm);
+        vec_ *= 1./(vec_norm() * newnorm);
     }
 };
 
@@ -330,6 +334,9 @@ public:
             std::get<Index - 1>(ref_.blocks_).apply(out);
             ApplicationStruct<OutVector, Index - 1> as(ref_);
 #if !NDEBUG
+            std::fprintf(stderr, "Applying operation at index %zu to vector.\nBefore: ", Index - 1);
+            pv(out);
+            std::fputc('\n', stderr);
         try {
 #endif
             as(out);
