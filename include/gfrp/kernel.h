@@ -53,19 +53,6 @@ public:
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
         std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
-#if 0
-        std::fprintf(stderr, "Sizes: %zu, %zu, %zu, %zu, %zu, %zu, %zu\n", std::get<0>(tx_.get_tuple()).size(), 
-                     std::get<1>(tx_.get_tuple()).size(),
-                     std::get<2>(tx_.get_tuple()).size(),
-                     std::get<3>(tx_.get_tuple()).size(),
-                     std::get<4>(tx_.get_tuple()).size(),
-                     std::get<5>(tx_.get_tuple()).size(),
-                     std::get<6>(tx_.get_tuple()).size());
-        static_assert(std::is_same<std::decay_t<decltype(std::get<1>(tx_.get_tuple()))>, RandomScalingBlock>::value, "I should have this correct.");
-        static_assert(std::is_same<std::decay_t<decltype(std::get<3>(tx_.get_tuple()))>, UnitGaussianScalingBlock<FloatType>>::value, "I should have this correct.");
-        if(std::get<1>(tx_.get_tuple()).size() == 0) throw std::runtime_error("Didn't it just say it was nonzero?");
-        if(std::get<3>(tx_.get_tuple()).size() == 0) throw std::runtime_error("Didn't it just say 3's was nonzero?");
-#endif
     }
     size_t transform_size() const {return final_output_size_ >> 1;}
     template<typename InputType, typename OutputType>
