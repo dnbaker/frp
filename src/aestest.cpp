@@ -49,7 +49,8 @@ template<typename... Types>
 using unormd = boost::random::detail::unit_normal_distribution<Types...>;
 
 int main(int argc, char *argv[]) {
-    size_t niter(argc > 2 ? std::atoi(argv[2]): 1000), size(argc > 1 ? std::atoi(argv[1]): 1 << 16);
+    size_t niter(argc > 2 ? std::strtoull(argv[2], 0, 10): 1000), size(argc > 1 ? std::strtoull(argv[1], 0, 10): 1 << 16);
+    std::fprintf(stderr, "niter %zu size %zu\n", niter, size);
     int64_t UNROLL_COUNT = 4;
     const __m128i CTR_ADD = {UNROLL_COUNT, 0};
     const __m128i CTR_CMP = _mm_set_epi64x(0, UNROLL_COUNT);
@@ -58,6 +59,7 @@ int main(int argc, char *argv[]) {
     std::vector<uint64_t> vec(size);
     aes::AesCtr<uint64_t, 8> c8;
     aes::AesCtr<uint64_t, 4> c4;
+#if 0
     aes::AesCtr<uint64_t, 16> c16;
     aes::AesCtr<uint64_t, 32> c32;
     aes::AesCtr<uint64_t, 64> c64;
@@ -78,4 +80,42 @@ int main(int argc, char *argv[]) {
     time_stuff("snd", dsnd, c8, dvals, niter, size);
     time_stuff("u32dbnd", dbnd, c8_16, dvals, niter, size);
     time_stuff("u32dsnd", dsnd, c8_16, dvals, niter, size);
+#endif
+    std::vector<double> rvals(size);
+    std::vector<float> fvals(size);
+    std::uniform_real_distribution<double> urdd;
+    std::uniform_real_distribution<double> urdf;
+    boost::random::uniform_real_distribution<double> burdd;
+    boost::random::uniform_real_distribution<double> burdf;
+    double sum(0);
+    {
+        Timer t("rdd");
+        for(size_t i(0); i < niter; ++i)
+        for(auto &el: rvals) el = urdd(c8);
+    }
+    {
+        Timer t("rdf");
+        for(size_t i(0); i < niter; ++i)
+        for(auto &el: fvals) el = urdf(c8);
+    }
+    {
+        Timer t("rdfd");
+        for(size_t i(0); i < niter; ++i)
+        for(auto &el: fvals) el = urdd(c8);
+    }
+    {
+        Timer t("rdd");
+        for(size_t i(0); i < niter; ++i)
+        for(auto &el: rvals) el = burdd(c8);
+    }
+    {
+        Timer t("rdf");
+        for(size_t i(0); i < niter; ++i)
+        for(auto &el: fvals) el = burdf(c8);
+    }
+    {
+        Timer t("rdfd");
+        for(size_t i(0); i < niter; ++i)
+        for(auto &el: fvals) el = burdd(c8);
+    }
 }
