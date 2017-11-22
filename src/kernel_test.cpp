@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     outsize = roundup(outsize);
     std::fprintf(stderr, "nrows: %zu. insize: %zu. outsize: %zu. sigma: %le\n", nrows, insize, outsize, sigma);
     KernelType kernel(outsize, insize, sigma, 1337);
-    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize);
+    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
     blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
     row(in, 1) *= 2.;
     size_t seed(0);

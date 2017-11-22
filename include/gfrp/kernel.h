@@ -70,21 +70,18 @@ public:
     size_t transform_size() const {return final_output_size_;}
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
+#if 0
         if(out.size() != final_output_size_) {
             fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
         }
+#endif
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
-        ks::string tmp;
-        
+
         subvector(out, 0, in.size()) = in;
-        //auto half_vector(subvector(out, 0, transform_size()));
+        auto half_vector(subvector(out, 0, transform_size()));
         //std::fprintf(stderr, "half vector is size %zu out of out size %zu\n", half_vector.size(), out.size());
-        tx_.apply(out);
-        tmp += '[';
-        for(const auto el: out) tmp.sprintf("%e,", el);
-        tmp.back() = ']';
-        std::fprintf(stderr, "After copying input vector to output vector and apply: %s\n", tmp.data());
+        tx_.apply(half_vector);
     }
 };
 
@@ -116,7 +113,7 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
         size_t in_rounded(roundup(in.size()));
-        if(out.size() != (blocks_.size()) * in_rounded) {
+        if(out.size() != (blocks_.size() << 1) * in_rounded) {
             if constexpr(blaze::IsView<OutputType>::value) {
                 throw std::runtime_error(ks::sprintf("[%s] Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                                                      __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size())).data());
@@ -131,9 +128,9 @@ public:
         #pragma omp parallel for
 #endif
         for(size_t i = 0; i < blocks_.size(); ++i) {
-            auto sv(subvector(out, in_rounded * i, in_rounded));
+            auto sv(subvector(out, (in_rounded << 1) * i, in_rounded));
             blocks_[i].apply(sv, in);
-            finalizer_.apply(sv);
+            finalizer_.apply_old(sv);
         }
     }
 };
