@@ -7,33 +7,53 @@ namespace vec {
 
 template<typename ValueType>
 struct SIMDTypes;
+
+#define OP(op, suf, sz) _mm##sz##_##op##_##suf
+#define decop(op, suf, sz) static constexpr decltype(&OP(op, suf, sz)) op##_fn = &OP(op, suf, sz);
+#define decop512f(op) decop(op, ps, 512)
+#define decop512d(op) decop(op, pd, 512)
+#define decop256f(op) decop(op, ps, 256)
+#define decop256d(op) decop(op, pd, 256)
+#define decop128f(op) decop(op, ps, )
+#define decop128d(op) decop(op, pd, )
+
+#define declare_all(suf, sz) \
+   decop(loadu, suf, sz); \
+   decop(storeu, suf, sz); \
+   decop(load, suf, sz); \
+   decop(store, suf, sz); \
+   decop(or, suf, sz); \
+   decop(add, suf, sz); \
+   decop(sub, suf, sz); \
+   decop(mul, suf, sz); \
+   decop(set1, suf, sz); \
+   decop(setr, suf, sz); \
+   decop(set, suf, sz); \
+   decop(and, suf, sz); \
+   decop(mask_and, suf, sz); \
+   decop(maskz_and, suf, sz); \
+   decop(maskz_andnot, suf, sz); \
+   decop(mask_andnot, suf, sz); \
+   decop(andnot, suf, sz); \
+   decop(blendv, suf, sz); \
+   /*decop(cbrt, suf, sz); \
+   decop(cdfnorm, suf, sz); \
+   decop(cdfnorminv, suf, sz); */ \
+   decop(cmp, suf, sz); \
+
+// cbrt and cdfnorm rely on MKL.
     
 template<>
 struct SIMDTypes<float>{
 #if _FEATURE_AVX512F
     using Type = __m512;
-    static constexpr decltype(&_mm512_loadu_ps) load_fn =   &_mm512_loadu_ps;
-    static constexpr decltype(&_mm512_storeu_ps) store_fn = &_mm512_storeu_ps;
-    static constexpr decltype(&_mm512_add_ps) add_fn =     &_mm512_add_ps;
-    static constexpr decltype(&_mm512_mul_ps) mul_fn =     &_mm512_mul_ps;
-    static constexpr decltype(&_mm512_sub_ps) sub_fn =     &_mm512_sub_ps;
-    static constexpr decltype(&_mm512_set1_ps) set1_fn =     &_mm512_set1_ps;
+    declare_all(ps, 512)
 #elif __AVX2__
     using Type = __m256;
-    static constexpr decltype(&_mm256_loadu_ps) load_fn =   &_mm256_loadu_ps;
-    static constexpr decltype(&_mm256_storeu_ps) store_fn = &_mm256_storeu_ps;
-    static constexpr decltype(&_mm256_add_ps) add_fn =     &_mm256_add_ps;
-    static constexpr decltype(&_mm256_mul_ps) mul_fn =     &_mm256_mul_ps;
-    static constexpr decltype(&_mm256_sub_ps) sub_fn =     &_mm256_sub_ps;
-    static constexpr decltype(&_mm256_set1_ps) set1_fn =     &_mm256_set1_ps;
+    declare_all(ps, 256)
 #elif __SSE2__
     using Type = __m128;
-    static constexpr decltype(&_mm_loadu_ps) load_fn =   &_mm_loadu_ps;
-    static constexpr decltype(&_mm_storeu_ps) store_fn = &_mm_storeu_ps;
-    static constexpr decltype(&_mm_add_ps) add_fn =     &_mm_add_ps;
-    static constexpr decltype(&_mm_mul_ps) mul_fn =     &_mm_mul_ps;
-    static constexpr decltype(&_mm_sub_ps) sub_fn =     &_mm_sub_ps;
-    static constexpr decltype(&_mm256_set1_ps) set1_fn =     &_mm_set1_ps;
+    declare_all(ps, )
 #else
 #error("Need at least sse2")
 #endif
@@ -43,28 +63,13 @@ template<>
 struct SIMDTypes<double>{
 #if _FEATURE_AVX512F
     using Type = __m512d;
-    static constexpr decltype(&_mm512_loadu_pd) load_fn =   &_mm512_loadu_pd;
-    static constexpr decltype(&_mm512_storeu_pd) store_fn = &_mm512_storeu_pd;
-    static constexpr decltype(&_mm512_add_pd) add_fn =     &_mm512_add_pd;
-    static constexpr decltype(&_mm512_mul_pd) mul_fn =     &_mm512_mul_pd;
-    static constexpr decltype(&_mm512_sub_pd) sub_fn =     &_mm512_sub_pd;
-    static constexpr decltype(&_mm512_set1_pd) set1_fn =     &_mm512_set1_pd;
+    declare_all(pd, 512)
 #elif __AVX2__
     using Type = __m256d;
-    static constexpr decltype(&_mm256_loadu_pd) load_fn =   &_mm256_loadu_pd;
-    static constexpr decltype(&_mm256_storeu_pd) store_fn = &_mm256_storeu_pd;
-    static constexpr decltype(&_mm256_add_pd) add_fn =     &_mm256_add_pd;
-    static constexpr decltype(&_mm256_mul_pd) mul_fn =     &_mm256_mul_pd;
-    static constexpr decltype(&_mm256_sub_pd) sub_fn =     &_mm256_sub_pd;
-    static constexpr decltype(&_mm256_set1_pd) set1_fn =     &_mm256_set1_pd;
+    declare_all(pd, 256)
 #elif __SSE2__
     using Type = __m128d;
-    static constexpr decltype(&_mm_loadu_pd) load_fn =   &_mm_loadu_pd;
-    static constexpr decltype(&_mm_storeu_pd) store_fn = &_mm_storeu_pd;
-    static constexpr decltype(&_mm_add_pd) add_fn =     &_mm_add_pd;
-    static constexpr decltype(&_mm_mul_pd) mul_fn =     &_mm_mul_pd;
-    static constexpr decltype(&_mm_sub_pd) sub_fn =     &_mm_sub_pd;
-    static constexpr decltype(&_mm_set1_pd) set1_fn =     &_mm_set1_pd;
+    declare_all(pd, )
 #else
 #error("Need at least sse2")
 #endif
@@ -80,8 +85,8 @@ void blockmul(FloatType *pos, size_t nelem, FloatType div) {
         SIMDType *ptr((SIMDType *)pos);
         FloatType *end(pos + nelem);
         while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-            vec::SIMDTypes<FloatType>::store_fn((FloatType *)ptr,
-                vec::SIMDTypes<FloatType>::mul_fn(factor, vec::SIMDTypes<FloatType>::load_fn((FloatType *)ptr)));
+            vec::SIMDTypes<FloatType>::storeu_fn((FloatType *)ptr,
+                vec::SIMDTypes<FloatType>::mul_fn(factor, vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)ptr)));
             ++ptr;
         }
         pos = (FloatType *)ptr;
