@@ -25,18 +25,15 @@ struct GaussianFinalizer {
 };
 
 
-template<typename FloatType, typename RandomScalingBlock=RandomGaussianScalingBlock<FloatType>,
-         typename FirstSBlockType=HadamardBlock, typename LastSBlockType=FirstSBlockType>
+template<typename FloatType>
 class FastFoodKernelBlock {
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
+    using RandomScalingBlock = RandomGaussianScalingBlock<FloatType>;
     using SpinTransformer =
         SpinBlockTransformer<FastFoodGaussianProductBlock<FloatType>,
-                             RandomScalingBlock, LastSBlockType,
-                             UnitGaussianScalingBlock<FloatType>, OnlineShuffler<size_t>, FirstSBlockType,
+                             RandomScalingBlock, HadamardBlock,
+                             UnitGaussianScalingBlock<FloatType>, OnlineShuffler<size_t>, HadamardBlock,
                              CompactRademacher>;
-    /*
-    18446744073709551615, 0, 18446744073709551615, 0, 18446744073709551615, 18446744073709551615, 65536
-    */
     SpinTransformer tx_;
 
 public:
@@ -46,16 +43,16 @@ public:
         final_output_size_(size << 1),
         tx_(
             std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
-                   RandomScalingBlock(1., seed + seed * seed - size * size, size),
-                   LastSBlockType(size),
+                   RandomScalingBlock(seed + seed * seed - size * size, size),
+                   HadamardBlock(size, false),
                    GaussianMatrixType(seed * seed, size),
                    OnlineShuffler<size_t>(seed),
-                   FirstSBlockType(size),
+                   HadamardBlock(size, false),
                    CompactRademacher(size, (seed ^ (size * size)) + seed)))
     {
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
-        //std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
+        std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
 #if 0
         std::fprintf(stderr, "Sizes: %zu, %zu, %zu, %zu, %zu, %zu, %zu\n", std::get<0>(tx_.get_tuple()).size(), 
                      std::get<1>(tx_.get_tuple()).size(),

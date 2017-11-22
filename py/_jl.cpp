@@ -8,7 +8,7 @@ namespace py = pybind11;
 PYBIND11_MODULE(_jl, m) {
     m.doc() = "pybind11-powered orthogonal JL transform"; // optional module docstring
     py::class_<OJLTransform> (m, "ojlt")
-        .def(py::init<size_t, size_t, uint64_t, size_t>())
+        .def(py::init<size_t, size_t, uint64_t, size_t>(), "From, to, seed, nblocks.")
         .def("resize", &OJLTransform::resize, "Resize the JL transform. This always rounds up to the nearest power of two.")
         .def("apply", [](const OJLTransform &jlt, py::array_t<double> input) -> py::array_t<double> {
             // TODO: Add 2-d arrays and add kwarg for axis=0/1.

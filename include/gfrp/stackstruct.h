@@ -4,6 +4,7 @@
 #include "gfrp/util.h"
 #include "FFHT/fht.h"
 #include "fftw3.h"
+#include "gfrp/vec.h"
 
 namespace gfrp {
 
@@ -90,23 +91,23 @@ struct FFTTypes<long double> {
 
 
 template<typename VecType>
-void fht(VecType &vec) {
+void fht(VecType &vec, bool renormalize=true) {
     if(vec.size() & (vec.size() - 1)) {
         throw runtime_error(ks::sprintf("vec size %zu not a power of two. NotImplemented.", vec.size()).data());
     } else {
         ::fht(&vec[0], log2_64(vec.size()));
     }
-    vec *= 1. / std::sqrt(vec.size());
+    if(renormalize) vec *= 1. / std::sqrt(vec.size());
 }
 
 template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation, typename=enable_if_t<is_floating_point<FloatType>::value>>
-void fht(VecType<FloatType, VectorOrientation> &vec) {
+void fht(VecType<FloatType, VectorOrientation> &vec, bool renormalize=true) {
     if(vec.size() & (vec.size() - 1)) {
         throw runtime_error(ks::sprintf("vec size %zu not a power of two. NotImplemented.", vec.size()).data());
     } else {
         ::fht(&vec[0], log2_64(vec.size()));
     }
-    vec *= 1. / std::sqrt(vec.size());
+    if(renormalize) vec *= 1. / std::sqrt(vec.size());
 }
 
 template<typename Container>
@@ -120,24 +121,24 @@ struct is_dense {
 };
 
 
-template<typename VecType1, typename VecType2>
-void fht(const VecType1 &in, VecType2 &out) {
+template<typename VecType1, typename VecType2, typename=std::enable_if_t<blaze::IsVector<VecType2>::value>>
+void fht(const VecType1 &in, VecType2 &out, bool renormalize=true) {
     std::fprintf(stderr, "About to call fht on sizes of %zu in and %zu out.\n", in.size(), out.size());
     static_assert(is_same<typename VecType1::ElementType, typename VecType2::ElementType>::value, "Input vectors must have the same type.");
     if constexpr(is_dense<VecType1, VecType2>::value) {
         fast_copy(&out[0], &in[0], sizeof(in[0]) * out.size());
-        fht(out);
+        fht(out, renormalize);
         return;
     } else {
         if constexpr(blaze::TransposeFlag<VecType1>::value == blaze::TransposeFlag<VecType2>::value) {
             if(out.size() == in.size()) {
                 out = in;
-                fht(out);
+                fht(out, renormalize);
             } else throw runtime_error("NotImplemented.");
         } else {
             if(out.size() == in.size()) {
                 out = transpose(in);
-                fht(out);
+                fht(out, renormalize);
             } else throw runtime_error("NotImplemented.");
         }
     }
@@ -145,22 +146,24 @@ void fht(const VecType1 &in, VecType2 &out) {
 }
 
 struct HadamardBlock {
+    uint8_t renormalize_;
+
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        if(out.size() == in.size()) {
-            apply(out);
-        } else {
-            throw std::runtime_error("NotImplementedError: HadamardBlock for differing input/output sizes.");
+        if(out.size() == in.size()) out = in;
+        else {
+            out = subvector(in, 0, out.size());
+            std::fprintf(stderr, "Warning: HadamardBlock for differing input/output sizes. Currently subsampling first out.size() (%zu) rows.\n", out.size());
         }
+        apply(out);
     }
     template<typename OutVector>
     void apply(OutVector &out) const {
-        //std::fprintf(stderr, "[%s] Calling fht on size %zu.\n", __PRETTY_FUNCTION__, out.size());
         if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
             throw runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
         }
         if((out.size() & (out.size() - 1)) == 0) {
-            fht(out);
+            fht(out, renormalize_);
         } else {
             throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
         }
@@ -168,22 +171,22 @@ struct HadamardBlock {
     }
     template<typename FloatType>
     void apply(FloatType *pos, size_t nelem) const {
-        //std::fprintf(stderr, "[%s] Calling fht on size %zu.\n", __PRETTY_FUNCTION__, (size_t)(1ull << nelem));
         if(nelem > 48) {
             std::fprintf(stderr, "Warning: apply *should* take a log2 value. You're passing an impossibly large size.\n");
             nelem = log2_64(nelem);
         }
         ::fht(pos, nelem);
-        const FloatType div(1./std::sqrt(static_cast<FloatType>(1 << nelem)));
-        for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] *= div; // Could be vectorized.
-        //std::fprintf(stderr, "[%s] Called fht on size %zu.\n", __PRETTY_FUNCTION__, (size_t)(1ull << nelem));
+        if(renormalize_) {
+            const FloatType div(1./std::sqrt(static_cast<FloatType>(1 << nelem)));
+            vec::blockmul(pos, static_cast<size_t>(1) << nelem, div);
+        }
     }
     template<typename IntType>
     void resize([[maybe_unused]] IntType i) {/* Do nothing */}
     template<typename IntType>
     void seed([[maybe_unused]] IntType i) {/* Do nothing */}
-    HadamardBlock(size_t size=0) {
-        //if(size != 0) std::fprintf(stderr, "HadamardBlock being created with a nonzero size %zu\n", size);
+    HadamardBlock(size_t size=0, bool renormalize=true): renormalize_(renormalize) {
+        if(size == static_cast<size_t>(-1)) std::fprintf(stderr, "Warning: size is infinite\n");
     }
     size_t size() const {return -1;} // This is a lie.
 };

@@ -175,7 +175,7 @@ auto meanvar(const Container &c) {
 template<typename T>
 void ksprint(const T &view, ks::string &buf, bool scientific=true) {
     const char fmt[5] = {'%', 'l', (char)('f' - scientific), ',', '\0'};
-    for(const auto el: view) buf.sprintf(fmt, el);
+    for(const auto el: view) buf.sprintf(fmt, static_cast<double>(el));
     buf.pop();
 }
 

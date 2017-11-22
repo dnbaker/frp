@@ -151,18 +151,13 @@ class RandomGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientati
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 public:
     template<typename...Args>
-    RandomGaussianScalingBlock(FloatType g_norm, uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
+    RandomGaussianScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
         //std::fprintf(stderr, "[%s] Size of scaling block: %zu\n", __PRETTY_FUNCTION__, vec_.size());
         unit_gaussian_fill(vec_, seed);
-        //rescale(g_norm);
-        std::fprintf(stderr, "Norm before rescale: %f\n", vec_norm());
-        rescale(M_PI_2/vec_.size());
-        std::fprintf(stderr, "Norm after rescale: %f\n", vec_norm());
-        rescale(M_PI_2/vec_.size());
-        // There's probably some further renormalization to do.
     }
-    void rescale(FloatType newnorm) {
-        vec_ *= 1./(vec_norm() * newnorm);
+    void rescale(FloatType g_norm) {
+        vec_ *= 1./std::sqrt(g_norm *vec_.size());
+        std::fprintf(stderr, "Norm after rescale: %f, %zu\n", vec_norm(), vec_.size());
     }
 };
 
@@ -235,6 +230,7 @@ class OnlineShuffler {
     using ResultType = typename RNG::result_type;
     const ResultType seed_;
     mutable RNG       rng_;
+    static_assert(std::is_same<ResultType, SizeType>::value, "Must have same type");
 public:
     explicit OnlineShuffler(ResultType seed=0): seed_{seed}, rng_(seed) {}
     template<typename InVector, typename OutVector>
@@ -262,7 +258,19 @@ public:
     void apply(Vector &vec) const {
         using std::swap;
         rng_.seed(seed_);
-        for(auto i(vec.size()); i > 1; --i) swap(vec[i-1], vec[fastrange(rng_(), i)]);
+        for(auto i(vec.size()); i > 1; --i) {
+#if 0
+            auto rd(rng_());
+            rd = fastrange32(rd, (ResultType)i);
+            auto tmp(vec[i-1]);
+            static_assert(std::is_same<decay_t<decltype(rd)>, typename RNG::result_type>::value, "This really should work.");
+            swap(vec[i-1], vec[rd]);
+#endif
+            swap(vec[i-1], vec[fastrange(rng_(), (uint32_t)i)]);
+#if 0
+            std::cerr << "Element at " << i - 1 << " is now " << vec[i-1] << " and not " << tmp <<  '\n';
+#endif
+        }
     }
     size_t size() const {return -1;}
 };

@@ -23,7 +23,7 @@ int main() {
     for(const auto el: floats) {
         tmp.sprintf(",%e", el);
     }
-    std::fprintf(stderr, "tmp: '%s'\n");
+    std::fprintf(stderr, "tmp: '%s'\n", tmp.data());
     auto str(strings[0].str());
     std::fprintf(stderr, "String copy of el 1: %s\n", str.data());
 }
