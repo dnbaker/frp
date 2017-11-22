@@ -74,7 +74,9 @@ struct ScalingBlock {
 #if !NDEBUG
         try {
 #endif
-        out *= vec_;
+            if constexpr(blaze::TransposeFlag<VectorType>::value != blaze::TransposeFlag<Vector>::value)
+                 out = out * vec_;
+            else out *= vec_;
 #if !NDEBUG
         } catch (std::invalid_argument &ex) {
             std::fprintf(stderr, "Failed to multiply. Input array size %zu. vec array size %zu\n", out.size(), vec_.size());
@@ -156,7 +158,8 @@ public:
         unit_gaussian_fill(vec_, seed);
     }
     void rescale(FloatType g_norm) {
-        vec_ *= 1./std::sqrt(g_norm *vec_.size());
+        vec_ *= vec_.size() / std::sqrt(g_norm);
+        //vec_ *= 1./std::sqrt(g_norm);
         std::fprintf(stderr, "Norm after rescale: %f, %zu\n", vec_norm(), vec_.size());
     }
 };

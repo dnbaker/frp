@@ -3,6 +3,7 @@
 #include <cstring>
 #include <chrono>
 #include <cassert>
+#include <omp.h>
 #include "gfrp/gfrp.h"
 
 using namespace std::chrono;
@@ -14,39 +15,62 @@ using namespace blaze;
 using KernelBase = ff::FastFoodKernelBlock<FLOAT_TYPE>;
 using KernelType = ff::Kernel<KernelBase, ff::GaussianFinalizer>;
 
-int main(int argc, char *argv[]) {
-    const std::size_t size(argc <= 1 ? 1 << 10: std::strtoull(argv[1], 0, 10)),
-                   outsize(argc <= 2 ? 1 << 13: std::strtoull(argv[1], 0, 10)),
-                     niter(argc <= 3 ? 1000: std::strtoull(argv[2], 0, 10));
-    KernelType kernel(outsize, size, 1., 1337);
-    blaze::DynamicVector<FLOAT_TYPE> out(outsize << 1);
-    blaze::DynamicVector<FLOAT_TYPE> in(size);
-    ff::GaussianFinalizer gf;
-    blaze::DynamicVector<FLOAT_TYPE> dv(1 << 5);
-    for(size_t i(0); i < 1 << 4; ++i) {
-        dv[i] = std::acos(2. * M_PI / (1 << 4));
+struct GaussianKernel {
+    template<typename V1, typename V2>
+    double operator()(const V1 &v1, const V2 &v2, double sigma) {
+        auto xp = -dot(v1 - v2, v1 - v2) / (2. * sigma);
+        std::fprintf(stderr, "xp: %f\n", xp);
+        return std::exp(xp);
     }
-    std::vector<int> iota(16);
-    std::iota(iota.begin(), iota.end(), 0);
-    ks::string str(ks::sprintf("Before shuffle: "));
-    ksprint(iota, str);
-    OnlineShuffler tmp(133);
-    tmp.apply(iota);
-    str.puts("\nAfter shuffle:\n");
-    ksprint(iota, str);
-    str.write(stderr);
-    str.clear(); str.puts("Before: ");
-    ksprint(dv, str);
-    str.sprintf("\nAfter: ");
-    gf.apply(dv);
-    gf.apply(dv);
-    ksprint(dv, str);
-    str.write(stderr); str.clear();
-    unit_gaussian_fill(in, 1338);
-    ksprint(in, str);
-    std::fprintf(stderr, "in: '%s'\n", str.data());
-    str.clear();
-    kernel.apply(out, in);
-    ksprint(out, str);
-    std::fprintf(stderr, "out: '%s'\n", str.data());
+};
+
+int usage(char *arg) {
+    std::fprintf(stderr, "Usage: %s stuff\n", arg);
+    return EXIT_FAILURE;
+}
+
+int main(int argc, char *argv[]) {
+    int c;
+    size_t insize(1 << 7), outsize(1 << 12), nrows(100);
+    double sigma(1.);
+    while((c = getopt(argc, argv, "i:S:e:M:s:p:b:l:o:5Brh?")) >= 0) {
+        switch(c) {
+            case 'i': insize = std::strtoull(optarg, 0, 10); break;
+            case 's': sigma = std::atof(optarg); std::fprintf(stderr, "sigma is %lf\n", sigma); break;
+            case 'S': outsize = std::strtoull(optarg, 0, 10); break;
+            case 'n': nrows = std::strtoull(optarg, 0, 10); break;
+            case 'h': case '?': usage: return usage(*argv);
+        }
+    }
+    if(argc > optind) goto usage;
+    std::fprintf(stderr, "nrows: %zu. insize: %zu. outsize: %zu. sigma: %le\n", nrows, insize, outsize, sigma);
+    KernelType kernel(outsize, insize, sigma, 1337);
+    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
+    blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
+    size_t seed(0);
+    //omp_set_num_threads(6);
+    //#pragma omp parallel for
+    for(size_t i(0); i < nrows; ++i) {
+        auto inrow(row(in, i));
+        unit_gaussian_fill(inrow, ++seed);
+    }
+    blaze::DynamicMatrix<FLOAT_TYPE> indists(nrows, nrows);
+    blaze::DynamicMatrix<FLOAT_TYPE> outdists(nrows, nrows);
+    GaussianKernel gk;
+    for(size_t i(0), j; i < nrows; ++i)
+        for(indists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
+             indists(i, j) = indists(j, i) = gk(row(in, i), row(in, j), sigma);
+    for(size_t i(0); i < nrows; ++i) {
+        auto orow(row(outm, i));
+        kernel.apply(orow, row(in, i));
+    }
+    for(size_t i(0), j; i < nrows; ++i)
+        for(outdists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
+            outdists(i, j) = outdists(j, i) = dot(row(outm, i) - row(outm, j), row(outm, i) - row(outm, j));
+    std::cerr << "Input full kernel distances: " << indists << '\n';
+    std::cerr << "Input approx kernel distances: " << outdists << '\n';
+    blaze::DynamicMatrix<FLOAT_TYPE> ratios(nrows, nrows);
+    for(size_t i(0); i < nrows; ++i)
+            for(size_t j(0); j < nrows; ++j) ratios(i, j) = outdists(i, j) / indists(i, j);
+    std::cerr << "Output ratios: " << ratios << '\n';
 }

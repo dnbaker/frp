@@ -39,15 +39,15 @@ class FastFoodKernelBlock {
 public:
     using float_type = FloatType;
     using GaussianMatrixType = UnitGaussianScalingBlock<FloatType>;
-    FastFoodKernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1):
+    FastFoodKernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1, bool renorm=true):
         final_output_size_(size << 1),
         tx_(
             std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
                    RandomScalingBlock(seed + seed * seed - size * size, size),
-                   HadamardBlock(size, false),
+                   HadamardBlock(size, renorm),
                    GaussianMatrixType(seed * seed, size),
                    OnlineShuffler<size_t>(seed),
-                   HadamardBlock(size, false),
+                   HadamardBlock(size, renorm),
                    CompactRademacher(size, (seed ^ (size * size)) + seed)))
     {
         if(final_output_size_ & (final_output_size_ - 1))
@@ -107,9 +107,14 @@ public:
     void apply(OutputType &out, const InputType &in) {
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
-            std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
-                         out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size()));
-            out.resize((blocks_.size() << 1) * in_rounded);
+            if constexpr(blaze::IsView<OutputType>::value) {
+                throw std::runtime_error(ks::sprintf("[%s] Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                                                     __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size())).data());
+            } else {
+                std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                             out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size()));
+                out.resize((blocks_.size() << 1) * in_rounded);
+            }
         }
         in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
 #ifdef USE_OPENMP

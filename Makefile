@@ -12,7 +12,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
-OPT:= -flto -O3 -funroll-loops -pipe -fno-strict-aliasing -mavx2 -march=native -fopenmp -DUSE_FASTRANGE \
+OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -mavx2 -march=native -fopenmp -DUSE_FASTRANGE \
         -mveclibabi=svml  -funsafe-math-optimizations -ftree-vectorize
 OS:=$(shell uname)
 
