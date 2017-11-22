@@ -20,9 +20,9 @@ void fill_shuffled(uint64_t seed, Container &con) {
 }
 
 template<class Container, typename... Args>
-Container make_shuffled(Args &&...args) {
+Container make_shuffled(uint64_t seed, Args &&...args) {
     Container con(std::forward<Args>(args)...);
-    fill_shuffled(con);
+    fill_shuffled(seed, con);
     return con;
 }
 

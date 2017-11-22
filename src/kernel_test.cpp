@@ -19,7 +19,6 @@ struct GaussianKernel {
     template<typename V1, typename V2>
     double operator()(const V1 &v1, const V2 &v2, double sigma) {
         auto xp = -dot(v1 - v2, v1 - v2) / (2. * sigma);
-        std::fprintf(stderr, "xp: %f\n", xp);
         return std::exp(xp);
     }
 };
@@ -43,16 +42,18 @@ int main(int argc, char *argv[]) {
         }
     }
     if(argc > optind) goto usage;
+    outsize = roundup(outsize);
     std::fprintf(stderr, "nrows: %zu. insize: %zu. outsize: %zu. sigma: %le\n", nrows, insize, outsize, sigma);
     KernelType kernel(outsize, insize, sigma, 1337);
-    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
+    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize);
     blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
+    row(in, 1) *= 2.;
     size_t seed(0);
     //omp_set_num_threads(6);
     //#pragma omp parallel for
     for(size_t i(0); i < nrows; ++i) {
         auto inrow(row(in, i));
-        unit_gaussian_fill(inrow, ++seed);
+        unit_gaussian_fill(inrow, seed + i);
     }
     blaze::DynamicMatrix<FLOAT_TYPE> indists(nrows, nrows);
     blaze::DynamicMatrix<FLOAT_TYPE> outdists(nrows, nrows);

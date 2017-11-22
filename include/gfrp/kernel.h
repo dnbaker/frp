@@ -10,12 +10,23 @@ struct GaussianFinalizer {
     template<typename VecType>
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
+        in = cos(in);
+        /* This can be accelerated using SLEEF.
+           Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
+           The great thing about sleef is that it does not require the use of intel-only materials.
+           This could be a nice addition to Blaze downstream.
+        */
+    }
+    template<typename VecType>
+    void apply_old(VecType &in) const {
+        if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
         for(u32 i(in.size()>>1); i; --i) {
             in[(i-1)<<1] = in[i-1];
-            in[(i<<1)-1] = in[(i - 1)<<1] + 0.5;
+            in[(i<<1)-1] = in[(i - 1)<<1] + M_PI_2;
             std::fprintf(stderr, "About to cosinify: %f, %f. Indices: from %u to %u, %u\n", in[(i<<1)-1], in[(i-1)<<1], i-1, (i-1)<<1, (i<<1)-1);
         }
         in = cos(in);
+        std::cerr << in << '\n';
         /* This can be accelerated using SLEEF.
            Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
            The great thing about sleef is that it does not require the use of intel-only materials.
@@ -29,10 +40,12 @@ template<typename FloatType>
 class FastFoodKernelBlock {
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
     using RandomScalingBlock = RandomGaussianScalingBlock<FloatType>;
+    using SizeType = uint32_t;
+    using Shuffler = LutShuffler<SizeType>;
     using SpinTransformer =
         SpinBlockTransformer<FastFoodGaussianProductBlock<FloatType>,
                              RandomScalingBlock, HadamardBlock,
-                             UnitGaussianScalingBlock<FloatType>, OnlineShuffler<size_t>, HadamardBlock,
+                             UnitGaussianScalingBlock<FloatType>, Shuffler, HadamardBlock,
                              CompactRademacher>;
     SpinTransformer tx_;
 
@@ -40,13 +53,13 @@ public:
     using float_type = FloatType;
     using GaussianMatrixType = UnitGaussianScalingBlock<FloatType>;
     FastFoodKernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1, bool renorm=true):
-        final_output_size_(size << 1),
+        final_output_size_(size),
         tx_(
             std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
                    RandomScalingBlock(seed + seed * seed - size * size, size),
                    HadamardBlock(size, renorm),
                    GaussianMatrixType(seed * seed, size),
-                   OnlineShuffler<size_t>(seed),
+                   Shuffler(size, seed),
                    HadamardBlock(size, renorm),
                    CompactRademacher(size, (seed ^ (size * size)) + seed)))
     {
@@ -54,7 +67,7 @@ public:
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
         std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
     }
-    size_t transform_size() const {return final_output_size_ >> 1;}
+    size_t transform_size() const {return final_output_size_;}
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
         if(out.size() != final_output_size_) {
@@ -62,18 +75,16 @@ public:
         }
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
-        auto copysv(subvector(out, 0, in.size()));
-        //std::fprintf(stderr, "copying in to copysv. (Sizes: copysv - %zu, in - %zu)\n", copysv.size(), in.size());
         ks::string tmp;
-        copysv = in; // Copy input to output space.
-        tmp += '[';
-        for(const auto el: copysv) tmp.sprintf("%e,", el);
-        tmp.back() = ']';
-        std::fprintf(stderr, "After copying input vector to output vector: %s\n", tmp.data());
-
-        auto half_vector(subvector(out, 0, transform_size()));
+        
+        subvector(out, 0, in.size()) = in;
+        //auto half_vector(subvector(out, 0, transform_size()));
         //std::fprintf(stderr, "half vector is size %zu out of out size %zu\n", half_vector.size(), out.size());
-        tx_.apply(half_vector);   
+        tx_.apply(out);
+        tmp += '[';
+        for(const auto el: out) tmp.sprintf("%e,", el);
+        tmp.back() = ']';
+        std::fprintf(stderr, "After copying input vector to output vector and apply: %s\n", tmp.data());
     }
 };
 
@@ -92,12 +103,11 @@ public:
         finalizer_(std::forward<Args>(args)...)
     {
         size_t input_ru = roundup(input_size);
-        stacked_size = std::max(stacked_size, input_ru << 1);
+        stacked_size = std::max(stacked_size, input_ru);
         if(stacked_size % input_ru)
             stacked_size = input_ru - (stacked_size % input_ru);
         if(stacked_size % input_ru) std::fprintf(stderr, "Stacked size is not evenly divisible.\n"), exit(1);
-        stacked_size  <<= 1;
-        size_t nblocks = (stacked_size >> 1) / input_ru;
+        size_t nblocks = (stacked_size) / input_ru;
         aes::AesCtr gen(seed);
         while(blocks_.size() < nblocks) {
             blocks_.emplace_back(input_ru, sigma, gen());
@@ -106,7 +116,7 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
         size_t in_rounded(roundup(in.size()));
-        if(out.size() != (blocks_.size() << 1) * in_rounded) {
+        if(out.size() != (blocks_.size()) * in_rounded) {
             if constexpr(blaze::IsView<OutputType>::value) {
                 throw std::runtime_error(ks::sprintf("[%s] Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                                                      __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size())).data());
@@ -116,25 +126,14 @@ public:
                 out.resize((blocks_.size() << 1) * in_rounded);
             }
         }
-        in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
+        //in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
 #ifdef USE_OPENMP
         #pragma omp parallel for
 #endif
-        ks::string tmp;
         for(size_t i = 0; i < blocks_.size(); ++i) {
             auto sv(subvector(out, in_rounded * i, in_rounded));
-            tmp.puts("[Block ");
-            tmp.putl(i);
-            tmp.puts("] before: ");
-            ksprint(sv, tmp);
             blocks_[i].apply(sv, in);
-            tmp.sprintf("\nAfter block, before finalizer: ");
-            ksprint(sv, tmp);
             finalizer_.apply(sv);
-            tmp.puts("\nAfter finalizer: ");
-            ksprint(sv, tmp);
-            tmp.putc_('\n');
-            tmp.write(stderr), tmp.clear();
         }
     }
 };

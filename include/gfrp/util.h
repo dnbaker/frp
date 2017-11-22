@@ -55,6 +55,7 @@ using std::int16_t;
 using std::int8_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
+using blaze::TransposeFlag;
 using std::size_t;
 using std::enable_if_t;
 using std::decay_t;
@@ -129,6 +130,8 @@ inline constexpr int log2_64(uint64_t value)
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 
+template<typename T> class TD;
+
 template<class Container>
 auto normsq(const Container &c) {
     return dot(c, c);
@@ -183,7 +186,8 @@ template<typename T>
 void pv(const T &view, FILE *fp=stderr) {
     ks::string str;
     ksprint(view, str);
-    str.write(fp);
+    str.terminate();
+    std::cerr << str.data();
 }
 
 

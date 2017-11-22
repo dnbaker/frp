@@ -83,10 +83,10 @@ int main(int argc, char *argv[]) {
 #endif
     std::vector<double> rvals(size);
     std::vector<float> fvals(size);
-    std::uniform_real_distribution<double> urdd;
-    std::uniform_real_distribution<double> urdf;
-    boost::random::uniform_real_distribution<double> burdd;
-    boost::random::uniform_real_distribution<double> burdf;
+    std::uniform_real_distribution<double> urdd(0, M_PI * 2);
+    std::uniform_real_distribution<double> urdf(0, M_PI * 2);
+    boost::random::uniform_real_distribution<double> burdd(0, M_PI * 2);
+    boost::random::uniform_real_distribution<double> burdf(0, M_PI * 2);
     double sum(0);
     {
         Timer t("rdd");
@@ -118,4 +118,9 @@ int main(int argc, char *argv[]) {
         for(size_t i(0); i < niter; ++i)
         for(auto &el: fvals) el = burdd(c8);
     }
+    blaze::DynamicVector<float> zomgz(1 << 8);
+    for(size_t i(0); i < zomgz.size(); zomgz[i] = i, ++i);
+    gfrp::LutShuffler<size_t> os(zomgz.size(), 1);
+    os.apply(zomgz);
+    std::cerr << zomgz;
 }

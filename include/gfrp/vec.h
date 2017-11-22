@@ -92,8 +92,48 @@ void blockmul(FloatType *pos, size_t nelem, FloatType div) {
         pos = (FloatType *)ptr;
         while(pos < end) *pos++ *= div;
 #else
-#pragma message("Only vectorized for avx2. Enjoy your serial version.")
             for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] *= div; // Could be vectorized.
+#endif
+}
+
+template<typename FloatType>
+void blockadd(FloatType *pos, size_t nelem, FloatType val) {
+#if __AVX2__ || _FEATURE_AVX512F || __SSE2__
+#pragma message("Using vectorized multiplication.")
+        using SIMDType = typename vec::SIMDTypes<FloatType>::Type;
+        SIMDType inc(vec::SIMDTypes<FloatType>::set1_fn(val));
+        SIMDType *ptr((SIMDType *)pos);
+        FloatType *end(pos + nelem);
+        while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
+            vec::SIMDTypes<FloatType>::storeu_fn((FloatType *)ptr,
+                vec::SIMDTypes<FloatType>::add_fn(inc, vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)ptr)));
+            ++ptr;
+        }
+        pos = (FloatType *)ptr;
+        while(pos < end) *pos++ += div;
+#else
+#pragma message("Enjoy your serial version.")
+            for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] += div; // Could be vectorized.
+#endif
+}
+
+template<typename FloatType>
+void vecmul(FloatType *to, const FloatType *from, size_t nelem) {
+#if __AVX2__ || _FEATURE_AVX512F || __SSE2__
+#pragma message("Using vectorized multiplication.")
+        using SIMDType = typename vec::SIMDTypes<FloatType>::Type;
+        SIMDType *ptr((SIMDType *)to), *fromptr((SIMDType *)from);
+        FloatType *end(to + nelem);
+        while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
+            vec::SIMDTypes<FloatType>::storeu_fn((FloatType *)ptr,
+                vec::SIMDTypes<FloatType>::mul_fn(vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)fromptr), vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)ptr)));
+            ++ptr; ++fromptr;
+        }
+        to = (FloatType *)ptr, from = (FloatType *)fromptr;
+        while(to < end) *to++ *= *from++;
+#else
+#pragma message("Enjoy your serial version.")
+            for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) to[i] *= from[i]; // Could be vectorized.
 #endif
 }
 

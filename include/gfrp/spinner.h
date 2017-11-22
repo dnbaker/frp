@@ -65,26 +65,25 @@ struct ScalingBlock {
     ScalingBlock(Args &&...args): vec_(forward<Args>(args)...) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        if(out.size() != in.siz()) throw std::runtime_error("NotImplementedError");
+        if(out.size() != in.size()) throw std::runtime_error("NotImplementedError");
         out = in;
         apply(out);
     }
     template<typename Vector>
     void apply(Vector &out) const {
-#if !NDEBUG
-        try {
+#if VERBOSE
+        std::cerr << "Applying scaling block with norm " << vec_norm() << ":\n";
+        pv(out); std::cerr << '\n';
 #endif
-            if constexpr(blaze::TransposeFlag<VectorType>::value != blaze::TransposeFlag<Vector>::value)
-                 out = out * vec_;
-            else out *= vec_;
-#if !NDEBUG
-        } catch (std::invalid_argument &ex) {
-            std::fprintf(stderr, "Failed to multiply. Input array size %zu. vec array size %zu\n", out.size(), vec_.size());
-            throw(ex);
-
+        if constexpr(blaze::TransposeFlag<VectorType>::value != blaze::TransposeFlag<Vector>::value) {
+            if(&out[1] - &out[0] != 1) throw std::runtime_error("Can't use vectorized approach. Change your code so you can.");
+            vec::vecmul(&out[0], &vec_[0], out.size());
         }
+        else out *= vec_;
+#if VERBOSE
+        std::cerr << "Applied scaling block with norm " << vec_norm() << ":\n";
+        pv(out); std::cerr << '\n';
 #endif
-    
     }
     FloatType vec_norm() const {return std::sqrt(normsq(vec_));}
     size_t size() const {return vec_.size();}
@@ -160,7 +159,7 @@ public:
     void rescale(FloatType g_norm) {
         vec_ *= vec_.size() / std::sqrt(g_norm);
         //vec_ *= 1./std::sqrt(g_norm);
-        std::fprintf(stderr, "Norm after rescale: %f, %zu\n", vec_norm(), vec_.size());
+        //std::fprintf(stderr, "Norm after rescale: %f, %zu\n", vec_norm(), vec_.size());
     }
 };
 
@@ -235,7 +234,7 @@ class OnlineShuffler {
     mutable RNG       rng_;
     static_assert(std::is_same<ResultType, SizeType>::value, "Must have same type");
 public:
-    explicit OnlineShuffler(ResultType seed=0): seed_{seed}, rng_(seed) {}
+    explicit OnlineShuffler(ResultType size=0, ResultType seed=0): seed_{seed ^ size}, rng_(seed) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
         fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n");
@@ -247,13 +246,13 @@ public:
             std::fprintf(stderr, "Warning: This means we're just subsampling\n");
             unordered_set<uint64_t> indices;
             indices.reserve(out.size());
-            while(indices.size() < out.size()) indices.insert(fastrange64(rng_(), isz));
+            while(indices.size() < out.size()) indices.insert(fastrange<SizeType>(rng_(), isz));
             auto it(out.begin());
             for(const auto index: indices) *it++ = in[index]; // Could consider a sorted map for quicker iteration/cache coherence.
         } else {
             std::fprintf(stderr, "Warning: This means we're subsampling with replacement and not caring because sizes are mismatched.\n");
             for(auto it(out.begin()), eit(out.end()); it != eit;)
-                *it++ = in[fastrange64(rng_(), isz)];
+                *it++ = in[fastrange<SizeType>(rng_(), isz)];
         }
         //The naive approach is double memory.
     }
@@ -261,19 +260,18 @@ public:
     void apply(Vector &vec) const {
         using std::swap;
         rng_.seed(seed_);
+        std::fprintf(stderr, "Applying shuffle! This breaks everthing.\n");
         for(auto i(vec.size()); i > 1; --i) {
 #if 0
             auto rd(rng_());
-            rd = fastrange32(rd, (ResultType)i);
+            rd = fastrange<SizeType>(rd, (ResultType)i);
             auto tmp(vec[i-1]);
             static_assert(std::is_same<decay_t<decltype(rd)>, typename RNG::result_type>::value, "This really should work.");
             swap(vec[i-1], vec[rd]);
 #endif
-            swap(vec[i-1], vec[fastrange(rng_(), (uint32_t)i)]);
-#if 0
-            std::cerr << "Element at " << i - 1 << " is now " << vec[i-1] << " and not " << tmp <<  '\n';
-#endif
+            swap(vec[i-1], vec[fastrange<SizeType>(rng_(), i)]);
         }
+        std::fprintf(stderr, "Applied shuffle! This breaks everthing.\n");
     }
     size_t size() const {return -1;}
 };
@@ -285,12 +283,20 @@ class PrecomputedShuffler {
 public:
     PrecomputedShuffler(SizeType size, SizeType seed): indices_(size) {
         aes::AesCtr<SizeType> gen(seed);
-        for(SizeType i(size); i > 1; --i) indices_[i - 1] = fastrange(gen(), i);
+        for(SizeType i(size); i > 1; --i) indices_[i - 1] = fastrange<SizeType>(gen(), i);
+        std::fprintf(stderr, "PrecomputedShuffler: \n");
+        pv(indices_);
     }
     template<typename Vector>
     void apply(Vector &vec) const {
-        for(SizeType i(vec.size() - 1); i > 1; --i)
+        for(SizeType i(vec.size() - 1); i > 1; --i) {
+#if 0
+            using Type = decay_t<decltype(vec[0])>;
+            Type tmp(vec[i]);
+            vec[indices_[i]
+#endif
             std::swap(vec[i], vec[indices_[i]]);
+        }
     }
     template<typename Vector1, typename Vector2>
     void apply(const Vector1 &in, Vector2 &out) const {
@@ -304,10 +310,12 @@ class LutShuffler {
     //Provides reproducible shuffling by re-generating a random sequence for shuffling an array.
     std::vector<SizeType> indices_;
 public:
-    LutShuffler(SizeType size, SizeType seed): indices_(make_shuffled<std::vector<SizeType>>(size)) {}
+    LutShuffler(SizeType size, SizeType seed): indices_(make_shuffled<std::vector<SizeType>>(seed, size)) {}
     template<typename Vector>
     void apply(Vector &vec) const {
-        throw std::runtime_error("This doesn't work.");
+        blaze::DynamicVector<decay_t<decltype(vec[0])>, TransposeFlag<Vector>::value> tmp(vec.size());
+        tmp = vec;
+        apply(tmp, vec);
     }
     template<typename Vector1, typename Vector2>
     void apply(const Vector1 &in, Vector2 &out) const {
@@ -344,10 +352,10 @@ public:
         void operator()(OutVector &out) const {
             std::get<Index - 1>(ref_.blocks_).apply(out);
             ApplicationStruct<OutVector, Index - 1> as(ref_);
+            if constexpr(Index - 1 == 4) {
+                //TD<decay_t<decltype(std::get<Index - 1>(ref_.blocks_))>> td;
+            }
 #if !NDEBUG
-            std::fprintf(stderr, "Applying operation at index %zu to vector.\nBefore: ", Index - 1);
-            pv(out);
-            std::fputc('\n', stderr);
         try {
 #endif
             as(out);
