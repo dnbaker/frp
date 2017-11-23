@@ -10,7 +10,8 @@ struct GaussianFinalizer {
     template<typename VecType>
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
-#if ADD_RANDOM_NOISE
+//#if ADD_RANDOM_NOISE
+#if 0
         boost::random::uniform_real_distribution<decay_t<decltype(in[0])>> dist(0, 2 * M_PI);
         aes::AesCtr<uint64_t> gen;
         for(auto &el: in) el += dist(gen);
