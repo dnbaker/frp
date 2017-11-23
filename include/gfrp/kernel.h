@@ -10,8 +10,7 @@ struct GaussianFinalizer {
     template<typename VecType>
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
-//#if ADD_RANDOM_NOISE
-#if 0
+#if ADD_RANDOM_NOISE
         boost::random::uniform_real_distribution<decay_t<decltype(in[0])>> dist(0, 2 * M_PI);
         aes::AesCtr<uint64_t> gen;
         for(auto &el: in) el += dist(gen);
@@ -23,31 +22,13 @@ struct GaussianFinalizer {
            This could be a nice addition to Blaze downstream.
         */
     }
-#if 0
-    template<typename VecType>
-    void apply_old(VecType &in) const {
-        if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
-        for(u32 i(in.size()>>1); i; --i) {
-            in[(i-1)<<1] = in[i-1];
-            in[(i<<1)-1] = in[(i - 1)<<1] + M_PI_2;
-            std::fprintf(stderr, "About to cosinify: %f, %f. Indices: from %u to %u, %u\n", in[(i<<1)-1], in[(i-1)<<1], i-1, (i-1)<<1, (i<<1)-1);
-        }
-        in = cos(in) / std::sqrt(in.size());
-        std::cerr << in << '\n';
-        /* This can be accelerated using SLEEF.
-           Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
-           The great thing about sleef is that it does not require the use of intel-only materials.
-           This could be a nice addition to Blaze downstream.
-        */
-    }
-#endif
 };
 
 
 template<typename FloatType>
 class FastFoodKernelBlock {
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
-    using RandomScalingBlock = RandomGaussianScalingBlock<FloatType>;
+    using RandomScalingBlock = RandomChiScalingBlock<FloatType>;
     using SizeType = uint32_t;
     using Shuffler = LutShuffler<SizeType>;
     using SpinTransformer =
@@ -73,7 +54,7 @@ public:
     {
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
-        std::get<RandomGaussianScalingBlock<FloatType>>(tx_.get_tuple()).rescale(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm());
+        std::get<RandomScalingBlock>(tx_.get_tuple()).rescale(1./std::sqrt(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm()));
     }
     size_t transform_size() const {return final_output_size_;}
     template<typename InputType, typename OutputType>
@@ -83,16 +64,17 @@ public:
         }
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
-        ks::string tmp;
-        
+
         subvector(out, 0, in.size()) = in;
         //auto half_vector(subvector(out, 0, transform_size()));
         //std::fprintf(stderr, "half vector is size %zu out of out size %zu\n", half_vector.size(), out.size());
         tx_.apply(out);
+#if 0
         tmp += '[';
         for(const auto el: out) tmp.sprintf("%e,", el);
         tmp.back() = ']';
         std::fprintf(stderr, "After copying input vector to output vector and apply: %s\n", tmp.data());
+#endif
     }
 };
 
@@ -135,7 +117,7 @@ public:
             }
         }
         //in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
-#ifdef USE_OPENMP
+#if 0
         #pragma omp parallel for
 #endif
         for(size_t i = 0; i < blocks_.size(); ++i) {

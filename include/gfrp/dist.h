@@ -30,7 +30,13 @@ void random_fill(uint64_t *data, uint64_t len, uint64_t seed=0) {
     template<typename Container, typename RNG=aes::AesCtr<uint64_t>, typename...Args> \
     void name##_fill(Container &con, uint64_t seed, Args &&... args) { \
         sample_fill<Container, type, RNG, Args...>(con, seed, forward<Args>(args)...); \
-    }
+    }\
+    struct name##_fill_struct {\
+        template<typename Container, typename RNG=aes::AesCtr<uint64_t>, typename...Args>\
+        void operator()(Container &con, uint64_t seed, Args &&... args) const {\
+            name##_fill<Container, RNG, Args...>(con, seed, forward<Args>(args)...);\
+        }\
+    };
 
 template<typename FloatType>
 class unit_normal: public boost::random::detail::unit_normal_distribution<FloatType> {

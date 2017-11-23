@@ -87,6 +87,9 @@ struct ScalingBlock {
     }
     FloatType vec_norm() const {return std::sqrt(normsq(vec_));}
     size_t size() const {return vec_.size();}
+    void rescale(FloatType val) {
+        vec_ *= val;
+    }
 };
 
 template<typename FloatType, typename=enable_if_t<is_arithmetic<FloatType>::value>>
@@ -124,9 +127,9 @@ struct ProductBlock {
 
 template<typename FloatType, typename=enable_if_t<is_floating_point<FloatType>::value>>
 class FastFoodGaussianProductBlock {
-    const FloatType v_;
+    const FloatType sigma_;
 public:
-    FastFoodGaussianProductBlock(FloatType sigma): v_(1./sigma) {}
+    FastFoodGaussianProductBlock(FloatType sigma): sigma_(sigma) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
         if(in.size() == out.size()) {
@@ -138,7 +141,7 @@ public:
     }
     template<typename Vector>
     void apply(Vector &out) const {
-        const auto tmp(v_/std::sqrt(out.size()));
+        const auto tmp(1. /(sigma_ * std::sqrt(out.size())));
         out *= tmp;
     }
     size_t size() const {return -1;}
@@ -146,7 +149,6 @@ public:
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
 class RandomGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
-    // This is the S in Fastfood.
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
@@ -156,10 +158,19 @@ public:
         //std::fprintf(stderr, "[%s] Size of scaling block: %zu\n", __PRETTY_FUNCTION__, vec_.size());
         unit_gaussian_fill(vec_, seed);
     }
-    void rescale(FloatType g_norm) {
-        vec_ *= vec_.size() / std::sqrt(g_norm);
-        //vec_ *= 1./std::sqrt(g_norm);
-        //std::fprintf(stderr, "Norm after rescale: %f, %zu\n", vec_norm(), vec_.size());
+};
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
+class RandomChiScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
+    using VectorType = VectorKind<FloatType, VectorOrientation>;
+    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
+    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
+public:
+    template<typename...Args>
+    RandomChiScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
+        aes::AesCtr<uint64_t> gen(seed);
+        boost::random::chi_squared_distribution<FloatType> dist(vec_.size());
+        for(auto &el: vec_) el = dist(gen);
+        //vec_ = sqrt(vec_);
     }
 };
 
@@ -352,6 +363,7 @@ public:
         void operator()(OutVector &out) const {
             std::get<Index - 1>(ref_.blocks_).apply(out);
             ApplicationStruct<OutVector, Index - 1> as(ref_);
+            //std::cerr << "before " << Index - 1 << ": " << out << '\n';
             if constexpr(Index - 1 == 4) {
                 //TD<decay_t<decltype(std::get<Index - 1>(ref_.blocks_))>> td;
             }
@@ -365,6 +377,7 @@ public:
             throw(ex);
         }
 #endif
+            //std::cerr << "after " << Index - 1 << ": " << out << '\n';
         }
     };
     template<typename OutVector>
