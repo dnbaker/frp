@@ -24,7 +24,8 @@ struct GaussianKernel {
 };
 
 int usage(char *arg) {
-    std::fprintf(stderr, "Usage: %s stuff\n", arg);
+    std::fprintf(stderr, "Usage: %s <opts>\n"
+                         "-i\tInput size [128]\n-s:sigma [1.0]\n-SOutput size [4096]\n-n: nsample points\n", arg);
     return EXIT_FAILURE;
 }
 
@@ -32,7 +33,7 @@ int main(int argc, char *argv[]) {
     int c;
     size_t insize(1 << 7), outsize(1 << 12), nrows(100);
     double sigma(1.);
-    while((c = getopt(argc, argv, "i:S:e:M:s:p:b:l:o:5Brh?")) >= 0) {
+    while((c = getopt(argc, argv, "n:i:S:e:M:s:p:b:l:o:5Brh?")) >= 0) {
         switch(c) {
             case 'i': insize = std::strtoull(optarg, 0, 10); break;
             case 's': sigma = std::atof(optarg); std::fprintf(stderr, "sigma is %lf\n", sigma); break;
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]) {
     KernelType kernel(outsize, insize, sigma, 1337);
     blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
     blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
-    row(in, 1) *= 2.;
+    for(size_t i(0); i < nrows; ++i) row(in, i) *= (i + 1) * (i + 1);
     size_t seed(0);
     //omp_set_num_threads(6);
     //#pragma omp parallel for
