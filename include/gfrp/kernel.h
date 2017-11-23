@@ -10,6 +10,11 @@ struct GaussianFinalizer {
     template<typename VecType>
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
+#if ADD_RANDOM_NOISE
+        boost::random::uniform_real_distribution<decay_t<decltype(in[0])>> dist(0, 2 * M_PI);
+        aes::AesCtr<uint64_t> gen;
+        for(auto &el: in) el += dist(gen);
+#endif
         in = cos(in);
         /* This can be accelerated using SLEEF.
            Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
@@ -17,6 +22,7 @@ struct GaussianFinalizer {
            This could be a nice addition to Blaze downstream.
         */
     }
+#if 0
     template<typename VecType>
     void apply_old(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
@@ -25,7 +31,7 @@ struct GaussianFinalizer {
             in[(i<<1)-1] = in[(i - 1)<<1] + M_PI_2;
             std::fprintf(stderr, "About to cosinify: %f, %f. Indices: from %u to %u, %u\n", in[(i<<1)-1], in[(i-1)<<1], i-1, (i-1)<<1, (i<<1)-1);
         }
-        in = cos(in);
+        in = cos(in) / std::sqrt(in.size());
         std::cerr << in << '\n';
         /* This can be accelerated using SLEEF.
            Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
@@ -33,6 +39,7 @@ struct GaussianFinalizer {
            This could be a nice addition to Blaze downstream.
         */
     }
+#endif
 };
 
 
