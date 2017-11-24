@@ -79,7 +79,7 @@ struct SIMDTypes<double>{
 template<typename FloatType>
 void blockmul(FloatType *pos, size_t nelem, FloatType div) {
 #if __AVX2__ || _FEATURE_AVX512F || __SSE2__
-#pragma message("Using vectorized multiplication.")
+#pragma message("Using vectorized scalar multiplication.")
         using SIMDType = typename vec::SIMDTypes<FloatType>::Type;
         SIMDType factor(vec::SIMDTypes<FloatType>::set1_fn(div));
         SIMDType *ptr((SIMDType *)pos);
@@ -99,7 +99,7 @@ void blockmul(FloatType *pos, size_t nelem, FloatType div) {
 template<typename FloatType>
 void blockadd(FloatType *pos, size_t nelem, FloatType val) {
 #if __AVX2__ || _FEATURE_AVX512F || __SSE2__
-#pragma message("Using vectorized multiplication.")
+#pragma message("Using vectorized scalar vector addition.")
         using SIMDType = typename vec::SIMDTypes<FloatType>::Type;
         SIMDType inc(vec::SIMDTypes<FloatType>::set1_fn(val));
         SIMDType *ptr((SIMDType *)pos);

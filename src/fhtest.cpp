@@ -64,4 +64,5 @@ int main(int argc, char *argv[]) {
     gfrp::fht(dps);
     std::cerr << "Before: \n";
     print_vec(dps);
+    CirculantMatrix<FLOAT_TYPE> cm(100);
 }

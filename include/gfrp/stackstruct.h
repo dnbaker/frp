@@ -32,6 +32,7 @@ struct FFTTypes<float> {
     static constexpr decltype(&fftwf_plan_dft_r2c) r2cplan = &fftwf_plan_dft_r2c;
     static constexpr decltype(&fftwf_plan_dft_c2r) c2rplan = &fftwf_plan_dft_c2r;
     static constexpr decltype(&fftwf_plan_dft) c2cplan = &fftwf_plan_dft;
+    static constexpr decltype(&fftwf_plan_dft_1d) c2cplan1d = &fftwf_plan_dft_1d;
     static constexpr decltype(&fftwf_plan_r2r) r2rplan = &fftwf_plan_r2r;
     static constexpr decltype(&fftwf_plan_r2r_1d) r2rplan1d = &fftwf_plan_r2r_1d;
     static constexpr decltype(&fftwf_import_wisdom_from_filename) loadfn = &fftwf_import_wisdom_from_filename;
@@ -56,6 +57,7 @@ struct FFTTypes<double> {
     static constexpr decltype(&fftw_plan_dft_r2c) r2cplan = &fftw_plan_dft_r2c;
     static constexpr decltype(&fftw_plan_dft_c2r) c2rplan = &fftw_plan_dft_c2r;
     static constexpr decltype(&fftw_plan_dft) c2cplan = &fftw_plan_dft;
+    static constexpr decltype(&fftw_plan_dft_1d) c2cplan1d = &fftw_plan_dft_1d;
     static constexpr decltype(&fftw_plan_r2r) r2rplan = &fftw_plan_r2r;
     static constexpr decltype(&fftw_plan_r2r_1d) r2rplan1d = &fftw_plan_r2r_1d;
     static constexpr decltype(&fftw_import_wisdom_from_filename) loadfn = &fftw_import_wisdom_from_filename;
@@ -80,6 +82,7 @@ struct FFTTypes<long double> {
     static constexpr decltype(&fftwl_plan_dft_r2c) r2cplan = &fftwl_plan_dft_r2c;
     static constexpr decltype(&fftwl_plan_dft_c2r) c2rplan = &fftwl_plan_dft_c2r;
     static constexpr decltype(&fftwl_plan_dft) c2cplan = &fftwl_plan_dft;
+    static constexpr decltype(&fftwl_plan_dft_1d) c2cplan1d = &fftwl_plan_dft_1d;
     static constexpr decltype(&fftwl_plan_r2r) r2rplan = &fftwl_plan_r2r;
     static constexpr decltype(&fftwl_plan_r2r_1d) r2rplan1d = &fftwl_plan_r2r_1d;
     static constexpr decltype(&fftwl_import_wisdom_from_filename) loadfn = &fftwl_import_wisdom_from_filename;
@@ -297,7 +300,136 @@ public:
     void apply(OutVector &out) {
         execute(out);
     }
+};
 
+template<typename FloatType>
+class FFTBlock {
+    static_assert(is_floating_point<FloatType>::value, "FFTBlock must be floating point.");
+    using ComplexType = std::complex<FloatType>;
+    using fftplan_t = typename fft::FFTTypes<FloatType>::PlanType;
+
+    fftplan_t plan_;
+    int  direction_;
+    int  n_, flags_;
+    const bool oop_;
+
+public:
+
+    std::string wisdom_fname() const {
+        return std::string("dft.") + std::string(fft::FFTTypes<FloatType>::suffix());
+    }
+    void load_wisdom() {
+        if(std::ifstream(wisdom_fname().data()).good()) {
+            if(fft::FFTTypes<FloatType>::loadfn(wisdom_fname().data()) == 0) {
+                throw std::runtime_error(ks::sprintf("Could not load wisdom from %s\n", wisdom_fname()).data());
+            } else {
+                std::fprintf(stderr, "Loaded wisdom from %s\n", wisdom_fname().data());
+            }
+        }
+    }
+    // Real FFT block
+    void destroy() {
+        if(plan_) {
+            fft::FFTTypes<FloatType>::destroy_fn(plan_);
+        }
+    }
+    void set_flags(int newflags) { flags_ = newflags;}
+    void resize(int n) {
+        using CType = typename fft::FFTTypes<FloatType>::ComplexType;
+        if(n == n_) return;
+        n_ = n;
+        blaze::DynamicVector<ComplexType> tmpvec(n);
+        auto ptr1(&tmpvec[0]);
+        auto ptr2(oop_ ? ptr1: &blaze::DynamicVector<ComplexType>(n)[0]);
+        destroy();
+        plan_ = fft::FFTTypes<FloatType>::c2cplan1d(n_, (CType *)ptr1, (CType *)ptr2, direction_, flags_);
+    }
+    FFTBlock(int n, int direction=FFTW_FORWARD,
+             bool oop=false, int flags=FFTW_PATIENT):
+             plan_(nullptr), direction_(direction), n_(0), flags_(flags), oop_(oop) 
+    {
+        load_wisdom();
+        resize(n);
+    }
+    template<typename VecType>
+    void execute(VecType &a) {
+        if(n_ != (int)a.size()) {
+            resize((int)a.size());
+        }
+        using CType = typename fft::FFTTypes<FloatType>::ComplexType;
+        fft::FFTTypes<FloatType>::c2cexec(plan_, (CType *)&a[0], (CType *)&a[0]);
+        a *= std::sqrt(1./(a.size()<<1));
+    }
+    template<typename VecType1, typename VecType2>
+    void execute(const VecType1 &in, VecType2 &out) {
+        if(out.size() < in.size()) throw "ZOMG";
+        if(n_ != in.size()) {
+            resize((int)in.size());
+        }
+        fft::FFTTypes<FloatType>::c2cexec(plan_, &in[0], &out[0]);
+        out *= std::sqrt(1./(out.size()<<1));
+    }
+    void execute(ComplexType *a, ComplexType *b) {
+        if(plan_ == nullptr) throw runtime_error("ZOMG");
+        using CType = typename fft::FFTTypes<FloatType>::ComplexType;
+        fft::FFTTypes<FloatType>::c2cexec(plan_, (CType *)a, (CType *)b);
+    }
+    void store_wisdom() {
+        if(fft::FFTTypes<FloatType>::storefn(wisdom_fname().data()) == 0) {
+            std::fprintf(stderr, "[W:] Could not store wisdom at %s\n", wisdom_fname().data());
+        }
+    }
+    ~FFTBlock() {
+        store_wisdom();
+        destroy();
+    }
+
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) {
+        execute(in, out);
+    }
+
+    template<typename OutVector>
+    void apply(OutVector &out) {
+        execute(out);
+    }
+};
+
+
+template<typename FloatType>
+class CirculantMatrix {
+    using ComplexType = std::complex<FloatType>;
+    blaze::DynamicVector<ComplexType> vec_;
+    blaze::DynamicVector<ComplexType> scratch_space_;
+    FFTBlock<FloatType> fwd_, bck_;
+public:
+    template<typename... Args>
+    CirculantMatrix(Args &&...args): fwd_(vec_.size(), FFTW_FORWARD), bck_(vec_.size(), FFTW_BACKWARD) {
+        blaze::DynamicVector<FloatType> tmp(std::forward<Args...>(args...));
+        vec_.resize(tmp.size());
+        for(size_t i(0); i < vec_.size(); ++i) {
+            vec_[i].real(tmp[i]);
+        }
+        fwd_.apply(vec_);
+    }
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out, blaze::DynamicVector<ComplexType> *scratch=nullptr) {
+        execute(in, out, scratch);
+    }
+
+    template<typename OutVector>
+    void apply(OutVector &out, blaze::DynamicVector<ComplexType> *scratch=nullptr) {
+        blaze::DynamicVector<ComplexType> *sv(scratch ? *scratch: scratch_space_);
+        if(sv.size() != vec_.size()) sv.resize(vec_.size());
+        if(out.size() != vec_.size()) throw std::runtime_error("Wrong sizes in circulant application.");
+        vec::vecmul(&out[0], &vec_[0], out.size());
+        for(size_t i(0); i < out.size(); ++i) {
+            sv[i].real(out[i]);
+        }
+        fwd_.execute(sv[0]);
+        sv *= vec_;
+        bck_.execute(sv);
+    }
 };
 
 template<typename FloatType>
