@@ -4,6 +4,8 @@
 #include "sleef.h"
 
 #include "x86intrin.h"
+#include <cmath>
+#include <iterator>
 
 namespace vec {
 
@@ -43,7 +45,11 @@ struct SIMDTypes;
     static constexpr decltype(&SLEEF_OP(op, suf, prec)) op##_##prec##_fn = \
     &SLEEF_OP(op, suf, prec); \
     template<typename T> \
-    struct apply_##op##_##prec {T operator()(T val) const {return op##_##prec##_fn(val);}};
+    struct apply_##op##_##prec {\
+        T operator()(T val) const {return op##_##prec##_fn(val);} \
+        template<typename OT>\
+        OT scalar(OT val) const {return std::op(val);} \
+    };
 
 
 #define dec_all_precs(op, suf) \
@@ -64,7 +70,7 @@ struct SIMDTypes;
    dec_sleefop_prec(expm1, suf, u10) \
    dec_sleefop_prec(exp, suf, u10) \
    dec_sleefop_prec(exp2, suf, u10) \
-   dec_sleefop_prec(exp10, suf, u10) \
+   /*dec_sleefop_prec(exp10, suf, u10) */ \
    dec_sleefop_prec(lgamma, suf, u10) \
    dec_sleefop_prec(tgamma, suf, u10) \
    dec_sleefop_prec(sinh, suf, u10) \
@@ -230,11 +236,20 @@ void block_apply(FloatType *pos, size_t nelem) {
             }
         }
         pos = (FloatType *)ptr;
-        while(pos < end) *pos  = std::sin(*pos), ++pos;
+        while(pos < end) *pos  = func.scalar(*pos), ++pos;
 #else
 #pragma message("Enjoy your serial version.")
             for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) to[i] *= std::sin(from[i]); // Could be vectorized.
 #endif
+}
+
+template<typename Container, typename Functor>
+void block_apply(Container &con) {
+    if(&con[1] - &con[0] == 1) block_apply(&*std::begin(con), con.size());
+    else {
+        Functor func;
+        for(auto &el: con) el = func.scalar(el);
+    }
 }
 
 #define blocksin35 block_apply<FloatType, SIMDTypes<FloatType>::apply_sin_u35>

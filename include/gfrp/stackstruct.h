@@ -358,7 +358,9 @@ public:
         }
         using CType = typename fft::FFTTypes<FloatType>::ComplexType;
         fft::FFTTypes<FloatType>::c2cexec(plan_, (CType *)&a[0], (CType *)&a[0]);
-        a *= std::sqrt(1./(a.size()<<1));
+        ComplexType tmp;
+        tmp.real(std::sqrt(1./(a.size()<<1)));
+        a *= tmp;;
     }
     template<typename VecType1, typename VecType2>
     void execute(const VecType1 &in, VecType2 &out) {

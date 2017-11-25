@@ -1,6 +1,6 @@
 CXX=g++-7
 
-INCLUDES=-I`python3-config --includes` -I../pybind11/include -I../include -I..
+INCLUDES=-I`python3-config --includes` -I../pybind11/include -I../include -I.. -I../sleef/build/include
 SUF=`python3-config --extension-suffix`
 OBJS=$(patsubst %.cpp,%.cpython.so,$(wildcard *.cpp))
 
