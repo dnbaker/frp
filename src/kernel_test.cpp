@@ -75,6 +75,7 @@ int main(int argc, char *argv[]) {
     for(size_t i(0); i < nrows; ++i)
             for(size_t j(0); j < nrows; ++j) ratios(i, j) = outdists(i, j) / indists(i, j);
     std::cerr << "Output ratios: " << ratios << '\n';
+    std::cout << "#Ratio, Gaussian Distances, Approx Distances\n";
     for(size_t i(0); i < nrows; ++i)
             for(size_t j(0); j < nrows; ++j)
                 std::cout << ratios(i, j) << ", " << indists(i, j) << ", " << outdists(i, j) << '\n';

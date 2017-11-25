@@ -13,21 +13,23 @@ template<typename ValueType>
 struct SIMDTypes;
 
 #define OP(op, suf, sz) _mm##sz##_##op##_##suf
-#define decop(op, suf, sz) static constexpr decltype(&OP(op, suf, sz)) op##_fn = &OP(op, suf, sz);
+#define decop(op, suf, sz) static constexpr decltype(&OP(op, suf, sz)) op = &OP(op, suf, sz);
+
+/* Use or separately because it's a keyword.*/
 
 #define declare_all(suf, sz) \
    decop(loadu, suf, sz); \
    decop(storeu, suf, sz); \
    decop(load, suf, sz); \
    decop(store, suf, sz); \
-   decop(or, suf, sz); \
+   static constexpr decltype(&OP(or, suf, sz)) or_fn = &OP(or, suf, sz);\
+   static constexpr decltype(&OP(and, suf, sz)) and_fn = &OP(and, suf, sz);\
    decop(add, suf, sz); \
    decop(sub, suf, sz); \
    decop(mul, suf, sz); \
    decop(set1, suf, sz); \
    decop(setr, suf, sz); \
    decop(set, suf, sz); \
-   decop(and, suf, sz); \
    decop(mask_and, suf, sz); \
    decop(maskz_and, suf, sz); \
    decop(maskz_andnot, suf, sz); \
@@ -42,11 +44,11 @@ struct SIMDTypes;
 
 #define SLEEF_OP(op, suf, prec) Sleef_##op##suf##_##prec
 #define dec_sleefop_prec(op, suf, prec) \
-    static constexpr decltype(&SLEEF_OP(op, suf, prec)) op##_##prec##_fn = \
+    static constexpr decltype(&SLEEF_OP(op, suf, prec)) op##_##prec = \
     &SLEEF_OP(op, suf, prec); \
     template<typename T> \
     struct apply_##op##_##prec {\
-        T operator()(T val) const {return op##_##prec##_fn(val);} \
+        T operator()(T val) const {return op##_##prec(val);} \
         template<typename OT>\
         OT scalar(OT val) const {return std::op(val);} \
     };
@@ -134,19 +136,19 @@ void blockmul(FloatType *pos, size_t nelem, FloatType div) {
 #if __AVX2__ || _FEATURE_AVX512F || __SSE2__
 #pragma message("Using vectorized scalar multiplication.")
         using SIMDType = typename vec::SIMDTypes<FloatType>::Type;
-        SIMDType factor(vec::SIMDTypes<FloatType>::set1_fn(div));
+        SIMDType factor(vec::SIMDTypes<FloatType>::set1(div));
         SIMDType *ptr((SIMDType *)pos);
         FloatType *end(pos + nelem);
         if((uint64_t)ptr & vec::SIMDTypes<FloatType>::MASK) {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::storeu_fn((FloatType *)ptr,
-                    vec::SIMDTypes<FloatType>::mul_fn(factor, vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::storeu((FloatType *)ptr,
+                    vec::SIMDTypes<FloatType>::mul(factor, vec::SIMDTypes<FloatType>::loadu((FloatType *)ptr)));
                 ++ptr;
             }
         } else {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::store_fn((FloatType *)ptr,
-                    vec::SIMDTypes<FloatType>::mul_fn(factor, vec::SIMDTypes<FloatType>::load_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::store((FloatType *)ptr,
+                    vec::SIMDTypes<FloatType>::mul(factor, vec::SIMDTypes<FloatType>::load((FloatType *)ptr)));
                 ++ptr;
             }
         }
@@ -162,19 +164,19 @@ void blockadd(FloatType *pos, size_t nelem, FloatType val) {
 #if __AVX2__ || _FEATURE_AVX512F || __SSE2__
 #pragma message("Using vectorized scalar vector addition.")
         using SIMDType = typename vec::SIMDTypes<FloatType>::Type;
-        SIMDType inc(vec::SIMDTypes<FloatType>::set1_fn(val));
+        SIMDType inc(vec::SIMDTypes<FloatType>::set1(val));
         SIMDType *ptr((SIMDType *)pos);
         FloatType *end(pos + nelem);
         if((uint64_t)ptr & vec::SIMDTypes<FloatType>::MASK) {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::storeu_fn((FloatType *)ptr,
-                    vec::SIMDTypes<FloatType>::add_fn(inc, vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::storeu((FloatType *)ptr,
+                    vec::SIMDTypes<FloatType>::add(inc, vec::SIMDTypes<FloatType>::loadu((FloatType *)ptr)));
                 ++ptr;
             }
         } else {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::store_fn((FloatType *)ptr,
-                    vec::SIMDTypes<FloatType>::add_fn(inc, vec::SIMDTypes<FloatType>::load_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::store((FloatType *)ptr,
+                    vec::SIMDTypes<FloatType>::add(inc, vec::SIMDTypes<FloatType>::load((FloatType *)ptr)));
                 ++ptr;
             }
         }
@@ -195,14 +197,14 @@ void vecmul(FloatType *to, const FloatType *from, size_t nelem) {
         FloatType *end(to + nelem);
         if((uint64_t)ptr & vec::SIMDTypes<FloatType>::MASK || (uint64_t)fromptr & (vec::SIMDTypes<FloatType>::MASK)) {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::storeu_fn((FloatType *)ptr,
-                    vec::SIMDTypes<FloatType>::mul_fn(vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)fromptr), vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::storeu((FloatType *)ptr,
+                    vec::SIMDTypes<FloatType>::mul(vec::SIMDTypes<FloatType>::loadu((FloatType *)fromptr), vec::SIMDTypes<FloatType>::loadu((FloatType *)ptr)));
                 ++ptr; ++fromptr;
             }
         } else {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::store_fn((FloatType *)ptr,
-                    vec::SIMDTypes<FloatType>::mul_fn(vec::SIMDTypes<FloatType>::load_fn((FloatType *)fromptr), vec::SIMDTypes<FloatType>::load_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::store((FloatType *)ptr,
+                    vec::SIMDTypes<FloatType>::mul(vec::SIMDTypes<FloatType>::load((FloatType *)fromptr), vec::SIMDTypes<FloatType>::load((FloatType *)ptr)));
                 ++ptr; ++fromptr;
             }
         }
@@ -224,14 +226,14 @@ void block_apply(FloatType *pos, size_t nelem) {
         FloatType *end(pos + nelem);
         if((uint64_t)ptr & vec::SIMDTypes<FloatType>::MASK) {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::storeu_fn((FloatType *)ptr,
-                    func(vec::SIMDTypes<FloatType>::loadu_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::storeu((FloatType *)ptr,
+                    func(vec::SIMDTypes<FloatType>::loadu((FloatType *)ptr)));
                 ++ptr;
             }
         } else {
             while((FloatType *)ptr < end - sizeof(SIMDType) / sizeof(FloatType)) {
-                vec::SIMDTypes<FloatType>::store_fn((FloatType *)ptr,
-                    func(vec::SIMDTypes<FloatType>::load_fn((FloatType *)ptr)));
+                vec::SIMDTypes<FloatType>::store((FloatType *)ptr,
+                    func(vec::SIMDTypes<FloatType>::load((FloatType *)ptr)));
                 ++ptr;
             }
         }

@@ -271,7 +271,6 @@ public:
     void apply(Vector &vec) const {
         using std::swap;
         rng_.seed(seed_);
-        std::fprintf(stderr, "Applying shuffle! This breaks everthing.\n");
         for(auto i(vec.size()); i > 1; --i) {
 #if 0
             auto rd(rng_());
@@ -282,7 +281,6 @@ public:
 #endif
             swap(vec[i-1], vec[fastrange<SizeType>(rng_(), i)]);
         }
-        std::fprintf(stderr, "Applied shuffle! This breaks everthing.\n");
     }
     size_t size() const {return -1;}
 };
@@ -295,8 +293,8 @@ public:
     PrecomputedShuffler(SizeType size, SizeType seed): indices_(size) {
         aes::AesCtr<SizeType> gen(seed);
         for(SizeType i(size); i > 1; --i) indices_[i - 1] = fastrange<SizeType>(gen(), i);
-        std::fprintf(stderr, "PrecomputedShuffler: \n");
-        pv(indices_);
+        //std::fprintf(stderr, "PrecomputedShuffler: \n");
+        //pv(indices_);
     }
     template<typename Vector>
     void apply(Vector &vec) const {
