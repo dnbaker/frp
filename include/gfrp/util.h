@@ -14,8 +14,8 @@
 #include "kspp/ks.h"
 #include "FFHT/fast_copy.h"
 #include "blaze/Math.h"
-#include "random/include/boost/random/normal_distribution.hpp"
-#include "random/include/boost/random.hpp"
+#include "boost/random/normal_distribution.hpp"
+#include "boost/random.hpp"
 
 #ifndef FLOAT_TYPE
 #define FLOAT_TYPE double

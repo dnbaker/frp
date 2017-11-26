@@ -67,8 +67,7 @@ struct SIMDTypes;
     dec_sleefop_prec(op, suf, u10, instructset)
 
 
-#define dec_double_sz(type) Sleef_##type##_2
-    
+#define dec_double_sz(type) using TypeDouble = Sleef_##type##_2;
 
 
 #define dec_all_trig(suf, set) \
@@ -102,19 +101,19 @@ struct SIMDTypes<float>{
     using Type = __m512;
     declare_all(ps, 512)
     static const size_t ALN = 64;
-    using TypeDouble = dec_double_sz(__m512);
+    dec_double_sz(__m512)
     dec_all_trig(f16, avx512f);
 #elif __AVX2__
     using Type = __m256;
     declare_all(ps, 256)
     static const size_t ALN = 32;
-    using TypeDouble = dec_double_sz(__m256);
+    dec_double_sz(__m256)
     dec_all_trig(f8, avx2);
 #elif __SSE2__
     using Type = __m128;
     declare_all(ps, )
     static const size_t ALN = 16;
-    using TypeDouble = dec_double_sz(__m128);
+    dec_double_sz(__m128)
     dec_all_trig(f4, sse2);
 #else
 #error("Need at least sse2")
@@ -132,19 +131,19 @@ struct SIMDTypes<double>{
     using Type = __m512d;
     declare_all(pd, 512)
     static const size_t ALN = 64;
-    using TypeDouble = dec_double_sz(__m512d);
+    dec_double_sz(__m512d);
     dec_all_trig(d8, avx512f);
 #elif __AVX2__
     using Type = __m256d;
     declare_all(pd, 256)
     static const size_t ALN = 32;
-    using TypeDouble = dec_double_sz(__m256d);
+    dec_double_sz(__m256d);
     dec_all_trig(d4, avx2);
 #elif __SSE2__
     using Type = __m128d;
     declare_all(pd, )
     static const size_t ALN = 16;
-    using TypeDouble = dec_double_sz(__m128d);
+    dec_double_sz(__m128d);
     dec_all_trig(d2, sse2);
 #else
 #error("Need at least sse2")

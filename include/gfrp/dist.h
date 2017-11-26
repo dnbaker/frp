@@ -48,6 +48,7 @@ DEFINE_DIST_FILL(boost::random::chi_squared_distribution, chisq)
 DEFINE_DIST_FILL(boost::lognormal_distribution, lognormal)
 DEFINE_DIST_FILL(boost::random::extreme_value_distribution, extreme_value)
 DEFINE_DIST_FILL(boost::random::weibull_distribution, weibull)
+DEFINE_DIST_FILL(boost::random::uniform_real_distribution, uniform)
 
 }
 

@@ -6,6 +6,7 @@
 #include "gfrp/sample.h"
 #include "gfrp/tx.h"
 #include "FFHT/fht.h"
+#include "boost/math/special_functions/detail/igamma_inverse.hpp"
 #include <array>
 #include <functional>
 
@@ -159,6 +160,23 @@ public:
         unit_gaussian_fill(vec_, seed);
     }
 };
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
+class RandomGammaIncInvScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
+    using VectorType = VectorKind<FloatType, VectorOrientation>;
+    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
+    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
+public:
+    template<typename...Args>
+    RandomGammaIncInvScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
+        uniform_fill(vec_, seed);
+        const FloatType val(vec_.size());
+        for(auto &el: vec_) {
+            static_assert(std::is_same<FloatType, decay_t<decltype(el)>>::value, "sanity");
+            el = static_cast<FloatType>(boost::math::gamma_p_inv<FloatType, FloatType>(val, el));
+        }
+    }
+};
+
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
 class RandomChiScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     using VectorType = VectorKind<FloatType, VectorOrientation>;

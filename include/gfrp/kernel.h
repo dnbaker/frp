@@ -8,13 +8,22 @@ namespace ff {
 
 struct GaussianFinalizer {
 private:
-    unsigned char use_lowprec_:1;
-    unsigned char use_matched_:1;
+    uint32_t use_lowprec_:1;
+#if PROVIDE_OPTION
+    uint32_t use_matched_:1;
+#endif
 public:
-    GaussianFinalizer(bool use_low_precision=false, bool use_matched=false): use_lowprec_(use_low_precision), use_matched_(use_matched) {}
+#if PROVIDE_OPTION
+    GaussianFinalizer(bool use_low_precision=false, bool use_matched=true): use_lowprec_(use_low_precision), use_matched_(use_matched) {}
+    void set_use_matched(bool use_matched) {use_matched_ = use_matched;}
+#else
+    GaussianFinalizer(bool use_low_precision=false): use_lowprec_(use_low_precision) {}
+#endif
+    void set_use_lowprec(bool use_lowprec) {use_lowprec_ = use_lowprec;}
     template<typename VecType>
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
+#if PROVIDE_OPTION
         if(use_matched_) {
             using FloatType = typename std::decay_t<decltype(in[0])>;
             using SIMDType  = vec::SIMDTypes<FloatType>;
@@ -23,17 +32,33 @@ public:
             static const size_t ratio(sizeof(VT) / sizeof(FloatType));
             DT dest;
             VT *srcptr((VT *)&in[0]);
-            if(SIMDType::aligned(srcptr)) {
-                for(u32 i((in.size() >> 1) / ratio); i;) {
-                    dest = SIMDType::sincos_u35(SIMDType::load((FloatType *)&srcptr[i - 1]));
-                    SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest[1]);
-                    SIMDType::store((FloatType *)&srcptr[--i << 1], dest[0]);
+            if(use_lowprec_) {
+                if(SIMDType::aligned(srcptr)) {
+                    for(u32 i((in.size() >> 1) / ratio); i;) {
+                        dest = SIMDType::sincos_u35(SIMDType::load((FloatType *)&srcptr[i - 1]));
+                        SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                        SIMDType::store((FloatType *)&srcptr[--i << 1], dest.x);
+                    }
+                } else {
+                    for(u32 i((in.size() >> 1) / ratio); i;) {
+                        dest = SIMDType::sincos_u35(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
+                        SIMDType::storeu((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                        SIMDType::storeu((FloatType *)&srcptr[--i << 1], dest.x);
+                    }
                 }
             } else {
-                for(u32 i((in.size() >> 1) / ratio); i;) {
-                    dest = SIMDType::sincos_u35(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
-                    SIMDType::storeu((FloatType *)&srcptr[(i << 1) - 1], dest[1]);
-                    SIMDType::storeu((FloatType *)&srcptr[--i << 1], dest[0]);
+                if(SIMDType::aligned(srcptr)) {
+                    for(u32 i((in.size() >> 1) / ratio); i;) {
+                        dest = SIMDType::sincos_u10(SIMDType::load((FloatType *)&srcptr[i - 1]));
+                        SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                        SIMDType::store((FloatType *)&srcptr[--i << 1], dest.x);
+                    }
+                } else {
+                    for(u32 i((in.size() >> 1) / ratio); i;) {
+                        dest = SIMDType::sincos_u10(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
+                        SIMDType::storeu((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                        SIMDType::storeu((FloatType *)&srcptr[--i << 1], dest.x);
+                    }
                 }
             }
         } else {
@@ -52,6 +77,44 @@ public:
                 vec::block_apply(in, U10Struct());
             }
         }
+#else
+        using FloatType = typename std::decay_t<decltype(in[0])>;
+        using SIMDType  = vec::SIMDTypes<FloatType>;
+        using VT = typename SIMDType::Type;
+        using DT = typename SIMDType::TypeDouble;
+        static const size_t ratio(sizeof(VT) / sizeof(FloatType));
+        DT dest;
+        VT *srcptr((VT *)&in[0]);
+        if(use_lowprec_) {
+            if(SIMDType::aligned(srcptr)) {
+                for(u32 i((in.size() >> 1) / ratio); i;) {
+                    dest = SIMDType::sincos_u35(SIMDType::load((FloatType *)&srcptr[i - 1]));
+                    SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                    SIMDType::store((FloatType *)&srcptr[--i << 1], dest.x);
+                }
+            } else {
+                for(u32 i((in.size() >> 1) / ratio); i;) {
+                    dest = SIMDType::sincos_u35(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
+                    SIMDType::storeu((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                    SIMDType::storeu((FloatType *)&srcptr[--i << 1], dest.x);
+                }
+            }
+        } else {
+            if(SIMDType::aligned(srcptr)) {
+                for(u32 i((in.size() >> 1) / ratio); i;) {
+                    dest = SIMDType::sincos_u10(SIMDType::load((FloatType *)&srcptr[i - 1]));
+                    SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                    SIMDType::store((FloatType *)&srcptr[--i << 1], dest.x);
+                }
+            } else {
+                for(u32 i((in.size() >> 1) / ratio); i;) {
+                    dest = SIMDType::sincos_u10(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
+                    SIMDType::storeu((FloatType *)&srcptr[(i << 1) - 1], dest.y);
+                    SIMDType::storeu((FloatType *)&srcptr[--i << 1], dest.x);
+                }
+            }
+        }
+#endif
     }
 };
 
@@ -59,7 +122,7 @@ public:
 template<typename FloatType>
 class FastFoodKernelBlock {
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
-    using RandomScalingBlock = RandomChiScalingBlock<FloatType>;
+    using RandomScalingBlock = RandomGammaIncInvScalingBlock<FloatType>;
     using SizeType = uint32_t;
     using Shuffler = LutShuffler<SizeType>;
     using SpinTransformer =

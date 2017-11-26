@@ -24,3 +24,6 @@
 [submodule "sleef"]
 	path = sleef
 	url = https://github.com/shibatch/sleef
+[submodule "math"]
+	path = math
+	url = https://github.com/boostorg/math
