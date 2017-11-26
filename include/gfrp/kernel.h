@@ -16,7 +16,24 @@ public:
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
         if(use_matched_) {
-            throw std::runtime_error("NotImplementedError");
+            using FloatType = typename std::decay_t<decltype(in[0])>;
+            using SIMDType  = vec::SIMDTypes<FloatType>;
+            using VT = typename SIMDType::Type;
+            using DT = typename SIMDType::TypeDouble;
+            static const size_t ratio(sizeof(VT) / sizeof(FloatType));
+            DT dest;
+            VT *srcptr((VT *)&in[0]);
+            if(SIMDType::aligned(srcptr)) {
+                for(u32 i((in.size() >> 1) / ratio); i;) {
+                    dest = SIMDType::sincos_u35(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
+                    std::memcpy((void *)&srcptr[--i << 1], &dest, sizeof(dest));
+                }
+            } else {
+                for(u32 i((in.size() >> 1) / ratio); i;) {
+                    dest = SIMDType::sincos_u35(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
+                    std::memcpy((void *)&srcptr[--i << 1], &dest, sizeof(dest));
+                }
+            }
         } else {
             for(u32 i(in.size()>>1); i; --i) {
                 in[(i-1)<<1] = in[i-1];
@@ -27,7 +44,6 @@ public:
             using SIMDType  = vec::SIMDTypes<FloatType>;
             using U10Struct = typename SIMDType::apply_cos_u10;
             using U35Struct = typename SIMDType::apply_cos_u35;
-            static_assert(std::is_floating_point<FloatType>::value, "Sanity");
             if(use_lowprec_) {
                 vec::block_apply(in, U35Struct());
             } else {

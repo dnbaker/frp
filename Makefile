@@ -13,7 +13,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable -Wno-ignored-qualifiers# -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -mavx2 -march=native -fopenmp -DUSE_FASTRANGE \
-        -mveclibabi=svml  -funsafe-math-optimizations -ftree-vectorize
+      -funsafe-math-optimizations -ftree-vectorize
 OS:=$(shell uname)
 
 EXTRA=

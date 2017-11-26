@@ -8,6 +8,16 @@
 #include <cmath>
 #include <iterator>
 
+
+namespace std {
+    Sleef_double2 sincos(double x) {
+        return Sleef_double2{std::sin(x), std::cos(x)};
+    }
+    Sleef_float2 sincos(float x) {
+        return Sleef_float2{std::sin(x), std::cos(x)};
+    }
+}
+
 namespace vec {
 
 template<typename ValueType>
@@ -57,6 +67,10 @@ struct SIMDTypes;
     dec_sleefop_prec(op, suf, u10, instructset)
 
 
+#define dec_double_sz(type) Sleef_##type##_2
+    
+
+
 #define dec_all_trig(suf, set) \
    dec_all_precs(sin, suf, set) \
    dec_all_precs(cos, suf, set) \
@@ -65,6 +79,7 @@ struct SIMDTypes;
    dec_all_precs(atan, suf, set) \
    dec_all_precs(atan2, suf, set) \
    dec_all_precs(cbrt, suf, set) \
+   dec_all_precs(sincos, suf, set) \
    dec_sleefop_prec(log, suf, u10, set) \
    dec_sleefop_prec(log1p, suf, u10, set) \
    dec_sleefop_prec(expm1, suf, u10, set) \
@@ -87,21 +102,28 @@ struct SIMDTypes<float>{
     using Type = __m512;
     declare_all(ps, 512)
     static const size_t ALN = 64;
+    using TypeDouble = dec_double_sz(__m512);
     dec_all_trig(f16, avx512f);
 #elif __AVX2__
     using Type = __m256;
     declare_all(ps, 256)
     static const size_t ALN = 32;
+    using TypeDouble = dec_double_sz(__m256);
     dec_all_trig(f8, avx2);
 #elif __SSE2__
     using Type = __m128;
     declare_all(ps, )
     static const size_t ALN = 16;
+    using TypeDouble = dec_double_sz(__m128);
     dec_all_trig(f4, sse2);
 #else
 #error("Need at least sse2")
 #endif
     static const size_t MASK = ALN - 1;
+    template<typename T>
+    static constexpr bool aligned(T *ptr) {
+        return (reinterpret_cast<uint64_t>(ptr) & MASK) == 0;
+    }
 };
 
 template<>
@@ -110,21 +132,28 @@ struct SIMDTypes<double>{
     using Type = __m512d;
     declare_all(pd, 512)
     static const size_t ALN = 64;
+    using TypeDouble = dec_double_sz(__m512d);
     dec_all_trig(d8, avx512f);
 #elif __AVX2__
     using Type = __m256d;
     declare_all(pd, 256)
     static const size_t ALN = 32;
+    using TypeDouble = dec_double_sz(__m256d);
     dec_all_trig(d4, avx2);
 #elif __SSE2__
     using Type = __m128d;
     declare_all(pd, )
     static const size_t ALN = 16;
+    using TypeDouble = dec_double_sz(__m128d);
     dec_all_trig(d2, sse2);
 #else
 #error("Need at least sse2")
 #endif
     static const size_t MASK = ALN - 1;
+    template<typename T>
+    static constexpr bool aligned(T *ptr) {
+        return (reinterpret_cast<uint64_t>(ptr) & MASK) == 0;
+    }
 };
 
 
