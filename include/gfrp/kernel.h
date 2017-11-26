@@ -7,21 +7,33 @@ namespace gfrp {
 namespace ff {
 
 struct GaussianFinalizer {
+private:
+    unsigned char use_lowprec_:1;
+    unsigned char use_matched_:1;
+public:
+    GaussianFinalizer(bool use_low_precision=false, bool use_matched=false): use_lowprec_(use_low_precision), use_matched_(use_matched) {}
     template<typename VecType>
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
-        for(u32 i(in.size()>>1); i; --i) {
-            in[(i-1)<<1] = in[i-1];
-            in[(i<<1)-1] = in[(i - 1)<<1] + M_PI_2;
-            std::fprintf(stderr, "About to cosinify: %f, %f. Indices: from %u to %u, %u\n", in[(i<<1)-1], in[(i-1)<<1], i-1, (i-1)<<1, (i<<1)-1);
+        if(use_matched_) {
+            throw std::runtime_error("NotImplementedError");
+        } else {
+            for(u32 i(in.size()>>1); i; --i) {
+                in[(i-1)<<1] = in[i-1];
+                in[(i<<1)-1] = in[(i - 1)<<1] + M_PI_2;
+                std::fprintf(stderr, "About to cosinify: %f, %f. Indices: from %u to %u, %u\n", in[(i<<1)-1], in[(i-1)<<1], i-1, (i-1)<<1, (i<<1)-1);
+            }
+            using FloatType = typename std::decay_t<decltype(in[0])>;
+            using SIMDType  = vec::SIMDTypes<FloatType>;
+            using U10Struct = typename SIMDType::apply_cos_u10;
+            using U35Struct = typename SIMDType::apply_cos_u35;
+            static_assert(std::is_floating_point<FloatType>::value, "Sanity");
+            if(use_lowprec_) {
+                vec::block_apply(in, U35Struct());
+            } else {
+                vec::block_apply(in, U10Struct());
+            }
         }
-        in = cos(in);
-        std::cerr << in << '\n';
-        /* This can be accelerated using SLEEF.
-           Sleef_sincosf4_u35, u10, u05 (sse), or 8 for avx2 or 16 for avx512
-           The great thing about sleef is that it does not require the use of intel-only materials.
-           This could be a nice addition to Blaze downstream.
-        */
     }
 };
 
