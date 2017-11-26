@@ -25,13 +25,15 @@ public:
             VT *srcptr((VT *)&in[0]);
             if(SIMDType::aligned(srcptr)) {
                 for(u32 i((in.size() >> 1) / ratio); i;) {
-                    dest = SIMDType::sincos_u35(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
-                    std::memcpy((void *)&srcptr[--i << 1], &dest, sizeof(dest));
+                    dest = SIMDType::sincos_u35(SIMDType::load((FloatType *)&srcptr[i - 1]));
+                    SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest[1]);
+                    SIMDType::store((FloatType *)&srcptr[--i << 1], dest[0]);
                 }
             } else {
                 for(u32 i((in.size() >> 1) / ratio); i;) {
                     dest = SIMDType::sincos_u35(SIMDType::loadu((FloatType *)&srcptr[i - 1]));
-                    std::memcpy((void *)&srcptr[--i << 1], &dest, sizeof(dest));
+                    SIMDType::storeu((FloatType *)&srcptr[(i << 1) - 1], dest[1]);
+                    SIMDType::storeu((FloatType *)&srcptr[--i << 1], dest[0]);
                 }
             }
         } else {
