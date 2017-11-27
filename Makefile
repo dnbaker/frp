@@ -29,12 +29,18 @@ TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
 
 EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
+BOOST_DIRS=math config random utility assert static_assert \
+    integer type_traits mpl core preprocessor exception throw_exception \
+    range iterator io predef concept_check detail lexical_cast \
+    numeric_conversion functional array container move thread smart_ptr
+
+BOOST_INCS=$(patsubst %,-I%/include,$(BOOST_DIRS))
 
 
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I sleef/build/include/
+INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I sleef/build/include/ $(BOOST_INCS)
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)

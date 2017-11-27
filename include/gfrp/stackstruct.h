@@ -360,6 +360,7 @@ public:
         fft::FFTTypes<FloatType>::c2cexec(plan_, (CType *)&a[0], (CType *)&a[0]);
         ComplexType tmp;
         tmp.real(std::sqrt(1./(a.size()<<1)));
+        tmp.imag(0);
         a *= tmp;;
     }
     template<typename VecType1, typename VecType2>

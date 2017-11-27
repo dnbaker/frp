@@ -20,3 +20,84 @@
 [submodule "sleef"]
 	path = sleef
 	url = https://github.com/shibatch/sleef
+[submodule "math"]
+    path = math
+    url = https://github.com/boostorg/math
+[submodule "random"]
+	path = random
+	url = https://github.com/boostorg/random
+[submodule "config"]
+	path = config
+	url = https://github.com/boostorg/config
+[submodule "utility"]
+	path = utility
+	url = https://github.com/boostorg/utility
+[submodule "assert"]
+	path = assert
+	url = https://github.com/boostorg/assert
+[submodule "static_assert"]
+	path = static_assert
+	url = https://github.com/boostorg/static_assert
+[submodule "integer"]
+	path = integer
+	url = https://github.com/boostorg/integer
+[submodule "type_traits"]
+	path = type_traits
+	url = https://github.com/boostorg/type_traits
+[submodule "mpl"]
+	path = mpl
+	url = https://github.com/boostorg/mpl
+[submodule "core"]
+	path = core
+	url = https://github.com/boostorg/core
+[submodule "preprocessor"]
+	path = preprocessor
+	url = https://github.com/boostorg/preprocessor
+[submodule "exception"]
+	path = exception
+	url = https://github.com/boostorg/exception
+[submodule "throw_exception"]
+	path = throw_exception
+	url = https://github.com/boostorg/throw_exception
+[submodule "range"]
+	path = range
+	url = https://github.com/boostorg/range
+[submodule "iterator"]
+	path = iterator
+	url = https://github.com/boostorg/iterator
+[submodule "io"]
+	path = io
+	url = https://github.com/boostorg/io
+[submodule "predef"]
+	path = predef
+	url = https://github.com/boostorg/predef
+[submodule "concept_check"]
+	path = concept_check
+	url = https://github.com/boostorg/concept_check
+[submodule "detail"]
+	path = detail
+	url = https://github.com/boostorg/detail
+[submodule "lexical_cast"]
+	path = lexical_cast
+	url = https://github.com/boostorg/lexical_cast
+[submodule "numeric_conversion"]
+	path = numeric_conversion
+	url = https://github.com/boostorg/numeric_conversion
+[submodule "functional"]
+	path = functional
+	url = https://github.com/boostorg/functional
+[submodule "array"]
+	path = array
+	url = https://github.com/boostorg/array
+[submodule "container"]
+	path = container
+	url = https://github.com/boostorg/container
+[submodule "move"]
+	path = move
+	url = https://github.com/boostorg/move
+[submodule "thread"]
+	path = thread
+	url = https://github.com/boostorg/thread
+[submodule "smart_ptr"]
+	path = smart_ptr
+	url = https://github.com/boostorg/smart_ptr

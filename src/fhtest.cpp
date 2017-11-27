@@ -1,6 +1,6 @@
 #include <random>
 #include "gfrp/gfrp.h"
-#include "random/include/boost/random/normal_distribution.hpp"
+#include "boost/random/normal_distribution.hpp"
 using namespace gfrp;
 
 template<typename T>
