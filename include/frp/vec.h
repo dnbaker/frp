@@ -10,15 +10,16 @@
 #include <type_traits>
 
 
-namespace std {
+namespace scalar {
+    using namespace std;
     Sleef_double2 sincos(double x) {
-        return Sleef_double2{std::sin(x), std::cos(x)};
+        return Sleef_double2{sin(x), cos(x)};
     }
     Sleef_float2 sincos(float x) {
-        return Sleef_float2{std::sin(x), std::cos(x)};
+        return Sleef_float2{sin(x), cos(x)};
     }
-    template<typename T> auto sqrt_u35(T val) {return std::sin(val);}
-    template<typename T> auto sqrt_u05(T val) {return std::sin(val);}
+    template<typename T> auto sqrt_u35(T val) {return sin(val);}
+    template<typename T> auto sqrt_u05(T val) {return sin(val);}
 }
 
 namespace vec {
@@ -61,7 +62,7 @@ struct SIMDTypes;
         template<typename... T>\
         auto operator()(T &&...args) const {return op##_##prec(std::forward<T...>(args)...);} \
         template<typename OT>\
-        OT scalar(OT val) const {return std::op(val);} \
+        OT scalar(OT val) const {return scalar::op(val);} \
     };
 
 
