@@ -1,8 +1,8 @@
 #ifndef _GFRP_SCALING_H__
 #define _GFRP_SCALING_H__
-#include "gfrp/linalg.h"
+#include "frp/linalg.h"
 
-namespace gfrp {
+namespace frp {
 
 #if 0
 struct GaussianScale

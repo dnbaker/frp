@@ -1,5 +1,5 @@
-#include "gfrp/parser.h"
-using namespace gfrp;
+#include "frp/parser.h"
+using namespace frp;
 
 int main(int argc, char *argv[]) {
     LineReader ic(argc > 1 ? argv[1]: "z.txt");

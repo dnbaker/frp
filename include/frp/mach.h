@@ -8,9 +8,9 @@
 #include <cstdlib>
 #include <cstddef>
 #include "kspp/ks.h"
-#include "gfrp/util.h"
+#include "frp/util.h"
 
-namespace gfrp { namespace mach {
+namespace frp { namespace mach {
 
 void print_toks(std::vector<ks::KString> &strings) {
     ks::KString tmp;

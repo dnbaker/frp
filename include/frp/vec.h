@@ -7,6 +7,7 @@
 #include "x86intrin.h"
 #include <cmath>
 #include <iterator>
+#include <type_traits>
 
 
 namespace std {
@@ -16,6 +17,8 @@ namespace std {
     Sleef_float2 sincos(float x) {
         return Sleef_float2{std::sin(x), std::cos(x)};
     }
+    template<typename T> auto sqrt_u35(T val) {return std::sin(val);}
+    template<typename T> auto sqrt_u05(T val) {return std::sin(val);}
 }
 
 namespace vec {
@@ -66,6 +69,10 @@ struct SIMDTypes;
     dec_sleefop_prec(op, suf, u35, instructset) \
     dec_sleefop_prec(op, suf, u10, instructset)
 
+#define dec_all_precs_u05(op, suf, instructset) \
+    dec_sleefop_prec(op, suf, u35, instructset) \
+    dec_sleefop_prec(op, suf, u05, instructset)
+
 
 #define dec_double_sz(type) using TypeDouble = Sleef_##type##_2;
 
@@ -92,7 +99,8 @@ struct SIMDTypes;
    dec_sleefop_prec(asinh, suf, u10, set) \
    dec_sleefop_prec(acosh, suf, u10, set) \
    dec_sleefop_prec(tanh, suf, u10, set) \
-   dec_sleefop_prec(atanh, suf, u10, set)
+   dec_sleefop_prec(atanh, suf, u10, set) \
+   dec_all_precs_u05(sqrt, suf, set)
     
 
 template<>
@@ -100,25 +108,26 @@ struct SIMDTypes<float>{
 #if _FEATURE_AVX512F
     using Type = __m512;
     declare_all(ps, 512)
-    static const size_t ALN = 64;
+    static constexpr size_t ALN = 64;
     dec_double_sz(__m512)
     dec_all_trig(f16, avx512f);
 #elif __AVX2__
     using Type = __m256;
     declare_all(ps, 256)
-    static const size_t ALN = 32;
+    static constexpr size_t ALN = 32;
     dec_double_sz(__m256)
     dec_all_trig(f8, avx2);
 #elif __SSE2__
     using Type = __m128;
     declare_all(ps, )
-    static const size_t ALN = 16;
+    static constexpr size_t ALN = 16;
     dec_double_sz(__m128)
     dec_all_trig(f4, sse2);
 #else
 #error("Need at least sse2")
 #endif
-    static const size_t MASK = ALN - 1;
+    static constexpr size_t MASK = ALN - 1;
+    static constexpr size_t COUNT = sizeof(Type) / sizeof(float);
     template<typename T>
     static constexpr bool aligned(T *ptr) {
         return (reinterpret_cast<uint64_t>(ptr) & MASK) == 0;
@@ -130,25 +139,26 @@ struct SIMDTypes<double>{
 #if _FEATURE_AVX512F
     using Type = __m512d;
     declare_all(pd, 512)
-    static const size_t ALN = 64;
+    static constexpr size_t ALN = 64;
     dec_double_sz(__m512d);
     dec_all_trig(d8, avx512f);
 #elif __AVX2__
     using Type = __m256d;
     declare_all(pd, 256)
-    static const size_t ALN = 32;
+    static constexpr size_t ALN = 32;
     dec_double_sz(__m256d);
     dec_all_trig(d4, avx2);
 #elif __SSE2__
     using Type = __m128d;
     declare_all(pd, )
-    static const size_t ALN = 16;
+    static constexpr size_t ALN = 16;
     dec_double_sz(__m128d);
     dec_all_trig(d2, sse2);
 #else
 #error("Need at least sse2")
 #endif
-    static const size_t MASK = ALN - 1;
+    static constexpr size_t MASK = ALN - 1;
+    static constexpr size_t COUNT = sizeof(Type) / sizeof(double);
     template<typename T>
     static constexpr bool aligned(T *ptr) {
         return (reinterpret_cast<uint64_t>(ptr) & MASK) == 0;
@@ -157,11 +167,11 @@ struct SIMDTypes<double>{
 
 
 template<typename FloatType>
-void blockmul(FloatType *pos, size_t nelem, FloatType div) {
+void blockmul(FloatType *pos, size_t nelem, FloatType prod) {
 #if __AVX2__ || _FEATURE_AVX512F || __SSE2__
 #pragma message("Using vectorized scalar multiplication.")
         using SIMDType = typename vec::SIMDTypes<FloatType>::Type;
-        SIMDType factor(vec::SIMDTypes<FloatType>::set1(div));
+        SIMDType factor(vec::SIMDTypes<FloatType>::set1(prod));
         SIMDType *ptr((SIMDType *)pos);
         FloatType *end(pos + nelem);
         if((uint64_t)ptr & vec::SIMDTypes<FloatType>::MASK) {
@@ -178,10 +188,19 @@ void blockmul(FloatType *pos, size_t nelem, FloatType div) {
             }
         }
         pos = (FloatType *)ptr;
-        while(pos < end) *pos++ *= div;
+        while(pos < end) *pos++ *= prod;
 #else
-            for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] *= div; // Could be vectorized.
+            for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] *= prod; // Could be vectorized.
 #endif
+}
+
+#define BLOCKOP(op, scalar) \
+template<typename Container>\
+void block##op(Container &con, double val) {\
+    if(&con[1] - &con[0] == 1)\
+        block##op(&con[0], con.size(), static_cast<std::decay_t<decltype(*std::begin(con))>>(val));\
+    else\
+        for(auto &el: con) scalar;\
 }
 
 template<typename FloatType>
@@ -206,12 +225,15 @@ void blockadd(FloatType *pos, size_t nelem, FloatType val) {
             }
         }
         pos = (FloatType *)ptr;
-        while(pos < end) *pos++ += div;
+        while(pos < end) *pos++ += val;
 #else
 #pragma message("Enjoy your serial version.")
-            for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] += div; // Could be vectorized.
+            for(size_t i(0); i < (static_cast<size_t>(1) << nelem); ++i) pos[i] += val; // Could be vectorized.
 #endif
 }
+
+BLOCKOP(mul, el *= val)
+BLOCKOP(add, el += val)
 
 template<typename FloatType>
 void vecmul(FloatType *to, const FloatType *from, size_t nelem) {

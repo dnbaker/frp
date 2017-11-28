@@ -1,16 +1,16 @@
 #ifndef _GFRP_SPINNER_H__
 #define _GFRP_SPINNER_H__
-#include "gfrp/compact.h"
-#include "gfrp/linalg.h"
-#include "gfrp/stackstruct.h"
-#include "gfrp/sample.h"
-#include "gfrp/tx.h"
+#include "frp/compact.h"
+#include "frp/linalg.h"
+#include "frp/stackstruct.h"
+#include "frp/sample.h"
+#include "frp/tx.h"
 #include "FFHT/fht.h"
 #include "boost/math/special_functions/detail/igamma_inverse.hpp"
 #include <array>
 #include <functional>
 
-namespace gfrp {
+namespace frp {
 /*
  *
  * TODO:
@@ -152,7 +152,6 @@ template<typename FloatType, bool VectorOrientation=blaze::columnVector, templat
 class RandomGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
-    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 public:
     template<typename...Args>
     RandomGaussianScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
@@ -160,19 +159,36 @@ public:
         unit_gaussian_fill(vec_, seed);
     }
 };
-template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
+template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, bool high_prec=true>
 class RandomGammaIncInvScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
-    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 public:
     template<typename...Args>
     RandomGammaIncInvScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
-        uniform_fill(vec_, seed);
+        uniform_fill(vec_, seed, 0, 1);
         const FloatType val(vec_.size());
-        for(auto &el: vec_) {
-            static_assert(std::is_same<FloatType, decay_t<decltype(el)>>::value, "sanity");
-            el = static_cast<FloatType>(boost::math::gamma_p_inv<FloatType, FloatType>(val, el));
+        using Space = vec::SIMDTypes<FloatType>;
+        using PackedType = typename Space::Type;
+        PackedType el, *ptr((PackedType *)&vec_[0]);
+        PackedType two(Space::set1(2.));
+        if constexpr(high_prec) {
+            for(size_t i(vec_.size() / Space::COUNT); --i;) {
+                el = Space::load((FloatType *)&ptr[i]);
+                for(u32 j(0); j < Space::COUNT; ++j) el[j] = boost::math::gamma_p_inv(val, el[j]);
+                el = Space::mul(el, two);
+                el = Space::sqrt_u05(el);
+                Space::store((FloatType *)&ptr[i], el);
+            }
+        } else {
+            for(size_t i(vec_.size() / Space::Count); --i;) {
+                --i;
+                el = Space::load((FloatType *)&ptr[i - 1]);
+                for(u32 j(0); j < Space::COUNT; ++j) el[j] = boost::math::gamma_p_inv(val, el[j]);
+                el = Space::mul(el, two);
+                el = Space::sqrt_u35(el);
+                Space::store((FloatType *)&ptr[i - 1], el);
+            }
         }
     }
 };
@@ -181,7 +197,6 @@ template<typename FloatType, bool VectorOrientation=blaze::columnVector, templat
 class RandomChiScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
-    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 public:
     template<typename...Args>
     RandomChiScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
@@ -190,6 +205,7 @@ public:
         for(auto &el: vec_) el = dist(gen);
         //vec_ = sqrt(vec_);
     }
+    //using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
@@ -203,6 +219,7 @@ public:
             ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
         gaussian_fill(vec_, seed, mean, var);
     }
+    //using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
@@ -211,6 +228,7 @@ class UnitGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
 public:
+    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
     template<typename...Args>
     UnitGaussianScalingBlock(uint64_t seed=0, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
         unit_gaussian_fill(vec_, seed);
@@ -379,7 +397,6 @@ public:
         void operator()(OutVector &out) const {
             std::get<Index - 1>(ref_.blocks_).apply(out);
             ApplicationStruct<OutVector, Index - 1> as(ref_);
-            //std::cerr << "before " << Index - 1 << ": " << out << '\n';
             if constexpr(Index - 1 == 4) {
                 //TD<decay_t<decltype(std::get<Index - 1>(ref_.blocks_))>> td;
             }
@@ -424,6 +441,6 @@ public:
     auto &get_tuple() {return blocks_;}
 };
 
-} // namespace gfrp
+} // namespace frp
 
 #endif // #ifndef _GFRP_SPINNER_H__

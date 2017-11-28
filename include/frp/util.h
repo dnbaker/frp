@@ -43,7 +43,7 @@
 #  endif
 #endif
 
-namespace gfrp {
+namespace frp {
 using namespace std::literals;
 using std::uint64_t;
 using std::uint32_t;
@@ -197,6 +197,6 @@ size_t countchars(const char *line, int delim) {
     return ret;
 }
 
-} // namespace gfrp
+} // namespace frp
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef _GFRP_LINALG_H__
 #define _GFRP_LINALG_H__
 #define _USE_MATH_DEFINES
-#include "gfrp/util.h"
+#include "frp/util.h"
 #include "x86intrin.h"
 
 #ifdef __AVX2__
@@ -12,7 +12,7 @@
 #define VECTOR_WIDTH (8ul)
 #endif
 
-namespace gfrp { namespace linalg {
+namespace frp { namespace linalg {
 
 template<typename MatrixKind1, typename MatrixKind2>
 void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, int flags) {
@@ -385,6 +385,6 @@ constexpr inline auto ndball_surface_area(size_t nd, FloatType r) {
 }
 
 
-}} // namespace gfrp::linalg
+}} // namespace frp::linalg
 
 #endif // #ifnef _GFRP_LINALG_H__

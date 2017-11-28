@@ -1,12 +1,12 @@
 #ifndef _GFRP_STACKSTRUCT_H__
 #define _GFRP_STACKSTRUCT_H__
 #include <fstream>
-#include "gfrp/util.h"
+#include "frp/util.h"
 #include "FFHT/fht.h"
 #include "fftw3.h"
-#include "gfrp/vec.h"
+#include "frp/vec.h"
 
-namespace gfrp {
+namespace frp {
 
 namespace fft {
 
@@ -446,6 +446,6 @@ public:
     IDCTBlock(int n, bool oop=false, int flags=FFTW_PATIENT): RFFTBlock<FloatType>(n, FFTW_REDFT01, oop, flags) {}
 };
 
-} // namespace gfrp
+} // namespace frp
 
 #endif // #ifndef _GFRP_STACKSTRUCT_H__

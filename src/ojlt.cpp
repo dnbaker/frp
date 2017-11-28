@@ -1,8 +1,8 @@
-#include "gfrp/gfrp.h"
+#include "frp/frp.h"
 #include <fstream>
 #include <getopt.h>
 #include <ctime>
-using namespace gfrp;
+using namespace frp;
 
 int main(int argc, char *argv[]) {
     std::ios_base::sync_with_stdio(false);

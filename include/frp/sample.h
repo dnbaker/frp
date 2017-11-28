@@ -1,9 +1,9 @@
 #ifndef _GFRP_SAMPLE_H__
 #define _GFRP_SAMPLE_H__
 #include <unordered_set>
-#include "gfrp/util.h"
+#include "frp/util.h"
 
-namespace gfrp {
+namespace frp {
 //TODO: make precomputed subsample indices for JL transforms and other squashings.
 enum SubsampleStrategy {
     FIRST_M = 0,
@@ -131,6 +131,6 @@ public:
     // TODO: Add the cached subsampler.
 };
 
-} // namespace gfrp
+} // namespace frp
 
 #endif // _GFRP_SAMPLE_H__

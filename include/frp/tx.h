@@ -1,11 +1,11 @@
 #ifndef _GFRP_TX_H__
 #define _GFRP_TX_H__
 #include "blaze/Math.h"
-#include "gfrp/rand.h"
+#include "frp/rand.h"
 
 // Performs transformations on matrices and vectors.
 
-namespace gfrp {
+namespace frp {
 
 template<class Container>
 void fill_shuffled(uint64_t seed, Container &con) {
@@ -26,6 +26,6 @@ Container make_shuffled(uint64_t seed, Args &&...args) {
     return con;
 }
 
-} //namespace gfrp::tx
+} //namespace frp::tx
 
 #endif  // _GFRP_TX_H__

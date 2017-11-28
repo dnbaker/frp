@@ -1,8 +1,8 @@
 #ifndef _GFRP_FSM_H__
 #define _GFRP_FSM_H__
-#include "gfrp/util.h"
+#include "frp/util.h"
 
-namespace gfrp {namespace fsm { // Fast structured multiplication
+namespace frp {namespace fsm { // Fast structured multiplication
 
 template<size_t POW> constexpr uint64_t POWER_2 = 1ull << POW;
 static const uint64_t POW2_LUT [] {
@@ -61,6 +61,6 @@ template<typename T>
 constexpr bool has_vneg(const T& vec) {for(const auto &el: vec){ if(el < 0) return true;} return false;}
 
 
-}} // namespace gfrp::fsm
+}} // namespace frp::fsm
 
 #endif // #ifndef _GFRP_FSM_H__

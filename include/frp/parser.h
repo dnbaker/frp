@@ -1,9 +1,9 @@
 #ifndef _GFRP_PARSER_H__
 #define _GFRP_PARSER_H__
 #include <zlib.h>
-#include "gfrp/util.h"
+#include "frp/util.h"
 
-namespace gfrp {
+namespace frp {
 
 
 namespace io {
@@ -194,6 +194,6 @@ public:
     const char *data() const {return data_;}
 };
 
-} // namespace gfrp
+} // namespace frp
 
 #endif

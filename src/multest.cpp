@@ -1,11 +1,11 @@
-#include "gfrp/gfrp.h"
+#include "frp/frp.h"
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
 #include <chrono>
 
 using namespace std::chrono;
-using namespace gfrp;
+using namespace frp;
 using namespace blaze;
 
 template<typename T>

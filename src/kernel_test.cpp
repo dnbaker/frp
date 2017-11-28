@@ -4,12 +4,12 @@
 #include <chrono>
 #include <cassert>
 #include <omp.h>
-#include "gfrp/gfrp.h"
+#include "frp/frp.h"
 
 using namespace std::chrono;
 
-using namespace gfrp;
-using namespace gfrp::linalg;
+using namespace frp;
+using namespace frp::linalg;
 using namespace blaze;
 
 using KernelBase = ff::FastFoodKernelBlock<FLOAT_TYPE>;
@@ -48,13 +48,15 @@ int main(int argc, char *argv[]) {
     KernelType kernel(outsize, insize, sigma, 1337);
     blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
     blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
-    for(size_t i(0); i < nrows; ++i) row(in, i) *= (i + 1) * (i + 1);
     size_t seed(0);
     //omp_set_num_threads(6);
     //#pragma omp parallel for
     for(size_t i(0); i < nrows; ++i) {
         auto inrow(row(in, i));
         unit_gaussian_fill(inrow, seed + i);
+        const FLOAT_TYPE val(std::sqrt(meanvar(row(in, i)).second) * i);
+        auto r(row(in, i));
+        vec::blockadd(r, val);
     }
     blaze::DynamicMatrix<FLOAT_TYPE> indists(nrows, nrows);
     blaze::DynamicMatrix<FLOAT_TYPE> outdists(nrows, nrows);
@@ -62,21 +64,28 @@ int main(int argc, char *argv[]) {
     for(size_t i(0), j; i < nrows; ++i)
         for(indists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
              indists(i, j) = indists(j, i) = gk(row(in, i), row(in, j), sigma);
-    for(size_t i(0); i < nrows; ++i) {
-        auto orow(row(outm, i));
-        kernel.apply(orow, row(in, i));
+    {
+        Timer time(std::string("How long to apply kernel ") + std::to_string(nrows) + " times on dimensions " + std::to_string(insize) + ", " + std::to_string(outsize) + ".");
+        for(size_t i(0); i < nrows; ++i) {
+            auto orow(row(outm, i));
+            kernel.apply(orow, row(in, i));
+        }
     }
     for(size_t i(0), j; i < nrows; ++i)
         for(outdists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
             outdists(i, j) = outdists(j, i) = dot(row(outm, i) - row(outm, j), row(outm, i) - row(outm, j));
-    std::cerr << "Input full kernel distances: " << indists << '\n';
-    std::cerr << "Input approx kernel distances: " << outdists << '\n';
+    //std::cerr << "Input full kernel distances: " << indists << '\n';
+    //std::cerr << "Input approx kernel distances: " << outdists << '\n';
     blaze::DynamicMatrix<FLOAT_TYPE> ratios(nrows, nrows);
     for(size_t i(0); i < nrows; ++i)
             for(size_t j(0); j < nrows; ++j) ratios(i, j) = outdists(i, j) / indists(i, j);
-    std::cerr << "Output ratios: " << ratios << '\n';
+    //std::cerr << "Output ratios: " << ratios << '\n';
     std::cout << "#Ratio, Gaussian Distances, Approx Distances\n";
     for(size_t i(0); i < nrows; ++i)
             for(size_t j(0); j < nrows; ++j)
                 std::cout << ratios(i, j) << ", " << indists(i, j) << ", " << outdists(i, j) << '\n';
+#if 0
+    std::cerr << in << '\n';
+    std::cerr << outm << '\n';
+#endif
 }

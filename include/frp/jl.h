@@ -1,9 +1,9 @@
 #ifndef _JL_H__
 #define _JL_H__
 #include <random>
-#include "gfrp/spinner.h"
+#include "frp/spinner.h"
 
-namespace gfrp {
+namespace frp {
 
 template<typename MatrixType>
 class JLTransform  {
@@ -122,6 +122,6 @@ public:
 using OJLTransform = OrthogonalJLTransform;
 using OJLT = OJLTransform;
 
-} // namespace gfrp
+} // namespace frp
 
 #endif // #ifndef _JL_H__

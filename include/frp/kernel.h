@@ -1,8 +1,8 @@
 #ifndef _GFRP_KERNEL_H__
 #define _GFRP_KERNEL_H__
-#include "gfrp/spinner.h"
+#include "frp/spinner.h"
 
-namespace gfrp {
+namespace frp {
 
 namespace ff {
 
@@ -148,7 +148,9 @@ public:
     {
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
-        std::get<RandomScalingBlock>(tx_.get_tuple()).rescale(1./std::sqrt(std::get<GaussianMatrixType>(tx_.get_tuple()).vec_norm()));
+        auto &rsbref(std::get<RandomScalingBlock>(tx_.get_tuple()));
+        auto &gmref(std::get<GaussianMatrixType>(tx_.get_tuple()));
+        rsbref.rescale(1./std::sqrt(gmref.vec_norm()));
     }
     size_t transform_size() const {return final_output_size_;}
     template<typename InputType, typename OutputType>
@@ -214,12 +216,13 @@ public:
             blocks_[i].apply(sv, in);
             finalizer_.apply(sv);
         }
+        vec::blockmul(out, 1./std::sqrt(static_cast<FloatType>(out.size() >> 1)));
     }
 };
 
 } // namespace ff
 
 
-} // namespace gfrp
+} // namespace frp
 
 #endif // #ifndef _GFRP_KERNEL_H__

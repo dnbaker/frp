@@ -1,7 +1,7 @@
-#include "gfrp/jl.h"
+#include "frp/jl.h"
 #include "pybind11/pybind11.h"
 #include "pybind11/numpy.h"
-using namespace gfrp;
+using namespace frp;
 
 namespace py = pybind11;
 

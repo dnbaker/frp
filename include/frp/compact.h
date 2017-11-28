@@ -1,12 +1,12 @@
 #ifndef _GFRP_CRAD_H__
 #define _GFRP_CRAD_H__
-#include "gfrp/util.h"
-#include "gfrp/linalg.h"
-#include "gfrp/dist.h"
+#include "frp/util.h"
+#include "frp/linalg.h"
+#include "frp/dist.h"
 #include "fastrange/fastrange.h"
 #include <ctime>
 
-namespace gfrp {
+namespace frp {
 
 /*
 // From https://arxiv.org/pdf/1702.08159.pdf
@@ -260,7 +260,7 @@ public:
 };
 
 
-} // namespace gfrp
+} // namespace frp
 
 
 #endif // #ifndef _GFRP_CRAD_H__

@@ -1,10 +1,10 @@
 #ifndef _GFRP_DIST_H__
 #define _GFRP_DIST_H__
 #include <random>
-#include "gfrp/rand.h"
-#include "gfrp/linalg.h"
+#include "frp/rand.h"
+#include "frp/linalg.h"
 
-namespace gfrp {
+namespace frp {
 
 // Fill a matrix with distributions. Contains utilities for filling
 // vectors with C++ std distributions as well as Rademacher.

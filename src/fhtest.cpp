@@ -1,7 +1,7 @@
 #include <random>
-#include "gfrp/gfrp.h"
+#include "frp/frp.h"
 #include "boost/random/normal_distribution.hpp"
-using namespace gfrp;
+using namespace frp;
 
 template<typename T>
 void print_vec(T &vec) {
@@ -31,15 +31,15 @@ int main(int argc, char *argv[]) {
     unormd<float> vals;
     for(auto &el: dps) el = vals(aes);
 #if 0
-    std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
-    gfrp::fht(dps);
-    std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
+    std::cerr << "Sum: " << frp::sum(dps) << '\n';
+    frp::fht(dps);
+    std::cerr << "Sum: " << frp::sum(dps) << '\n';
     blaze::DynamicVector<float> sizes(niter);
     for(auto &el: sizes) {
         fht(&dps[0], log2_64(size));
         dps *= 1./std::sqrt(size);
-        std::cerr << "Sum: " << gfrp::sum(dps) << '\n';
-        el = gfrp::sum(dps);
+        std::cerr << "Sum: " << frp::sum(dps) << '\n';
+        el = frp::sum(dps);
     }
     std::cerr << sizes << '\n';
     std::cerr << "now fft\n";
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     subvector(dps, 0, dps.size() >> 1) = 1.;
     std::cerr << "Before: \n";
     print_vec(dps);
-    gfrp::fht(dps);
+    frp::fht(dps);
     std::cerr << "Before: \n";
     print_vec(dps);
     CirculantMatrix<FLOAT_TYPE> cm(100);

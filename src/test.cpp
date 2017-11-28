@@ -3,13 +3,13 @@
 #include <cstring>
 #include <chrono>
 #include <cassert>
-#include "gfrp/gfrp.h"
+#include "frp/frp.h"
 #include "FFHT/fht.h"
 
 using namespace std::chrono;
 
-using namespace gfrp;
-using namespace gfrp::linalg;
+using namespace frp;
+using namespace frp::linalg;
 using namespace blaze;
 
 template<typename T>

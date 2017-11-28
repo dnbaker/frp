@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <vector>
 #include <chrono>
-#include "gfrp/gfrp.h"
+#include "frp/frp.h"
 
 class Timer {
     using TpType = std::chrono::system_clock::time_point;
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
     }
     blaze::DynamicVector<float> zomgz(1 << 8);
     for(size_t i(0); i < zomgz.size(); zomgz[i] = i, ++i);
-    gfrp::LutShuffler<size_t> os(zomgz.size(), 1);
+    frp::LutShuffler<size_t> os(zomgz.size(), 1);
     os.apply(zomgz);
     std::cerr << zomgz;
 }
