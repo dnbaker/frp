@@ -119,7 +119,7 @@ public:
 };
 
 
-template<typename FloatType>
+template<typename FloatType, typename RademType=CompactRademacher>
 class FastFoodKernelBlock {
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
     using RandomScalingBlock = RandomGammaIncInvScalingBlock<FloatType>;
@@ -129,7 +129,7 @@ class FastFoodKernelBlock {
         SpinBlockTransformer<FastFoodGaussianProductBlock<FloatType>,
                              RandomScalingBlock, HadamardBlock,
                              UnitGaussianScalingBlock<FloatType>, Shuffler, HadamardBlock,
-                             CompactRademacher>;
+                             RademType>;
     SpinTransformer tx_;
 
 public:
@@ -144,7 +144,7 @@ public:
                    GaussianMatrixType(seed * seed, size),
                    Shuffler(size, seed),
                    HadamardBlock(size, renorm),
-                   CompactRademacher(size, (seed ^ (size * size)) + seed)))
+                   RademType(size, (seed ^ (size * size)) + seed)))
     {
         if(final_output_size_ & (final_output_size_ - 1))
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());

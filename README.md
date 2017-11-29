@@ -1,14 +1,21 @@
 # gfrp
 Generic Fast Randomized Projections
+We use [Blaze](https://bitbucket.org/blaze-lib) for fast linear algebra, [Sleef](https://github.com/shibatch/sleef) for fast trigonometric operations,
+[Fast Fast-Hadamard Transform](https://github.com/dnbaker/FFHT) from FALCONN-LIB for the Fast Hadamard Transform, [FFTW3](http://fftw.org/) for the FFT, and [boost](https://github.com/boostorg) for
+special functions and random number generators. Only required boost headers are provided as submodules and no installation of boost is required.
 
-## Third Party
-|Dependency | Reference | Comments |
-|-|-|-|
-|[Blaze](https://bitbucket.org/blaze-lib)|[K. Iglberger, et al.: Expression Templates Revisited: A Performance Analysis of Current Methodologies. SIAM Journal on Scientific Computing, 34(2): C42--C69, 2012](http://epubs.siam.org/sisc/resource/1/sjoce3/v34/i2/pC42_s1)|For optimal performance, this should be linked against BLAS and parallelized, as controlled in blaze/blaze/config/BLAS.h|
-|C++17||DenseSVM is currently only tested on gcc under 5.2 and 6.3|
-|[Fast Fast-Hadamard Transform](https://github.com/dnbaker/FFHT)|Out-of-place fork of FHT by https://falconn-lib.org/||
-
-## TODO
+## Contents
+1. Orthogonal JL transform with linear space and linearithmic runtime
+    1. This is available through the `ojlt` executable, in C++ programs accessing include/frp/jl.h, and using python bindings by `cd py && make`.
+2. Kernel projections
+    1. These are in development and largely do not work. The src/*cpp files are currently all testing grounds.
+3. A type-generic SIMD interface (include/frp/vec.h), which abstracts operations to allow the compiler to use the widest vectors possible as needed, facilitating generically dispatching the fastest implementation possible on a machine.
+4. Utilities
+    1. Templated SIMD-based and unroll AES-CTR, based on the implementation used in Lemire's testingRNG repository.
+    2. PRNVector to provide access to random vectors using only constant memory requires instead of explicitly storing them.
+    3. Utilities for sampling and filling containers from distributions.
+    4. Acquiting cache sizes from the OS.
+    5. Implementation of the Gram-Schmidt algorithm for orthogonalizing matrices.
 
 
 1. Kernels:
@@ -27,11 +34,3 @@ Generic Fast Randomized Projections
     13. Exponential Semigroup
     14. Reciprocal Semingroup
     15. Arc-Cosine
-
-## TODONE
-1. Add Hadamard Fourier Features
-2. Add DCT Fourier Features
-3. Random Rademacher and other probability distribution arrays
-  1. Both precomputed and PRN-generated.
-
-

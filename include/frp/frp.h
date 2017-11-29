@@ -7,7 +7,6 @@
 #include "frp/tx.h"
 #include "frp/dist.h"
 #include "frp/compact.h"
-#include "frp/fsm.h"
 #include "frp/mach.h"
 #include "frp/sample.h"
 #include "frp/spinner.h"
