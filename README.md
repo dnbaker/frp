@@ -17,8 +17,10 @@ special functions and random number generators. Only required boost headers are 
     4. Acquiting cache sizes from the OS.
     5. Implementation of the Gram-Schmidt algorithm for orthogonalizing matrices.
 
+TODO:
 
-1. Kernels:
+0. Finish correcting the FastFood kernel implementation.
+1. Add Kernels:
     1. Gaussian [Default, see Recht and Rahimi]
     2. Laplacian [ibid.]
     3. Cauchy [ibid.]
@@ -34,3 +36,5 @@ special functions and random number generators. Only required boost headers are 
     13. Exponential Semigroup
     14. Reciprocal Semingroup
     15. Arc-Cosine
+2. See if accuracy found in [Generalization Properties of Learning with Random Features](https://arxiv.org/abs/1602.04474)
+   can be extended to the linearithmic runtime/linear space regime.
