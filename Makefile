@@ -34,7 +34,7 @@ BOOST_DIRS=math config random utility assert static_assert \
     range iterator io predef concept_check detail lexical_cast \
     numeric_conversion functional array container move thread smart_ptr
 
-BOOST_INCS=$(patsubst %,-I%/include,$(BOOST_DIRS))
+BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 
 
 # If compiling with c++ < 17 and your compiler does not provide
