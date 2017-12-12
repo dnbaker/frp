@@ -12,8 +12,8 @@
 
 namespace frp { namespace mach {
 
-void print_toks(std::vector<ks::KString> &strings) {
-    ks::KString tmp;
+void print_toks(std::vector<ks::string> &strings) {
+    ks::string tmp;
     tmp.sprintf("Num toks: %zu\t", strings.size());
     for(const auto &str: strings) tmp.resize(tmp.size() + str.size());
     for(const auto &str: strings) tmp += str, tmp += ',';
