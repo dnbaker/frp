@@ -43,6 +43,16 @@
 #  endif
 #endif
 
+#ifndef IS_BLAZE
+#define IS_BLAZE(x) (blaze::IsVector<x>::value || blaze::IsMatrix<x>::value)
+#endif
+#ifndef IS_COMPRESSED_BLAZE
+#define IS_COMPRESSED_BLAZE(x) (blaze::IsSparseVector<x>::value || blaze::IsSparseMatrix<x>::value)
+#endif
+#ifndef IS_UNCOMPRESSED_BLAZE
+#define IS_UNCOMPRESSED_BLAZE(x) (IS_BLAZE(x) && !IS_COMPRESSED_BLAZE(x))
+#endif
+
 namespace frp {
 using namespace std::literals;
 using std::uint64_t;

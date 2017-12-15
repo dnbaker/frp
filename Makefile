@@ -100,6 +100,6 @@ sleef/build/include/sleef.h: sleef/build
 	cd $< && cmake .. && make && cd ../..
 
 clean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o gfrp/src/*o && cd FFHT && make clean && cd ..
+	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o frp/src/*o && cd FFHT && make clean && cd ..
 
 mostlyclean: clean

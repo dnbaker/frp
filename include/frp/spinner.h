@@ -60,8 +60,10 @@ struct SDBlock {
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
 struct ScalingBlock {
+protected:
     using VectorType = VectorKind<FloatType, VectorOrientation>;
     VectorType vec_;
+public:
     template<typename...Args>
     ScalingBlock(Args &&...args): vec_(forward<Args>(args)...) {}
     template<typename InVector, typename OutVector>
@@ -151,29 +153,27 @@ public:
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector>
 class RandomGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     using VectorType = VectorKind<FloatType, VectorOrientation>;
-    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
 public:
     template<typename...Args>
     RandomGaussianScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
         //std::fprintf(stderr, "[%s] Size of scaling block: %zu\n", __PRETTY_FUNCTION__, vec_.size());
-        unit_gaussian_fill(vec_, seed);
+        unit_gaussian_fill(ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_, seed);
     }
 };
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, bool high_prec=true>
 class RandomGammaIncInvScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     using VectorType = VectorKind<FloatType, VectorOrientation>;
-    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
 public:
     template<typename...Args>
     RandomGammaIncInvScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
-        uniform_fill(vec_, seed, 0, 1);
-        const FloatType val(vec_.size());
+        uniform_fill(ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_, seed, 0, 1);
+        const FloatType val(this->vec_.size());
         using Space = vec::SIMDTypes<FloatType>;
         using PackedType = typename Space::Type;
-        PackedType el, *ptr((PackedType *)&vec_[0]);
+        PackedType el, *ptr((PackedType *)&this->vec_[0]);
         PackedType two(Space::set1(2.));
         if constexpr(high_prec) {
-            for(size_t i(vec_.size() / Space::COUNT); --i;) {
+            for(size_t i(this->vec_.size() / Space::COUNT); --i;) {
                 el = Space::load((FloatType *)&ptr[i]);
                 for(u32 j(0); j < Space::COUNT; ++j) el[j] = boost::math::gamma_p_inv(val, el[j]);
                 el = Space::mul(el, two);
@@ -181,7 +181,7 @@ public:
                 Space::store((FloatType *)&ptr[i], el);
             }
         } else {
-            for(size_t i(vec_.size() / Space::Count); --i;) {
+            for(size_t i(this->vec_.size() / Space::Count); --i;) {
                 --i;
                 el = Space::load((FloatType *)&ptr[i - 1]);
                 for(u32 j(0); j < Space::COUNT; ++j) el[j] = boost::math::gamma_p_inv(val, el[j]);
@@ -203,9 +203,7 @@ public:
         aes::AesCtr<uint64_t> gen(seed);
         boost::random::chi_squared_distribution<FloatType> dist(vec_.size());
         for(auto &el: vec_) el = dist(gen);
-        //vec_ = sqrt(vec_);
     }
-    //using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
@@ -219,19 +217,16 @@ public:
             ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
         gaussian_fill(vec_, seed, mean, var);
     }
-    //using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
 };
 
 template<typename FloatType, bool VectorOrientation=blaze::columnVector, template<typename, bool> typename VectorKind=blaze::DynamicVector, typename RNG=aes::AesCtr<uint64_t>>
 class UnitGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation, VectorKind> {
     // This might need a rescaling.
     using VectorType = VectorKind<FloatType, VectorOrientation>;
-    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_;
 public:
-    using ScalingBlock<FloatType, VectorOrientation, VectorKind>::vec_norm;
     template<typename...Args>
     UnitGaussianScalingBlock(uint64_t seed=0, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
-        unit_gaussian_fill(vec_, seed);
+        unit_gaussian_fill(this->vec_, seed);
     }
 };
 
