@@ -21,7 +21,7 @@ OPT:=$(OPT) $(FLAGS)
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
-LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f -lstdc++fs -lsleef
+LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f -lstdc++fs -lsleef -llapack
 LD=-L. -Lfftw-3.3.7/lib -Lsleef/build/lib
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
