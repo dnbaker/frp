@@ -23,19 +23,11 @@ enum GramSchmitFlags: unsigned {
 
 template<typename MatrixKind>
 void gram_schmidt(MatrixKind &b, unsigned flags=ORTHONORMALIZE);
-template<typename MatrixKind>
-void qr_gram_schmidt(MatrixKind &b, unsigned flags=ORTHONORMALIZE);
 template<typename MatrixKind1, typename MatrixKind2>
 void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, unsigned flags=RESCALE_TO_GAUSSIAN) {
     b = a;
     gram_schmidt(b, flags);
 }
-template<typename MatrixKind1, typename MatrixKind2>
-void qr_gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, unsigned flags=RESCALE_TO_GAUSSIAN) {
-    b = a;
-    qr_gram_schmidt(b, flags);
-}
-
 
 template<typename ValueType>
 void mempluseq(ValueType *data, size_t nelem, ValueType val) {
@@ -320,32 +312,22 @@ MatrixType &operator-=(MatrixType &in, ValueType val) {
  it has the distribution of a Gaussian vector.
  */
 
-template<typename MatrixKind>
-void qr_gram_schmidt(MatrixKind &b, unsigned flags) {
-    MatrixKind q(b.rows(), b.columns()); // Copy
-    q = b;
-    if(flags & FLIP) {
-        if(flags & EXECUTE_IN_PARALLEL) {
-            #pragma omp parallel
-            for(size_t i(0); i < b.rows(); ++i) row(b, i) *= 1./norm(row(b, i));
-        } else {
-            for(size_t i(0); i < b.rows(); ++i) row(b, i) *= 1./norm(row(b, i));
-        }
-        if(flags & ORTHONORMALIZE) {
-            for(size_t i(0); i < b.columns(); ++i) column(b, i) *= 1./norm(column(b, i));
-        }
-    } else {
-        if(flags & EXECUTE_IN_PARALLEL) {
-            #pragma omp parallel
-            for(size_t i(0); i < b.columns(); ++i) column(b, i) *= 1./norm(column(b, i));
-        } else {
-            for(size_t i(0); i < b.columns(); ++i) column(b, i) *= 1./norm(column(b, i));
-        }
-        if(flags & ORTHONORMALIZE) {
-            for(size_t i(0); i < b.rows(); ++i) row(b, i) *= 1./norm(row(b, i));
-        }
-    }
-    b = blaze::trans(q) * b;
+template<typename FloatType, bool SO>
+auto &qr_gram_schmidt(const blaze::DynamicMatrix<FloatType, SO> &input,
+                     blaze::UpperMatrix<blaze::DynamicMatrix<FloatType,SO>> &r, unsigned flags=ORTHONORMALIZE) {
+    blaze::DynamicMatrix<FloatType,!SO> Q;
+    qr(input, Q, r);
+    if(flags & ORTHONORMALIZE)
+        for(size_t i(0); i < r.rows(); ++i)
+            row(r, i) *= 1./norm(row(r, i));
+    return r;
+}
+template<typename FloatType, bool SO>
+auto qr_gram_schmidt(const blaze::DynamicMatrix<FloatType, SO> &input,
+                     unsigned flags=ORTHONORMALIZE) {
+    blaze::UpperMatrix<blaze::DynamicMatrix<FloatType,SO>> ret;
+    qr_gram_schmidt(input, ret, flags);
+    return ret;
 }
 
 template<typename MatrixKind>

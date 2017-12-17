@@ -3,12 +3,21 @@
 #define NOSVML
 #include "sleef/include/sleefdft.h"
 #include "sleef.h"
-
 #include "x86intrin.h"
 #include <cmath>
 #include <iterator>
 #include <type_traits>
+#include "blaze/Math.h"
 
+#ifndef IS_BLAZE
+#define IS_BLAZE(x) (blaze::IsVector<x>::value || blaze::IsMatrix<x>::value)
+#endif
+#ifndef IS_COMPRESSED_BLAZE
+#define IS_COMPRESSED_BLAZE(x) (blaze::IsSparseVector<x>::value || blaze::IsSparseMatrix<x>::value)
+#endif
+#ifndef IS_UNCOMPRESSED_BLAZE
+#define IS_UNCOMPRESSED_BLAZE(x) (IS_BLAZE(x) && !IS_COMPRESSED_BLAZE(x))
+#endif
 
 namespace scalar {
     using namespace std;
@@ -18,8 +27,8 @@ namespace scalar {
     Sleef_float2 sincos(float x) {
         return Sleef_float2{sin(x), cos(x)};
     }
-    template<typename T> auto sqrt_u35(T val) {return sin(val);}
-    template<typename T> auto sqrt_u05(T val) {return sin(val);}
+    template<typename T> auto sqrt_u35(T val) {return sqrt(val);}
+    template<typename T> auto sqrt_u05(T val) {return sqrt(val);}
 }
 
 namespace vec {
@@ -295,13 +304,17 @@ void block_apply(FloatType *pos, size_t nelem, const Functor &func=Functor{}) {
 
 template<typename Container, typename Functor>
 void block_apply(Container &con, const Functor &func=Functor{}) {
-    if(&con[1] - &con[0] == 1) {
+    if constexpr(IS_UNCOMPRESSED_BLAZE(Container)) {
         const size_t nelem(con.size());
         block_apply(&(*std::begin(con)), nelem, func);
-    }
-    else {
-        Functor func;
-        for(auto &el: con) el = func.scalar(el);
+    } else {
+        if(&con[1] - &con[0] == 1) {
+        const size_t nelem(con.size());
+        block_apply(&(*std::begin(con)), nelem, func);
+        } else {
+            Functor func;
+            for(auto &el: con) el = func.scalar(el);
+        }
     }
 }
 

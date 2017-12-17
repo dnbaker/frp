@@ -200,9 +200,8 @@ class RandomChiScalingBlock: public ScalingBlock<FloatType, VectorOrientation, V
 public:
     template<typename...Args>
     RandomChiScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
-        aes::AesCtr<uint64_t> gen(seed);
-        boost::random::chi_squared_distribution<FloatType> dist(vec_.size());
-        for(auto &el: vec_) el = dist(gen);
+        chisq_fill(vec_, seed);
+        vec::block_apply<FloatType, vec::SIMDTypes<FloatType>::apply_sqrt_u05>(vec_);
     }
 };
 
