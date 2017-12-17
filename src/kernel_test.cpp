@@ -54,9 +54,9 @@ int main(int argc, char *argv[]) {
     for(size_t i(0); i < nrows; ++i) {
         auto inrow(row(in, i));
         unit_gaussian_fill(inrow, seed + i);
-        const FLOAT_TYPE val(std::sqrt(meanvar(row(in, i)).second) * i);
-        auto r(row(in, i));
-        vec::blockadd(r, val);
+        //const FLOAT_TYPE val(std::sqrt(meanvar(row(in, i)).second) * i);
+        //auto r(row(in, i));
+        //vec::blockadd(r, val);
     }
     blaze::DynamicMatrix<FLOAT_TYPE> indists(nrows, nrows);
     blaze::DynamicMatrix<FLOAT_TYPE> outdists(nrows, nrows);

@@ -74,8 +74,9 @@ public:
 
 template<typename FloatType, typename RademType=CompactRademacher>
 class FastFoodKernelBlock {
+protected:
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
-    using RandomScalingBlock = RandomGammaIncInvScalingBlock<FloatType>;
+    using RandomScalingBlock = RandomChiScalingBlock<FloatType>;
     using SizeType = uint32_t;
     using Shuffler = LutShuffler<SizeType>;
     using SpinTransformer =
@@ -103,16 +104,18 @@ public:
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
         auto &rsbref(std::get<RandomScalingBlock>(tx_.get_tuple()));
         auto &gmref(std::get<GaussianMatrixType>(tx_.get_tuple()));
-        rsbref.rescale(1./std::sqrt(gmref.vec_norm()));
+        rsbref.rescale(float_type(size)/gmref.vec_norm());
     }
     size_t transform_size() const {return final_output_size_;}
+#if 0
+    auto       &rsbref()       {return std::get<RandomScalingBlock>(tx_.get_tuple());}
+    const auto &rsbref() const {return std::get<RandomScalingBlock>(tx_.get_tuple());}
+#endif
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
-#if 0
         if(out.size() != final_output_size_) {
             fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
         }
-#endif
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
 
@@ -147,6 +150,7 @@ public:
             blocks_.emplace_back(input_ru, sigma, gen());
         }
     }
+
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
         size_t in_rounded(roundup(in.size()));

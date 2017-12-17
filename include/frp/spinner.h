@@ -88,7 +88,7 @@ public:
         pv(out); std::cerr << '\n';
 #endif
     }
-    FloatType vec_norm() const {return std::sqrt(normsq(vec_));}
+    FloatType vec_norm() const {return ::frp::norm(vec_);}
     size_t size() const {return vec_.size();}
     void rescale(FloatType val) {
         vec_ *= val;
@@ -200,8 +200,9 @@ class RandomChiScalingBlock: public ScalingBlock<FloatType, VectorOrientation, V
 public:
     template<typename...Args>
     RandomChiScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
+        using SqrtStruct = typename vec::SIMDTypes<FloatType>::apply_sqrt_u05;
         chisq_fill(vec_, seed);
-        vec::block_apply<FloatType, vec::SIMDTypes<FloatType>::apply_sqrt_u05>(vec_);
+        vec::block_apply(vec_, SqrtStruct());
     }
 };
 
