@@ -84,6 +84,7 @@ int main(int argc, char *argv[]) {
     for(size_t i(0); i < nrows; ++i)
             for(size_t j(0); j < nrows; ++j)
                 std::cout << ratios(i, j) << ", " << indists(i, j) << ", " << outdists(i, j) << '\n';
+    std::cerr << "Successfully completed " << *argv << '\n';
 #if 0
     std::cerr << in << '\n';
     std::cerr << outm << '\n';

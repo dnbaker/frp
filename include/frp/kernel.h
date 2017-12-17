@@ -104,7 +104,7 @@ public:
             throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
         auto &rsbref(std::get<RandomScalingBlock>(tx_.get_tuple()));
         auto &gmref(std::get<GaussianMatrixType>(tx_.get_tuple()));
-        rsbref.rescale(float_type(size)/gmref.vec_norm());
+        rsbref.rescale(float_type(size)/std::sqrt(gmref.vec_norm()));
     }
     size_t transform_size() const {return final_output_size_;}
 #if 0
@@ -130,14 +130,20 @@ template<typename KernelBlock,
 class Kernel {
     std::vector<KernelBlock> blocks_;
     Finalizer             finalizer_;
-
 public:
     using FloatType = typename KernelBlock::float_type;
+#ifndef NO_SIGMA_RESCALE
+    const FloatType sigma_;
+#endif
+
     template<typename... Args>
     Kernel(size_t stacked_size, size_t input_size,
            FloatType sigma, uint64_t seed,
            Args &&... args):
         finalizer_(std::forward<Args>(args)...)
+#ifndef NO_SIGMA_RESCALE
+        ,sigma_(sigma)
+#endif
     {
         size_t input_ru = roundup(input_size);
         stacked_size = std::max(stacked_size, input_ru);
@@ -174,6 +180,9 @@ public:
             finalizer_.apply(sv);
         }
         vec::blockmul(out, 1./std::sqrt(static_cast<FloatType>(out.size() >> 1)));
+#ifndef NO_SIGMA_RESCALE
+        vec::blockmul(out, sigma_ / std::sqrt(std::sqrt(in.size())));
+#endif
     }
 };
 
