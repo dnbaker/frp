@@ -139,6 +139,7 @@ protected:
     SORFProductBlock<FloatType>                        sorf_;
     std::vector<std::pair<HadamardBlock, RademType>> blocks_;
 public:
+    using float_type = FloatType;
     KernelBlock(size_t size, uint64_t seed=-1,
                 FloatType sigma=1., size_t nblocks=3):
                     final_output_size_(size), sorf_(sigma) {
@@ -146,6 +147,40 @@ public:
         while(blocks_.size() < nblocks)
             blocks_.emplace_back(std::make_pair(HadamardBlock(),
                                  RademType(size, seed++)));
+    }
+    size_t transform_size() const {return final_output_size_;}
+    template<typename InputType, typename OutputType>
+    void apply(OutputType &out, const InputType &in) {
+        if(out.size() != final_output_size_) {
+            fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+        }
+        if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
+        blaze::reset(out);
+
+        subvector(out, 0, in.size()) = in;
+        auto half_vector(subvector(out, 0, transform_size()));
+        std::fprintf(stderr, "Applying sorf::KernelBlock\n");
+        for(auto &pair: blocks_) {
+            pair.second.apply(half_vector);
+            pair.first.apply(half_vector);
+        }
+        sorf_.apply(half_vector);
+    }
+};
+
+template<typename FloatType, typename RademType=CompactRademacher>
+class ChiKernelBlock: public KernelBlock<FloatType, RademType> {
+    RandomChiScalingBlock<FloatType> rcsb_;
+public:
+    ChiKernelBlock(size_t size, uint64_t seed=-1,
+                   FloatType sigma=1., size_t nblocks=3): KernelBlock<FloatType, RademType>(size, seed, sigma, nblocks), rcsb_(seed * seed + seed - 1, size)
+    {
+
+    }
+    template<typename InputType, typename OutputType>
+    void apply(OutputType &out, const InputType &in) {
+        KernelBlock<FloatType, RademType>::apply(out, in);
+        rcsb_.apply(out);
     }
 };
 

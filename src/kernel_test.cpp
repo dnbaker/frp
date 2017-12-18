@@ -12,7 +12,7 @@ using namespace frp;
 using namespace frp::linalg;
 using namespace blaze;
 
-using KernelBase = kernel::ff::KernelBlock<FLOAT_TYPE>;
+using KernelBase = kernel::sorf::ChiKernelBlock<FLOAT_TYPE>;
 using KernelType = kernel::Kernel<KernelBase, kernel::GaussianFinalizer>;
 
 struct GaussianKernel {
