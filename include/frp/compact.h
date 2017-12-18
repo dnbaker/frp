@@ -259,7 +259,6 @@ public:
     void resize(size_t newsize) {size_ = newsize;}
 };
 
-
 } // namespace frp
 
 

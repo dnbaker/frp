@@ -45,7 +45,7 @@ def submit_work(tup):
 
 def main():
     import multiprocessing
-    SIGS = [1, 10, 100, 10000, 25000, 100000, 1000000]
+    SIGS = [1, 10, 100, 10000]
     SIZE = 1 << 16
     ratsigf = open("ratsig.%s.txt" % (SIZE), "w")
     ratsigf.write("#Ratio\tSigma\tN\n")

@@ -144,8 +144,29 @@ public:
     }
     template<typename Vector>
     void apply(Vector &out) const {
-        const auto tmp(1. /(sigma_ * std::sqrt(out.size())));
-        out *= tmp;
+        out *= 1. / (sigma_ * std::sqrt(out.size()));
+    }
+    size_t size() const {return -1;}
+};
+
+template<typename FloatType, typename=enable_if_t<is_floating_point<FloatType>::value>>
+class SORFProductBlock {
+    const FloatType sigma_;
+public:
+    SORFProductBlock(FloatType sigma): sigma_(sigma) {}
+    template<typename InVector, typename OutVector>
+    void apply(const InVector &in, OutVector &out) const {
+        if(in.size() == out.size()) {
+            out = in;
+            apply<OutVector>(out);
+        } else {
+            throw runtime_error("Not Implemented");
+        }
+    }
+    template<typename Vector>
+    void apply(Vector &out) const {
+        //static_assert(std::is_same<std::decay_t<decltype(*std::begin(out))>, FloatType>::value, "Output vector must have the same type as the block type.");
+        out *= (std::sqrt(FloatType(out.size())) / sigma_);
     }
     size_t size() const {return -1;}
 };

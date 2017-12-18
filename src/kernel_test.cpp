@@ -12,8 +12,8 @@ using namespace frp;
 using namespace frp::linalg;
 using namespace blaze;
 
-using KernelBase = ff::FastFoodKernelBlock<FLOAT_TYPE>;
-using KernelType = ff::Kernel<KernelBase, ff::GaussianFinalizer>;
+using KernelBase = kernel::ff::KernelBlock<FLOAT_TYPE>;
+using KernelType = kernel::Kernel<KernelBase, kernel::GaussianFinalizer>;
 
 struct GaussianKernel {
     template<typename V1, typename V2>
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     if(argc > optind) goto usage;
     outsize = roundup(outsize);
     std::fprintf(stderr, "nrows: %zu. insize: %zu. outsize: %zu. sigma: %le\n", nrows, insize, outsize, sigma);
-    KernelType kernel(outsize, insize, sigma, 1337);
+    KernelType kernel(outsize, insize, 1337, sigma);
     blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
     blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
     size_t seed(0);

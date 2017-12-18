@@ -4,7 +4,8 @@
 
 namespace frp {
 
-namespace ff {
+namespace kernel {
+
 
 struct GaussianFinalizer {
 private:
@@ -72,8 +73,10 @@ public:
 };
 
 
+namespace ff {
+
 template<typename FloatType, typename RademType=CompactRademacher>
-class FastFoodKernelBlock {
+class KernelBlock {
 protected:
     size_t final_output_size_; // This is twice the size passed to the Hadamard transforms
     using RandomScalingBlock = RandomChiScalingBlock<FloatType>;
@@ -89,7 +92,7 @@ protected:
 public:
     using float_type = FloatType;
     using GaussianMatrixType = UnitGaussianScalingBlock<FloatType>;
-    FastFoodKernelBlock(size_t size, FloatType sigma=1., uint64_t seed=-1, bool renorm=true):
+    KernelBlock(size_t size, uint64_t seed=-1, FloatType sigma=1., bool renorm=true):
         final_output_size_(size),
         tx_(
             std::make_tuple(FastFoodGaussianProductBlock<FloatType>(sigma),
@@ -125,6 +128,29 @@ public:
     }
 };
 
+} // namespace ff
+
+namespace sorf {
+
+template<typename FloatType, typename RademType=CompactRademacher>
+class KernelBlock {
+protected:
+    const size_t final_output_size_;
+    SORFProductBlock<FloatType>                        sorf_;
+    std::vector<std::pair<HadamardBlock, RademType>> blocks_;
+public:
+    KernelBlock(size_t size, uint64_t seed=-1,
+                FloatType sigma=1., size_t nblocks=3):
+                    final_output_size_(size), sorf_(sigma) {
+        if(size == 0) throw std::runtime_error("Need more than 0 blocks for sorf::KernelBlock. (Recommended: 3.)");
+        while(blocks_.size() < nblocks)
+            blocks_.emplace_back(std::make_pair(HadamardBlock(),
+                                 RademType(size, seed++)));
+    }
+};
+
+} // namespace sorf
+
 template<typename KernelBlock,
          typename Finalizer=GaussianFinalizer>
 class Kernel {
@@ -132,17 +158,16 @@ class Kernel {
     Finalizer             finalizer_;
 public:
     using FloatType = typename KernelBlock::float_type;
-#ifndef NO_SIGMA_RESCALE
+#ifdef SIGMA_RESCALE
     const FloatType sigma_;
 #endif
 
     template<typename... Args>
     Kernel(size_t stacked_size, size_t input_size,
-           FloatType sigma, uint64_t seed,
-           Args &&... args):
-        finalizer_(std::forward<Args>(args)...)
-#ifndef NO_SIGMA_RESCALE
-        ,sigma_(sigma)
+           uint64_t seed,
+           Args &&... args)
+#ifdef SIGMA_RESCALE
+        : sigma_(sigma)
 #endif
     {
         size_t input_ru = roundup(input_size);
@@ -153,7 +178,7 @@ public:
         size_t nblocks = (stacked_size) / input_ru;
         aes::AesCtr gen(seed);
         while(blocks_.size() < nblocks) {
-            blocks_.emplace_back(input_ru, sigma, gen());
+            blocks_.emplace_back(input_ru, gen(), std::forward<Args>(args)...);
         }
     }
 
@@ -180,13 +205,20 @@ public:
             finalizer_.apply(sv);
         }
         vec::blockmul(out, 1./std::sqrt(static_cast<FloatType>(out.size() >> 1)));
-#ifndef NO_SIGMA_RESCALE
+        // TODO: add this multiplication to the finalizer to avoid a second RAM pass-through.
+#ifdef SIGMA_RESCALE
         vec::blockmul(out, sigma_ / std::sqrt(std::sqrt(in.size())));
 #endif
     }
 };
 
-} // namespace ff
+template<typename FloatType, typename RademType>
+using FastFoodKernelBlock = ff::KernelBlock<FloatType, RademType>;
+template<typename FloatType, typename RademType>
+using SORFKernelBlock = sorf::KernelBlock<FloatType, RademType>;
+
+} // namespace kernel
+
 
 
 } // namespace frp
