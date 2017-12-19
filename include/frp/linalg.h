@@ -314,18 +314,19 @@ MatrixType &operator-=(MatrixType &in, ValueType val) {
 
 template<typename FloatType, bool SO>
 auto &qr_gram_schmidt(const blaze::DynamicMatrix<FloatType, SO> &input,
-                     blaze::UpperMatrix<blaze::DynamicMatrix<FloatType,SO>> &r, unsigned flags=ORTHONORMALIZE) {
-    blaze::DynamicMatrix<FloatType,!SO> Q;
-    qr(input, Q, r);
+                      blaze::DynamicMatrix<FloatType,SO> &Q, unsigned flags=0) {
+    blaze::UpperMatrix<blaze::DynamicMatrix<FloatType,SO>> r;
+    ::blaze::qr(input, Q, r);
     if(flags & ORTHONORMALIZE)
-        for(size_t i(0); i < r.rows(); ++i)
-            row(r, i) *= 1./norm(row(r, i));
-    return r;
+        for(size_t i(0); i < Q.rows(); ++i)
+            row(Q, i) *= 1./norm(row(Q, i));
+    return Q;
 }
+
 template<typename FloatType, bool SO>
 auto qr_gram_schmidt(const blaze::DynamicMatrix<FloatType, SO> &input,
-                     unsigned flags=ORTHONORMALIZE) {
-    blaze::UpperMatrix<blaze::DynamicMatrix<FloatType,SO>> ret;
+                     unsigned flags=0) {
+    blaze::DynamicMatrix<FloatType,SO> ret;
     qr_gram_schmidt(input, ret, flags);
     return ret;
 }

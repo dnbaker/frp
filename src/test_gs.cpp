@@ -6,8 +6,7 @@ using namespace frp::linalg;
 
 int main(int argc, char *argv[]) {
     unsigned size(argc > 1 ? std::atoi(argv[1]): 10), nrows(size), ncols(size), flags(ORTHONORMALIZE);
-    blaze::DynamicMatrix<FLOAT_TYPE> input(nrows, ncols), ret1;
-    blaze::UpperMatrix<blaze::DynamicMatrix<FLOAT_TYPE>> ret2;
+    blaze::DynamicMatrix<FLOAT_TYPE> input(nrows, ncols), ret1, ret2;
     for(size_t i(0); i < input.rows(); ++i) {
         auto r(row(input, i));
         gaussian_fill(r, 1337 * i);

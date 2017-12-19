@@ -12,7 +12,7 @@ def print_results(path, sigma, n, ofp):
     data = load_data(path)
     print("loaded data")
     mean_fac = np.mean(data[:,1] / data[:,2])
-    ofp.write("%f\t%f\t%i\n" % (mean_fac, sigma, n))
+    ofp.write("%f\t%f\t%f\t%i\n" % (mean_fac, sigma, np.corrcoef(data[:,1], data[:,2])[0,1], n))
     print("mf: %f. %f, %f\n" % (mean_fac,  np.mean(data[:,1]), np.mean(data[:,2])))
     ratios = data[:,0]
     print("ratmean %f, ratstd %f" % (np.mean(ratios), np.std(ratios)))
@@ -48,7 +48,7 @@ def main():
     SIGS = [1, 10, 100, 10000]
     SIZE = 1 << 16
     ratsigf = open("ratsig.%s.txt" % (SIZE), "w")
-    ratsigf.write("#Ratio\tSigma\tN\n")
+    ratsigf.write("#Ratio\tSigma\tCorrcoef\tN\n")
     spool = multiprocessing.Pool(8)
     fns = spool.map(submit_work,
                     [[sig, SIZE, "output.%s.txt" % (sig)] for sig in SIGS])
