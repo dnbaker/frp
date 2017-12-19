@@ -64,7 +64,7 @@ public:
     template<typename Container>
     void apply(Container &c) {
         aes::AesCtr<uint64_t> gen(seed_); // Intentional shadow.
-        uint64_t val;
+        uint64_t val(gen());
         using ArithType = std::decay_t<decltype(c[0])>;
         const ArithType lut[2] = {static_cast<ArithType>(1), static_cast<ArithType>(-1)};
         for(size_t i(0), e(c.size()); i < e; ++i) {

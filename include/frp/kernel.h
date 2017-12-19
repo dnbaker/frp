@@ -132,7 +132,7 @@ public:
 
 namespace sorf {
 
-template<typename FloatType, typename RademType=CompactRademacher>
+template<typename FloatType, typename RademType=PRNRademacher>
 class KernelBlock {
 protected:
     const size_t final_output_size_;
@@ -152,8 +152,9 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) {
         if(out.size() != final_output_size_) {
-            fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
-            out.resize(final_output_size_);
+            char buf[128];
+            std::sprintf(buf, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            throw std::runtime_error(buf);
         }
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
