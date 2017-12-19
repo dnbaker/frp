@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     while((c = getopt(argc, argv, "n:i:S:e:M:s:p:b:l:o:5Brh?")) >= 0) {
         switch(c) {
             case 'i': insize = std::strtoull(optarg, 0, 10); break;
-            case 's': sigma = std::atof(optarg); std::fprintf(stderr, "sigma is %lf\n", sigma); break;
+            case 's': sigma = std::atof(optarg); break;
             case 'S': outsize = std::strtoull(optarg, 0, 10); break;
             case 'n': nrows = std::strtoull(optarg, 0, 10); break;
             case 'h': case '?': usage: return usage(*argv);
@@ -60,7 +60,6 @@ int main(int argc, char *argv[]) {
     }
     if(argc > optind) goto usage;
     outsize = roundup(outsize);
-    std::fprintf(stderr, "nrows: %zu. insize: %zu. outsize: %zu. sigma: %le\n", nrows, insize, outsize, sigma);
     KernelType kernel(outsize, insize, 1337, sigma);
     SORFKernelType sorfkernel(outsize, insize, 1337 * 3, sigma);
     ORFKernelType orfkernel(outsize, insize, 1337 * 2, sigma);
@@ -106,7 +105,7 @@ int main(int argc, char *argv[]) {
             for(size_t j(0); j < nrows; ++j)
                 std::cout << ratios(i, j) << ", " << indists(i, j) << ", " << outdists(i, j) << ", "
                           << outdistsorf(i, j) << ", " << outdistssorf(i, j) << '\n';
-    std::cerr << "Successfully completed " << *argv << '\n';
+    // std::cerr << "Successfully completed " << *argv << '\n';
 #if 0
     std::cerr << in << '\n';
     std::cerr << outm << '\n';

@@ -34,7 +34,6 @@ def print_results(path, sigma, n, ofp):
 def submit_work(tup):
     sig, SIZE, fn = tup[:]
     s  = "kernel_test -i256 -s %f -S %i  > %s" % (sig, SIZE, fn)
-    print("Calling %s!" % s)
     check_call(s, shell=True)
     return fn
 
@@ -55,19 +54,21 @@ def print_ratios_and_corrs(path, sig):
     correlations = np.array([np.corrcoef(data[:,1], data[:,i])[0,1] for i in range(1, 5)])
     ratios = np.array([np.mean(d[:,i] / d[:,1]) for i in range(1,5)])
     stds = np.array([np.std(d[:,i] / d[:,1]) for i in range(1,5)])
+    names = ["exact", "rff", "orff", "sorff"]
     for ind, (c, r, s) in enumerate(zip(correlations, ratios, stds)):
-        print("Column %i has %f correlation, %f ratio, and %f std for the ratios at sigma = %f. means: (Correct: %f, est %f)" % (ind + 1, c, r, s, sig, np.mean(d[:,1]), np.mean(d[:ind+1])))
-    
+        print("\t".join([names[ind], str(c), str(r), str(s), str(np.mean(d[:ind+1])), str(sig)]))
+
 
 def main():
+    SIGS = [i / 10. for i in range(5, 50)]
+    print("Name\tCorrelation\tRatio\tRatio std\tMean\tSigma")
+    # SIGS = [0.01, 0.05, 0.1, 1, 10, 100, 10000]
     if sys.argv[1:]:
-        SIGS = [0.01, 0.05, 0.1, 1, 10, 100, 10000]
         fns = ["output.%s.txt" % (sig) for sig in SIGS]
         for fn, sig in zip(fns, SIGS):
             print_ratios_and_corrs(fn, sig)
         return
     import multiprocessing
-    SIGS = [0.01, 0.05, 0.1, 1, 10, 100, 10000]
     SIZE = 1 << 16
     spool = multiprocessing.Pool(8)
     fns = spool.map(submit_work,
@@ -77,7 +78,7 @@ def main():
     
 def old_main():
     import multiprocessing
-    SIGS = [0.01, 0.05, 0.1, 1, 10, 100, 10000]
+    SIGS = [i / 10. for i in range(16)]
     SIZE = 1 << 16
     ratsigf = open("ratsig.%s.txt" % (SIZE), "w")
     ratsigf.write("#KernelMean\tApproxMean\tRatio\tSigma\tCorrcoef\tN\n")
