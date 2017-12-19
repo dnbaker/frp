@@ -115,7 +115,7 @@ public:
     const auto &rsbref() const {return std::get<RandomScalingBlock>(tx_.get_tuple());}
 #endif
     template<typename InputType, typename OutputType>
-    void apply(OutputType &out, const InputType &in) {
+    void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
             fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
         }
@@ -150,7 +150,7 @@ public:
     }
     size_t transform_size() const {return final_output_size_;}
     template<typename InputType, typename OutputType>
-    void apply(OutputType &out, const InputType &in) {
+    void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
             char buf[128];
             std::sprintf(buf, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
@@ -159,7 +159,7 @@ public:
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
         blaze::reset(out);
         subvector(out, 0, in.size()) = in;
-        std::fprintf(stderr, "Applying sorf::KernelBlock\n");
+        //std::fprintf(stderr, "Applying sorf::KernelBlock\n");
         for(auto &pair: blocks_) pair.second.apply(out), pair.first.apply(out);
         sorf_.apply(out);
     }
@@ -175,7 +175,7 @@ public:
 
     }
     template<typename InputType, typename OutputType>
-    void apply(OutputType &out, const InputType &in) {
+    void apply(OutputType &out, const InputType &in) const {
         KernelBlock<FloatType, RademType>::apply(out, in);
         rcsb_.apply(out);
     }
@@ -189,10 +189,7 @@ namespace detail {
 template<typename FloatType>
 auto make_q(size_t size, FloatType sigma, uint64_t seed=0) {
     blaze::DynamicMatrix<FloatType> randg(size, size);
-    for(size_t i(0); i < size; ++i) {
-        auto rrow(row(randg, i));
-        unit_gaussian_fill(rrow, seed++);
-    }
+    unit_gaussian_fill(randg, seed);
     auto ret(linalg::qr_gram_schmidt(randg, 0));
     blaze::DynamicVector<FloatType> SV(size);
     chisq_fill(SV, seed++);
@@ -203,7 +200,7 @@ auto make_q(size_t size, FloatType sigma, uint64_t seed=0) {
     ret *= 1./sigma;
     return ret;
 }
-}
+} // namespace detail
 
 template<typename FloatType, typename RademType=CompactRademacher>
 class KernelBlock {
@@ -217,11 +214,13 @@ public:
         final_output_size_(size), matrix_(detail::make_q(size, sigma, seed)) {}
     size_t transform_size() const {return final_output_size_;}
     template<typename InputType, typename OutputType>
-    void apply(OutputType &out, const InputType &in) {
+    void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            char buf[128];
+            std::sprintf(buf, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            throw std::runtime_error(buf);
         }
-        std::fprintf(stderr, "Applying orf::KernelBlock\n");
+        // std::fprintf(stderr, "Applying orf::KernelBlock\n");
         if constexpr(blaze::TransposeFlag<InputType>::value) {
             out = trans(matrix_ * trans(in));
         } else {
@@ -231,6 +230,46 @@ public:
 };
 
 } // namespace orf
+namespace rf {
+
+template<typename FloatType, typename RademType=CompactRademacher>
+class KernelBlock {
+protected:
+    const size_t         final_output_size_;
+    blaze::DynamicMatrix<FloatType> matrix_;
+public:
+    using float_type = FloatType;
+    KernelBlock(size_t size, uint64_t seed=-1,
+                FloatType sigma=1.):
+        final_output_size_(size), matrix_(size, size) {
+#if 0
+        for(size_t i(0); i < matrix_.rows(); ++i) {
+            auto mrow(row(matrix_, i));
+            unit_gaussian_fill(mrow, seed++);
+        }
+#else
+        unit_gaussian_fill(matrix_, seed);
+#endif
+        matrix_ *= 1./sigma;
+    }
+    size_t transform_size() const {return final_output_size_;}
+    template<typename InputType, typename OutputType>
+    void apply(OutputType &out, const InputType &in) const {
+        if(out.size() != final_output_size_) {
+            char buf[128];
+            std::sprintf(buf, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            throw std::runtime_error(buf);
+        }
+        // std::fprintf(stderr, "Applying rf::KernelBlock\n");
+        if constexpr(blaze::TransposeFlag<InputType>::value) {
+            out = trans(matrix_ * trans(in));
+        } else {
+            out = matrix_ * in;
+        }
+    }
+};
+
+} // namespace rf
 
 template<typename KernelBlock,
          typename Finalizer=GaussianFinalizer>
@@ -264,7 +303,7 @@ public:
     }
 
     template<typename InputType, typename OutputType>
-    void apply(OutputType &out, const InputType &in) {
+    void apply(OutputType &out, const InputType &in) const {
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
             if constexpr(blaze::IsView<OutputType>::value) {

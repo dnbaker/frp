@@ -56,13 +56,13 @@ class PRNRademacher {
     uint64_t seed_;
 public:
     PRNRademacher(size_t n=0, uint64_t seed=0): n_(n), seed_(seed) {
-        std::fprintf(stderr, "[D:%s] n: %zu. seed: %zu\n", __PRETTY_FUNCTION__, n_, size_t(seed_));
+        //std::fprintf(stderr, "[D:%s] n: %zu. seed: %zu\n", __PRETTY_FUNCTION__, n_, size_t(seed_));
     }
     auto size() const {return n_;}
     void resize(size_t newsize) {n_ = newsize;}
 
     template<typename Container>
-    void apply(Container &c) {
+    void apply(Container &c) const {
         aes::AesCtr<uint64_t> gen(seed_); // Intentional shadow.
         uint64_t val(gen());
         using ArithType = std::decay_t<decltype(c[0])>;
