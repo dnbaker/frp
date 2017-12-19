@@ -38,18 +38,19 @@ int usage(char *arg) {
 }
 
 template<typename Mat1, typename Mat2, typename KernelType>
-void time_stuff(Mat1 &outm, const Mat2 &in, const char *taskname, const KernelType &kernel) {
+double time_stuff(Mat1 &outm, const Mat2 &in, const char *taskname, const KernelType &kernel) {
     const size_t nrows(in.rows()), insize(in.columns()), outsize(outm.columns());
     Timer time(std::string("How long to apply kernel ") + taskname + " times on dimensions " + std::to_string(insize) + ", " + std::to_string(outsize) + ".");
     for(size_t i(0); i < nrows; ++i) {
         auto orow(row(outm, i));
         kernel.apply(orow, row(in, i));
     }
+    return time.time();
 }
 
 int main(int argc, char *argv[]) {
     int c;
-    size_t insize(1 << 6), outsize(1 << 14), nrows(200);
+    size_t insize(1 << 6), outsize(1 << 14), nrows(250);
     double sigma(1.);
     while((c = getopt(argc, argv, "n:i:S:e:M:s:p:b:l:o:5Brh?")) >= 0) {
         switch(c) {
@@ -84,36 +85,22 @@ int main(int argc, char *argv[]) {
     blaze::DynamicMatrix<FLOAT_TYPE> outdistsorf(nrows, nrows);
     blaze::DynamicMatrix<FLOAT_TYPE> outdistssorf(nrows, nrows);
     blaze::DynamicMatrix<FLOAT_TYPE> outdistsff(nrows, nrows);
+#if 0
     GaussianKernel gk;
     for(size_t i(0), j; i < nrows; ++i)
         for(indists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
              indists(i, j) = indists(j, i) = gk(row(in, i), row(in, j), sigma);
-    {
-        time_stuff(outm, in, "rf", kernel);
-        time_stuff(outmorf, in, "orf", orfkernel);
-        time_stuff(outmsorf, in, "sorf", sorfkernel);
-        time_stuff(outmff, in, "sorf", ffkernel);
-    }
-    for(size_t i(0), j; i < nrows; ++i)
-        for(outdists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
-            outdists(i, j) = outdists(j, i) = dot(row(outm, i), row(outm, j)),
-            outdistsorf(i, j) = outdistsorf(j, i) = dot(row(outmorf, i),  row(outmorf, j)),
-            outdistssorf(i, j) = outdistssorf(j, i) = dot(row(outmsorf, i),  row(outmsorf, j)),
-            outdistsff(i, j) = outdistsff(j, i) = dot(row(outmff, i),  row(outmff, j));
-    //std::cerr << "Input full kernel distances: " << indists << '\n';
-    //std::cerr << "Input approx kernel distances: " << outdists << '\n';
-    blaze::DynamicMatrix<FLOAT_TYPE> ratios(nrows, nrows);
-    for(size_t i(0); i < nrows; ++i)
-            for(size_t j(0); j < nrows; ++j) ratios(i, j) = outdists(i, j) / indists(i, j);
-    //std::cerr << "Output ratios: " << ratios << '\n';
-    std::cout << "#Ratio, Gaussian Distances, RF Approx, ORF Approx, SORF Approx\n";
-    for(size_t i(0); i < nrows; ++i)
-            for(size_t j(0); j < nrows; ++j)
-                std::cout << ratios(i, j) << ", " << indists(i, j) << ", " << outdists(i, j) << ", "
-                          << outdistsorf(i, j) << ", " << outdistssorf(i, j) << ", "<< outdistsff(i, j) << '\n';
-    // std::cerr << "Successfully completed " << *argv << '\n';
-#if 0
-    std::cerr << in << '\n';
-    std::cerr << outm << '\n';
 #endif
+    double times[4];
+    {
+        times[0] = time_stuff(outm, in, "rf", kernel);
+        times[1] = time_stuff(outmorf, in, "orf", orfkernel);
+        times[2] = time_stuff(outmsorf, in, "sorf", sorfkernel);
+        times[3] = time_stuff(outmff, in, "ff", ffkernel);
+    }
+    std::vector<std::string> names {"rf", "orf", "sorf", "ff"};
+    for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%s\t", names[i].data());
+    std::fputc('\n', stdout);
+    for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%lfs\t", times[i]);
+    std::fputc('\n', stdout);
 }

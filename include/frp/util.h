@@ -114,6 +114,7 @@ public:
     void stop() {stop_ = std::chrono::system_clock::now();}
     void restart() {start_ = std::chrono::system_clock::now();}
     void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
+    double time() const {return std::chrono::duration<double>(std::chrono::system_clock::now() - start_).count();}
     ~Timer() {stop(); /* hammertime */ report();}
     void rename(const char *name) {name_ = name;}
 };

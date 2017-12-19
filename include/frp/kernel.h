@@ -205,7 +205,7 @@ template<typename FloatType>
 auto make_q(size_t size, FloatType sigma, uint64_t seed=0) {
     blaze::DynamicMatrix<FloatType> randg(size, size);
     unit_gaussian_fill(randg, seed);
-    auto ret(linalg::qr_gram_schmidt(randg, 0));
+    auto ret(linalg::qr_gram_schmidt(randg, linalg::ORTHONORMALIZE));
     blaze::DynamicVector<FloatType> SV(size);
     chisq_fill(SV, seed++);
     SV = sqrt(SV);
@@ -339,7 +339,7 @@ public:
             blocks_[i].apply(sv, in);
             finalizer_.apply(sv);
         }
-        vec::blockmul(out, 1./std::sqrt(static_cast<FloatType>(out.size() >> 1)));
+        vec::blockmul(out, std::sqrt(2.)/std::sqrt(static_cast<FloatType>(out.size() >> 1)));
         // TODO: add this multiplication to the finalizer to avoid a second RAM pass-through.
 #ifdef SIGMA_RESCALE
         vec::blockmul(out, sigma_ / std::sqrt(std::sqrt(in.size())));

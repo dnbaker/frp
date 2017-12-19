@@ -51,17 +51,18 @@ def get_data():
 def print_ratios_and_corrs(path, sig):
     data = load_data(path)
     d = data
-    correlations = np.array([np.corrcoef(data[:,1], data[:,i])[0,1] for i in range(1, 5)])
-    ratios = np.array([np.mean(d[:,i] / d[:,1]) for i in range(1,5)])
-    stds = np.array([np.std(d[:,i] / d[:,1]) for i in range(1,5)])
-    names = ["exact", "rff", "orff", "sorff"]
-    for ind, (c, r, s) in enumerate(zip(correlations, ratios, stds)):
-        print("\t".join([names[ind], str(c), str(r), str(s), str(np.mean(d[:ind+1])), str(sig)]))
+    correlations = np.array([np.corrcoef(data[:,1], data[:,i])[0,1] for i in range(1, 6)])
+    ratios = np.array([np.mean(d[:,i] / d[:,1]) for i in range(1,6)])
+    mratios = np.array([np.mean(d[:,i]) / np.mean(d[:,1]) for i in range(1,6)])
+    stds = np.array([np.std(d[:,i] / d[:,1]) for i in range(1,6)])
+    names = ["exact", "rff", "orff", "sorff", "ff"]
+    for ind, (c, r, m, s) in enumerate(zip(correlations, ratios, mratios, stds)):
+        print("\t".join([names[ind], str(c), str(r), str(s), str(np.mean(d[:,ind+1])), str(m), str(sig)]))
 
 
 def main():
-    SIGS = [i / 10. for i in range(5, 50)]
-    print("Name\tCorrelation\tRatio\tRatio std\tMean\tSigma")
+    SIGS = [i / 10. for i in range(2, 50)]
+    print("Name\tCorrelation\tRatio\tRatio std\tMean\tRatio of means\tSigma")
     # SIGS = [0.01, 0.05, 0.1, 1, 10, 100, 10000]
     if sys.argv[1:]:
         fns = ["output.%s.txt" % (sig) for sig in SIGS]

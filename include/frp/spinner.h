@@ -408,8 +408,8 @@ public:
     // Template magic for unrolling from the back.
     template<typename OutVector, size_t Index>
     struct ApplicationStruct {
-        SpinBlockTransformer &ref_;
-        ApplicationStruct(SpinBlockTransformer &ref): ref_(ref) {}
+        const SpinBlockTransformer &ref_;
+        ApplicationStruct(const SpinBlockTransformer &ref): ref_(ref) {}
         void operator()(OutVector &out) const {
             std::get<Index - 1>(ref_.blocks_).apply(out);
             ApplicationStruct<OutVector, Index - 1> as(ref_);
@@ -431,8 +431,8 @@ public:
     };
     template<typename OutVector>
     struct ApplicationStruct<OutVector, 1> {
-        SpinBlockTransformer &ref_;
-        ApplicationStruct(SpinBlockTransformer &ref): ref_(ref) {}
+        const SpinBlockTransformer &ref_;
+        ApplicationStruct(const SpinBlockTransformer &ref): ref_(ref) {}
         void operator()(OutVector &out) const {
             std::get<0>(ref_.blocks_).apply(out);
         }
@@ -440,14 +440,14 @@ public:
     // Use it: last block is applied from in to out (as it needs to consume input).
     // All prior blocks, in reverse order, are applied in-place on out.
     template<typename InVector, typename OutVector>
-    void apply(const InVector &in, OutVector &out) {
+    void apply(const InVector &in, OutVector &out) const {
         //std::fprintf(stderr, "Trying to apply %zu, %zu\n", in.size(), out.size());
         std::get<NBLOCKS - 1>(blocks_).apply(in, out);
         ApplicationStruct<OutVector, NBLOCKS - 1> as(*this);
         as(out);
     }
     template<typename OutVector>
-    void apply(OutVector &out) {
+    void apply(OutVector &out) const {
         //std::fprintf(stderr, "[%s:%d] Trying to apply on size %zu\n", __PRETTY_FUNCTION__, __LINE__, out.size());
         std::get<NBLOCKS - 1>(blocks_).apply(out);
         ApplicationStruct<OutVector, NBLOCKS - 1> as(*this);
