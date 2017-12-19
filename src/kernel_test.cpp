@@ -22,8 +22,9 @@ using SORFKernelType = kernel::Kernel<SORFKernelBase, kernel::GaussianFinalizer>
 struct GaussianKernel {
     template<typename V1, typename V2>
     double operator()(const V1 &v1, const V2 &v2, double sigma) {
-        auto xp = -dot(v1 - v2, v1 - v2) / (2. * sigma);
-        std::fprintf(stderr, "xp is %lf with sigma = %f\n", xp, sigma);
+        double dist(dot(v1 - v2, v1 - v2));
+        assert(dist >= 0.);
+        auto xp = -dist / (2. * sigma * sigma);
         return std::exp(xp);
     }
 };
@@ -61,9 +62,9 @@ int main(int argc, char *argv[]) {
     outsize = roundup(outsize);
     std::fprintf(stderr, "nrows: %zu. insize: %zu. outsize: %zu. sigma: %le\n", nrows, insize, outsize, sigma);
     KernelType kernel(outsize, insize, 1337, sigma);
-    ORFKernelType orfkernel(outsize, insize, 1337 * 2, sigma);
     SORFKernelType sorfkernel(outsize, insize, 1337 * 3, sigma);
-    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
+    ORFKernelType orfkernel(outsize, insize, 1337 * 2, sigma);
+    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1), outmorf(nrows, outsize << 1), outmsorf(nrows, outsize << 1);
     blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
     size_t seed(0);
     //omp_set_num_threads(6);
@@ -78,28 +79,33 @@ int main(int argc, char *argv[]) {
     }
     blaze::DynamicMatrix<FLOAT_TYPE> indists(nrows, nrows);
     blaze::DynamicMatrix<FLOAT_TYPE> outdists(nrows, nrows);
+    blaze::DynamicMatrix<FLOAT_TYPE> outdistsorf(nrows, nrows);
+    blaze::DynamicMatrix<FLOAT_TYPE> outdistssorf(nrows, nrows);
     GaussianKernel gk;
     for(size_t i(0), j; i < nrows; ++i)
         for(indists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
              indists(i, j) = indists(j, i) = gk(row(in, i), row(in, j), sigma);
     {
         time_stuff(outm, in, "rf", kernel);
-        time_stuff(outm, in, "orf", orfkernel);
-        time_stuff(outm, in, "sorf", sorfkernel);
+        time_stuff(outmorf, in, "orf", orfkernel);
+        time_stuff(outmsorf, in, "sorf", sorfkernel);
     }
     for(size_t i(0), j; i < nrows; ++i)
         for(outdists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
-            outdists(i, j) = outdists(j, i) = dot(row(outm, i) - row(outm, j), row(outm, i) - row(outm, j));
+            outdists(i, j) = outdists(j, i) = dot(row(outm, i), row(outm, j)),
+            outdistsorf(i, j) = outdistsorf(j, i) = dot(row(outmorf, i),  row(outmorf, j)),
+            outdistssorf(i, j) = outdistssorf(j, i) = dot(row(outmsorf, i),  row(outmsorf, j));
     //std::cerr << "Input full kernel distances: " << indists << '\n';
     //std::cerr << "Input approx kernel distances: " << outdists << '\n';
     blaze::DynamicMatrix<FLOAT_TYPE> ratios(nrows, nrows);
     for(size_t i(0); i < nrows; ++i)
             for(size_t j(0); j < nrows; ++j) ratios(i, j) = outdists(i, j) / indists(i, j);
     //std::cerr << "Output ratios: " << ratios << '\n';
-    std::cout << "#Ratio, Gaussian Distances, Approx Distances\n";
+    std::cout << "#Ratio, Gaussian Distances, RF Approx, ORF Approx, SORF Approx\n";
     for(size_t i(0); i < nrows; ++i)
             for(size_t j(0); j < nrows; ++j)
-                std::cout << ratios(i, j) << ", " << indists(i, j) << ", " << outdists(i, j) << '\n';
+                std::cout << ratios(i, j) << ", " << indists(i, j) << ", " << outdists(i, j) << ", "
+                          << outdistsorf(i, j) << ", " << outdistssorf(i, j) << '\n';
     std::cerr << "Successfully completed " << *argv << '\n';
 #if 0
     std::cerr << in << '\n';

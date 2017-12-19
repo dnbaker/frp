@@ -18,6 +18,7 @@ public:
     void apply(VecType &in) const {
         if((in.size() & (in.size() - 1))) std::fprintf(stderr, "in.size() [%zu] is not a power of 2.\n", in.size()), exit(1);
         using FloatType = typename std::decay_t<decltype(in[0])>;
+#if 1
         using SIMDType  = vec::SIMDTypes<FloatType>;
         using VT = typename SIMDType::Type;
         using DT = typename SIMDType::TypeDouble;
@@ -69,6 +70,20 @@ public:
                 }
             }
         }
+#else
+        auto subv(subvector(in, 0, in.size() >> 1));
+        std::uniform_real_distribution<FloatType> dist;
+        aes::AesCtr<std::uint64_t> gen(in.size());
+        for(size_t i(0); i < subv.size(); ++i)
+            subv[i] += dist(gen);
+        blaze::DynamicVector<FloatType> sinv = trans(subv);
+        sinv = sin(sinv);
+        blaze::DynamicVector<FloatType> cosv = trans(subv);
+        cosv = cos(cosv);
+        auto subv2(subvector(in, in.size() >> 1, in.size() >> 1));
+        subv = trans(cosv);
+        subv2 *= 0.;
+#endif
     }
 };
 
