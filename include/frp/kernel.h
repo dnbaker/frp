@@ -86,6 +86,28 @@ public:
 #endif
     }
 };
+struct BoringFinalizer {
+private:
+    uint64_t seed_;
+    uint32_t use_lowprec_:1;
+public:
+    BoringFinalizer(size_t seed(0), bool use_low_precision=false): use_lowprec_(use_low_precision) {}
+    void set_use_lowprec(bool use_lowprec) {use_lowprec_ = use_lowprec;}
+
+    template<typename VecType>
+    void apply(VecType &in) const {
+        auto subv(subvector(in, 0, in.size() >> 1));
+        std::uniform_real_distribution<FloatType> dist;
+        aes::AesCtr<std::uint64_t> gen(std::hash<uint64_t>()(in.size() + seed_));
+        for(size_t i(0); i < subv.size(); ++i)
+            subv[i] += dist(gen);
+        blaze::DynamicVector<FloatType> sinv = sin(trans(subv));
+        blaze::DynamicVector<FloatType> cosv = cos(trans(subv));
+        auto subv2(subvector(in, in.size() >> 1, in.size() >> 1));
+        subv = trans(cosv);
+        subv2 = trans(sinv);
+    }
+};
 
 
 namespace ff {

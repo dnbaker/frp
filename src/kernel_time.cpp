@@ -52,22 +52,23 @@ int main(int argc, char *argv[]) {
     int c;
     size_t insize(1 << 6), outsize(1 << 14), nrows(250);
     double sigma(1.);
-    while((c = getopt(argc, argv, "n:i:S:e:M:s:p:b:l:o:5Brh?")) >= 0) {
+    bool override(false);
+    while((c = getopt(argc, argv, "n:i:S:e:M:s:p:b:l:o:5OBrh?")) >= 0) {
         switch(c) {
             case 'i': insize = std::strtoull(optarg, 0, 10); break;
             case 's': sigma = std::atof(optarg); break;
             case 'S': outsize = std::strtoull(optarg, 0, 10); break;
             case 'n': nrows = std::strtoull(optarg, 0, 10); break;
+            case 'O': override = true; break;
             case 'h': case '?': usage: return usage(*argv);
         }
     }
     if(argc > optind) goto usage;
     outsize = roundup(outsize);
-    KernelType kernel(outsize, insize, 1337, sigma);
-    ORFKernelType orfkernel(outsize, insize, 1337 * 2, sigma);
+    insize = roundup(insize);
     SORFKernelType sorfkernel(outsize, insize, 1337 * 3, sigma);
     FFKernelType ffkernel(outsize, insize, 1337 * 4, sigma);
-    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1), outmorf(nrows, outsize << 1), outmsorf(nrows, outsize << 1), outmff(nrows, outsize << 1);
+    blaze::DynamicMatrix<FLOAT_TYPE> outm(nrows, outsize << 1);
     blaze::DynamicMatrix<FLOAT_TYPE> in(nrows, insize);
     size_t seed(0);
     //omp_set_num_threads(6);
@@ -80,27 +81,28 @@ int main(int argc, char *argv[]) {
         //auto r(row(in, i));
         //vec::blockadd(r, val);
     }
-    blaze::DynamicMatrix<FLOAT_TYPE> indists(nrows, nrows);
-    blaze::DynamicMatrix<FLOAT_TYPE> outdists(nrows, nrows);
-    blaze::DynamicMatrix<FLOAT_TYPE> outdistsorf(nrows, nrows);
-    blaze::DynamicMatrix<FLOAT_TYPE> outdistssorf(nrows, nrows);
-    blaze::DynamicMatrix<FLOAT_TYPE> outdistsff(nrows, nrows);
+    std::fprintf(stderr, "Made data\n");
 #if 0
     GaussianKernel gk;
     for(size_t i(0), j; i < nrows; ++i)
         for(indists(i, i) = 1e-300, j = i + 1; j < nrows; ++j)
              indists(i, j) = indists(j, i) = gk(row(in, i), row(in, j), sigma);
 #endif
-    double times[4];
+    double times[4]{0};
     {
-        times[0] = time_stuff(outm, in, "rf", kernel);
-        times[1] = time_stuff(outmorf, in, "orf", orfkernel);
-        times[2] = time_stuff(outmsorf, in, "sorf", sorfkernel);
-        times[3] = time_stuff(outmff, in, "ff", ffkernel);
+        if((insize * outsize) < (5000 * 32000) || override) {
+            KernelType kernel(outsize, insize, 1337, sigma);
+            ORFKernelType orfkernel(outsize, insize, 1337 * 2, sigma);
+            std::fprintf(stderr, "Doing the slow ones.\n");
+            times[0] = time_stuff(outm, in, "rf", kernel);
+            times[1] = time_stuff(outm, in, "orf", orfkernel);
+        }
+        times[2] = time_stuff(outm, in, "sorf", sorfkernel);
+        times[3] = time_stuff(outm, in, "ff", ffkernel);
     }
     std::vector<std::string> names {"rf", "orf", "sorf", "ff"};
     for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%s\t", names[i].data());
     std::fputc('\n', stdout);
-    for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%lfs\t", times[i]);
+    for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%lf\t", times[i]);
     std::fputc('\n', stdout);
 }

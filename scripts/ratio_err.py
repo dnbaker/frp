@@ -55,9 +55,10 @@ def print_ratios_and_corrs(path, sig):
     ratios = np.array([np.mean(d[:,i] / d[:,1]) for i in range(1,6)])
     mratios = np.array([np.mean(d[:,i]) / np.mean(d[:,1]) for i in range(1,6)])
     stds = np.array([np.std(d[:,i] / d[:,1]) for i in range(1,6)])
+    rmses = np.array([np.sqrt(sum((c - est)**2 for c, est in zip(d[:,i], d[:,1])) / len(d[:,i])) for i in range(1,6)])
     names = ["exact", "rff", "orff", "sorff", "ff"]
-    for ind, (c, r, m, s) in enumerate(zip(correlations, ratios, mratios, stds)):
-        print("\t".join([names[ind], str(c), str(r), str(s), str(np.mean(d[:,ind+1])), str(m), str(sig)]))
+    for ind, (c, r, m, s, rmse) in enumerate(zip(correlations, ratios, mratios, stds, rmses)):
+        print("\t".join([names[ind], str(c), str(r), str(s), str(np.mean(d[:,ind+1])), str(m), str(rmse), str(sig)]))
 
 
 def main():
@@ -82,7 +83,7 @@ def old_main():
     SIGS = [i / 10. for i in range(16)]
     SIZE = 1 << 16
     ratsigf = open("ratsig.%s.txt" % (SIZE), "w")
-    ratsigf.write("#KernelMean\tApproxMean\tRatio\tSigma\tCorrcoef\tN\n")
+    ratsigf.write("#KernelMean\tApproxMean\tRatio\tSigma\tCorrcoef\tRMSE\tN\n")
     spool = multiprocessing.Pool(8)
     fns = spool.map(submit_work,
                     [[sig, SIZE, "output.%s.txt" % (sig)] for sig in SIGS])
