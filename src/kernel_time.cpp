@@ -38,9 +38,9 @@ int usage(char *arg) {
 }
 
 template<typename Mat1, typename Mat2, typename KernelType>
-double time_stuff(Mat1 &outm, const Mat2 &in, const char *taskname, const KernelType &kernel) {
+double time_stuff(Mat1 &outm, const Mat2 &in, const char *taskname, const KernelType &kernel, double sigma) {
     const size_t nrows(in.rows()), insize(in.columns()), outsize(outm.columns());
-    Timer time(std::string("How long to apply kernel ") + taskname + " times on dimensions " + std::to_string(insize) + ", " + std::to_string(outsize) + ".");
+    Timer time(std::string(taskname) + " " + std::to_string(nrows) + " times on dimensions " + std::to_string(insize) + ", " + std::to_string(outsize) + " and sigma = " + std::to_string(sigma) + ".");
     for(size_t i(0); i < nrows; ++i) {
         auto orow(row(outm, i));
         kernel.apply(orow, row(in, i));
@@ -81,7 +81,6 @@ int main(int argc, char *argv[]) {
         //auto r(row(in, i));
         //vec::blockadd(r, val);
     }
-    std::fprintf(stderr, "Made data\n");
 #if 0
     GaussianKernel gk;
     for(size_t i(0), j; i < nrows; ++i)
@@ -91,14 +90,15 @@ int main(int argc, char *argv[]) {
     double times[4]{0};
     {
         if((insize * outsize) < (5000 * 32000) || override) {
+            {
             KernelType kernel(outsize, insize, 1337, sigma);
+            times[0] = time_stuff(outm, in, "rf", kernel, sigma);
+            }
             ORFKernelType orfkernel(outsize, insize, 1337 * 2, sigma);
-            std::fprintf(stderr, "Doing the slow ones.\n");
-            times[0] = time_stuff(outm, in, "rf", kernel);
-            times[1] = time_stuff(outm, in, "orf", orfkernel);
+            times[1] = time_stuff(outm, in, "orf", orfkernel, sigma);
         }
-        times[2] = time_stuff(outm, in, "sorf", sorfkernel);
-        times[3] = time_stuff(outm, in, "ff", ffkernel);
+        times[2] = time_stuff(outm, in, "sorf", sorfkernel, sigma);
+        times[3] = time_stuff(outm, in, "ff", ffkernel, sigma);
     }
     std::vector<std::string> names {"rf", "orf", "sorf", "ff"};
     for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%s\t", names[i].data());

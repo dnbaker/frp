@@ -63,7 +63,7 @@ def print_ratios_and_corrs(path, sig):
 
 def main():
     SIGS = [i / 10. for i in range(2, 50)]
-    print("Name\tCorrelation\tRatio\tRatio std\tMean\tRatio of means\tSigma")
+    print("Name\tCorrelation\tRatio\tRatio std\tMean\tRatio of means\tRMSE\tSigma")
     # SIGS = [0.01, 0.05, 0.1, 1, 10, 100, 10000]
     if sys.argv[1:]:
         fns = ["output.%s.txt" % (sig) for sig in SIGS]

@@ -7,7 +7,8 @@ special functions and random number generators. Only required boost headers are 
 0. Orthogonal JL transform with linear space and linearithmic runtime
     1. This is available through the `ojlt` executable, in C++ programs accessing include/frp/jl.h, and using python bindings by `cd py && make`.
 1. Kernel projections
-    1. These are in development and largely do not work. The src/*cpp files are currently all testing grounds.
+    1. We support kernel approximation for the Gaussian kernel using Random Fourier Features, Orthogonal Random Features, Structured Orthogonal Random Features, and FastFood.
+    2. We recommend Structured Orthogonal Random Features, as it has the highest accuracy in our experiments and can also be hundreds of times faster while still having a small memory footprint.
 2. A type-generic SIMD interface (include/frp/vec.h), which abstracts operations to allow the compiler to use the widest vectors possible as needed, facilitating generically dispatching the fastest implementation possible on a machine.
 3. Utilities
     1. Templated SIMD-based and unroll AES-CTR, based on the implementation used in Lemire's testingRNG repository.
@@ -18,10 +19,8 @@ special functions and random number generators. Only required boost headers are 
 
 TODO:
 
-0. Finish correcting the FastFood kernel implementation.
 1. Add Kernels:
-    1. Gaussian [Default, see Recht and Rahimi]
-    2. Laplacian [ibid.]
+    2. Laplacian [See Recht and Rahimi]
     3. Cauchy [ibid.]
     4. Angular [See arxiv 1703.00864]
     5. Dot Product [See arxiv 1407.5599, table 1 for the rest]
