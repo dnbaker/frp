@@ -31,9 +31,7 @@ template<typename T>
 using ref = T&;
 
 struct CacheSizes {
-    size_t l1;
-    size_t l2;
-    size_t l3;
+    size_t l1, l2, l3;
     operator ref<size_t [3]>() {
         return reinterpret_cast<ref<size_t [3]>>(*this);
     }
@@ -52,8 +50,8 @@ CacheSizes get_cache_sizes() {
     char buf[1 << 16];
     memset(buf, 0, sizeof(buf));
     CacheSizes ret;
-    SizeType *ptr;
-    char    *line;
+    SizeType  *ptr;
+    char     *line;
     while((line = fgets(buf, sizeof(buf), fp))) {
         if(strstr(line, "ache") == nullptr) continue;
         if(strstr(line, "L") == nullptr) continue;

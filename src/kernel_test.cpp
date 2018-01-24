@@ -62,6 +62,7 @@ int main(int argc, char *argv[]) {
     }
     if(argc > optind) goto usage;
     outsize = roundup(outsize);
+    outsize = std::min(insize * 2, outsize - (insize * 3));
     KernelType kernel(outsize, insize, 1337, sigma);
     ORFKernelType orfkernel(outsize, insize, 1337 * 2, sigma);
     SORFKernelType sorfkernel(outsize, insize, 1337 * 3, sigma);
