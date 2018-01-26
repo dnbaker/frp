@@ -22,7 +22,7 @@ XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f -lstdc++fs -lsleef -llapack
-LD=-L. -Lfftw-3.3.7/lib -Lsleef/build/lib
+LD=-L. -Lfftw-3.3.7/lib -Lvec/sleef/build/lib
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
@@ -40,13 +40,13 @@ BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Iblaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I sleef/build/include/ $(BOOST_INCS)
+INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) -I/usr//local/Cellar/zlib/1.2.11/include
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS) fht.o fast_copy.o
+OBJS:=$(OBJS) fht.o fast_copy.o  vec/sleef/build/include/sleef.h
 
 all: $(OBJS) $(EX) python
 print-%  : ; @echo $* = $($*)
@@ -93,10 +93,10 @@ tests: clean unit
 unit: $(OBJS) $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 
-sleef/build: sleef
-	mkdir sleef/build
+vec/sleef/build: vec/sleef
+	mkdir vec/sleef/build
 
-sleef/build/include/sleef.h: sleef/build
+vec/sleef/build/include/sleef.h: vec/sleef/build
 	cd $< && cmake .. && make && cd ../..
 
 clean:

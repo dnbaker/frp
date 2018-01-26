@@ -101,3 +101,6 @@
 [submodule "smart_ptr"]
 	path = boost/smart_ptr
 	url = https://github.com/boostorg/smart_ptr
+[submodule "vec"]
+	path = vec
+	url = https://github.com/dnbaker/vec

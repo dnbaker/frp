@@ -4,7 +4,7 @@
 #include "frp/util.h"
 #include "FFHT/fht.h"
 #include "fftw3.h"
-#include "frp/vec.h"
+#include "vec/vec.h"
 
 namespace frp {
 

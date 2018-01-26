@@ -2,7 +2,7 @@
 #define _GFRP_LINALG_H__
 #define _USE_MATH_DEFINES
 #include "frp/util.h"
-#include "frp/vec.h"
+#include "vec/vec.h"
 #include "x86intrin.h"
 
 #ifdef __AVX2__
