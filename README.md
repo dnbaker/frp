@@ -11,7 +11,7 @@ special functions and random number generators. Only required boost headers are 
     2. We recommend Structured Orthogonal Random Features, as it has the highest accuracy in our experiments and can also be hundreds of times faster while still having a small memory footprint.
 2. A type-generic SIMD interface (vec/vec.h), which abstracts operations to allow the compiler to use the widest vectors possible as needed, facilitating generically dispatching the fastest implementation possible on a machine.
 3. Utilities
-    1. Templated SIMD-based and unroll AES-CTR, based on the implementation used in Lemire's testingRNG repository.
+    1. Templated SIMD-based and unrolled AES-CTR, based on the implementation used in Lemire's testingRNG repository.
     2. PRNVector (PseudoRandom Number Vector) to provide access to random vectors using only constant memory requires instead of explicitly storing them by generating values as needed.
     3. Utilities for sampling and filling containers from distributions.
     4. Acquiring cache sizes from the OS.
