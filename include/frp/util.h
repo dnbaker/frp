@@ -144,15 +144,6 @@ inline constexpr int log2_64(uint64_t value)
 template<typename T> class TD;
 
 template<class Container>
-auto normsq(const Container &c) {
-    return dot(c, c);
-}
-template<class Container>
-auto norm(const Container &c) {
-    return std::sqrt(dot(c, c));
-}
-
-template<class Container>
 auto mean(const Container &c) {
     using FloatType = decay_t<decltype(c[0])>;
     FloatType sum(0.);

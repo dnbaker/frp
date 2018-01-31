@@ -397,15 +397,6 @@ void gram_schmidt(MatrixKind &b, unsigned flags) {
     }
 }
 
-template<typename MatrixKind>
-decltype(auto) frobnorm(const MatrixKind &mat) {
-    using FloatType = typename MatrixKind::ElementType;
-    FloatType ret(0.);
-    for(size_t i(0); i < mat.rows(); ++i)
-        ret += dot(row(mat, i), row(mat, i));
-    return ret;
-}
-
 template<typename FloatType>
 constexpr inline auto ndball_surface_area(size_t nd, FloatType r) {
     // http://scipp.ucsc.edu/~haber/ph116A/volume_11.pdf

@@ -88,7 +88,7 @@ public:
         pv(out); std::cerr << '\n';
 #endif
     }
-    FloatType vec_norm() const {return ::frp::norm(vec_);}
+    FloatType vec_norm() const {return norm(vec_);}
     size_t size() const {return vec_.size();}
     void rescale(FloatType val) {
         vec_ *= val;
