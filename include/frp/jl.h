@@ -94,15 +94,16 @@ public:
         for(auto it(std::rbegin(blocks_)), eit(std::rend(blocks_)); it != eit; (it++)->apply(in)); // Apply transforms
         // Renormalize.
         using SType = typename vec::SIMDTypes<FloatType>;
-        using VecType = typename SType::ValueType;
         const FloatType *end(in + to_);
-        const SType vmul = SType::set1(std::sqrt(static_cast<FloatType>(from_) / to_));
-        if(SType::aligned(in) {
-            while(in < end)
-                SType::store(in, Stype::mul(SType::load(in), vmul)), ++in;
+        const typename SType::ValueType vmul = SType::set1(std::sqrt(static_cast<FloatType>(from_) / to_));
+        if(SType::aligned(in)) {
+            do {
+                SType::store(in, SType::mul(SType::load(in), vmul));
+            } while(++in < end);
         } else {
-            while(in < end)
-                SType::storeu(in, Stype::mul(SType::loadu(in), vmul)), ++in;
+            do {
+                SType::storeu(in, SType::mul(SType::loadu(in), vmul));
+            } while(++in < end);
         }
     }
     // Downstream application has to subsample itself.

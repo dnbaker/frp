@@ -16,6 +16,7 @@
 #include "blaze/Math.h"
 #include "boost/random/normal_distribution.hpp"
 #include "boost/random.hpp"
+#include <zlib.h>
 
 #ifndef FLOAT_TYPE
 #define FLOAT_TYPE double
