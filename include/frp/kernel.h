@@ -26,7 +26,7 @@ public:
         DT dest;
         VT *srcptr((VT *)&in[0]);
         if(use_lowprec_) {
-            if constexpr(IS_BLAZE(VecType)) {
+            if constexpr(IS_CONTIGUOUS_UNCOMPRESSED_BLAZE(VecType)) {
                 for(u32 i((in.size() >> 1) / ratio); i;) {
                     dest = SIMDType::sincos_u35(SIMDType::load((FloatType *)&srcptr[i - 1]));
                     SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
@@ -48,7 +48,7 @@ public:
                 }
             }
         } else {
-            if constexpr(IS_BLAZE(VecType)) {
+            if constexpr(IS_CONTIGUOUS_UNCOMPRESSED_BLAZE(VecType)) {
                 for(u32 i((in.size() >> 1) / ratio); i;) {
                     dest = SIMDType::sincos_u10(SIMDType::load((FloatType *)&srcptr[i - 1]));
                     SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
