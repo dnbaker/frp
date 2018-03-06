@@ -95,7 +95,7 @@ public:
         // Renormalize.
         using SType = typename vec::SIMDTypes<FloatType>;
         const FloatType *end(in + to_);
-        const typename SType::ValueType vmul = SType::set1(std::sqrt(static_cast<FloatType>(from_) / to_));
+        const typename SType::Type vmul = SType::set1(std::sqrt(static_cast<FloatType>(from_) / to_));
         if(SType::aligned(in)) {
             do {
                 SType::store(in, SType::mul(SType::load(in), vmul));
