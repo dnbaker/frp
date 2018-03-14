@@ -87,7 +87,6 @@ int main(int argc, char *argv[]) {
     std::uniform_real_distribution<double> urdf(0, M_PI * 2);
     boost::random::uniform_real_distribution<double> burdd(0, M_PI * 2);
     boost::random::uniform_real_distribution<double> burdf(0, M_PI * 2);
-    double sum(0);
     {
         Timer t("rdd");
         for(size_t i(0); i < niter; ++i)

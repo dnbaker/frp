@@ -4,7 +4,7 @@
     branch = master
 [submodule "fastrange"]
 	path = fastrange
-	url = https://github.com/lemire/fastrange
+	url = https://github.com/dnb/fastrange
     branch = master
 [submodule "blaze"]
 	path = blaze

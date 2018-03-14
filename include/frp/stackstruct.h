@@ -145,7 +145,7 @@ void fht(const VecType1 &in, VecType2 &out, bool renormalize=true) {
             } else throw runtime_error("NotImplemented.");
         }
     }
-    std::fprintf(stderr, "Called fht on sizes of %zu in and %zu out.\n", in.size(), out.size());
+    //std::fprintf(stderr, "Called fht on sizes of %zu in and %zu out.\n", in.size(), out.size());
 }
 
 struct HadamardBlock {

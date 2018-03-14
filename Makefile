@@ -62,10 +62,10 @@ test/%.o: test/%.cpp $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%: src/%.cpp $(OBJS)
+%: src/%.cpp $(OBJS) fftw3.h
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
-%f: src/%.cpp $(OBJS)
+%f: src/%.cpp $(OBJS) fftw3.h
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c

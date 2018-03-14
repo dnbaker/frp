@@ -1,6 +1,5 @@
 #ifndef _GFRP_PARSER_H__
 #define _GFRP_PARSER_H__
-#include <zlib.h>
 #include "frp/util.h"
 
 namespace frp {

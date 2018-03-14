@@ -16,6 +16,7 @@
 #include "blaze/Math.h"
 #include "boost/random/normal_distribution.hpp"
 #include "boost/random.hpp"
+#include <zlib.h>
 
 #ifndef FLOAT_TYPE
 #define FLOAT_TYPE double
@@ -41,16 +42,6 @@
 #  ifndef UNUSED
 #    define UNUSED(x) (x)
 #  endif
-#endif
-
-#ifndef IS_BLAZE
-#define IS_BLAZE(x) (blaze::IsVector<x>::value || blaze::IsMatrix<x>::value)
-#endif
-#ifndef IS_COMPRESSED_BLAZE
-#define IS_COMPRESSED_BLAZE(x) (blaze::IsSparseVector<x>::value || blaze::IsSparseMatrix<x>::value)
-#endif
-#ifndef IS_UNCOMPRESSED_BLAZE
-#define IS_UNCOMPRESSED_BLAZE(x) (IS_BLAZE(x) && !IS_COMPRESSED_BLAZE(x))
 #endif
 
 namespace frp {
@@ -142,15 +133,6 @@ inline constexpr int log2_64(uint64_t value)
 }
 
 template<typename T> class TD;
-
-template<class Container>
-auto normsq(const Container &c) {
-    return dot(c, c);
-}
-template<class Container>
-auto norm(const Container &c) {
-    return std::sqrt(dot(c, c));
-}
 
 template<class Container>
 auto mean(const Container &c) {

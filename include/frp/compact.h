@@ -36,28 +36,11 @@ the  smallest  length  and  doubling  on  each  iteration  the  input  dimension
 FWHT is done in-place.
 */
 
-// TODO!!!
-/*
-   Add random-access AES-CTR-based Rademacher array.
-   Add random-access std::*distribution array.
-
-   Need help with ideas:
-      1. Pruning or selecting more important random features:::Talk to Arora.
-      2.
-
- */
-
-struct free_delete {
-    void operator()(void *ptr) const {free(ptr);}
-};
-
 class PRNRademacher {
     size_t      n_;
     uint64_t seed_;
 public:
-    PRNRademacher(size_t n=0, uint64_t seed=0): n_(n), seed_(seed) {
-        //std::fprintf(stderr, "[D:%s] n: %zu. seed: %zu\n", __PRETTY_FUNCTION__, n_, size_t(seed_));
-    }
+    PRNRademacher(size_t n=0, uint64_t seed=0): n_(n), seed_(seed) {}
     auto size() const {return n_;}
     void resize(size_t newsize) {n_ = newsize;}
 

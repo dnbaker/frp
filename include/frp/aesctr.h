@@ -1,7 +1,7 @@
 #ifndef AESCTR_H
 #define AESCTR_H
 
-// Taken from https://github.com/lemire/testingRNG
+// Adapted/template-unrolled from https://github.com/lemire/testingRNG
 // Added C++ interface compatible with std::shuffle, &c.
 
 // contributed by Samuel Neves
