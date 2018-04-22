@@ -94,7 +94,7 @@ unit: $(OBJS) $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 
 vec/sleef/build: vec/sleef
-	mkdir vec/sleef/build
+	mkdir -p vec/sleef/build
 
 vec/sleef/build/include/sleef.h: vec/sleef/build
 	cd $< && cmake .. && make && cd ../..
