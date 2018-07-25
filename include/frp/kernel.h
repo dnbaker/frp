@@ -332,9 +332,8 @@ public:
         stacked_size = std::max(stacked_size, input_ru);
         if(stacked_size % input_ru)
             stacked_size = input_ru - (stacked_size % input_ru);
-        if(stacked_size % input_ru) std::fprintf(stderr, "Stacked size is not evenly divisible.\n"), exit(1);
         size_t nblocks = (stacked_size) / input_ru;
-        aes::AesCtr gen(seed);
+        aes::AesCtr<uint64_t> gen(seed);
         while(blocks_.size() < nblocks) {
             blocks_.emplace_back(input_ru, gen(), std::forward<Args>(args)...);
         }

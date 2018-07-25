@@ -49,7 +49,7 @@ void random_fill(uint64_t *data, uint64_t len, uint64_t seed=0) {
     };
 
 template<typename FloatType>
-class unit_normal: public boost::random::detail::unit_normal_distribution<FloatType> {
+class unit_normal: public boost::normal_distribution<FloatType> {
 public:
     void reset() {}
 };
