@@ -17,7 +17,7 @@ special functions and random number generators. Only required boost headers are 
     4. Acquiring cache sizes from the OS.
     5. Implementation of the Gram-Schmidt algorithm for orthogonalizing matrices.
 
-TODO:
+#TODO
 
 1. Add Kernels:
     2. Laplacian [See Recht and Rahimi]
@@ -27,7 +27,7 @@ TODO:
     6. Polynomial
     7. Hellinger
     8. Chi Squared
-    9. Intersection 
+    9. Intersection
     10. Jenson-Shannon
     11. Skewed-Chi Squared
     12. Skewed-Intersection

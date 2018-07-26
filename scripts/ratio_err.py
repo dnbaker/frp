@@ -5,7 +5,7 @@ from subprocess import check_call
 def load_data(path):
     with open(path) as f:
         return np.array([list(map(float, i[:-1].split(", "))) for i in f if i[0] != "#" and "1e-300" not in i], dtype=np.double)
-    
+
 
 def print_results(path, sigma, n, ofp):
     print("loading data")
@@ -77,7 +77,7 @@ def main():
                     [[sig, SIZE, "output.%s.txt" % (sig)] for sig in SIGS])
     for fn, sig in zip(fns, SIGS):
         print_ratios_and_corrs(fn, sig)
-    
+
 def old_main():
     import multiprocessing
     SIGS = [i / 10. for i in range(16)]

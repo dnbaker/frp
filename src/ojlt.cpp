@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
         }
     }
     if((nblocks & 1) != 0) std::fprintf(stderr, "Warning: Using an even numbe of blocks causes provably higher error rates.\n");
-    
+
     if(target_dim < 0) {
         goto usage;
     }

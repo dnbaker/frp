@@ -34,13 +34,13 @@ void time_aes(RNG &rng, std::vector<uint64_t> &vec, std::string name, size_t nro
     {
         Timer t(name + "sequential");
         for(size_t i(0); i < nrounds; ++i)
-            for(size_t j(0); j < vec.size(); ++j) 
+            for(size_t j(0); j < vec.size(); ++j)
                 vec[i] = rng();
     }
     {
         Timer t(name + "ram");
         for(size_t i(0); i < nrounds; ++i)
-            for(size_t j(0); j < vec.size(); ++j) 
+            for(size_t j(0); j < vec.size(); ++j)
                 vec[i] = rng[i];
     }
 }
