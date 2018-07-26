@@ -325,9 +325,9 @@ public:
     template<typename... Args>
     Kernel(size_t stacked_size, size_t input_size,
            uint64_t seed,
-           Args &&... args): indim_(input_size),
+           Args &&... args): indim_(input_size)
 #ifdef SIGMA_RESCALE
-        : sigma_(sigma)
+        , sigma_(sigma)
 #endif
     {
         size_t input_ru = roundup(input_size);
