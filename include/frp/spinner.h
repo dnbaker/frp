@@ -1,5 +1,6 @@
 #ifndef _GFRP_SPINNER_H__
 #define _GFRP_SPINNER_H__
+#include "fastrange.h"
 #include "frp/compact.h"
 #include "frp/linalg.h"
 #include "frp/stackstruct.h"
@@ -11,6 +12,11 @@
 #include <functional>
 
 namespace frp {
+template<typename T>
+inline T fastrange(T, T) {}
+template<> inline int fastrange<int>(int w, int p) {return fastrangeint(w, p);}
+template<> inline uint32_t fastrange<uint32_t>(uint32_t w, uint32_t p) {return fastrange32(w, p);}
+template<> inline uint64_t fastrange<uint64_t>(uint64_t w, uint64_t p) {return fastrange64(w, p);}
 /*
  *
  * TODO:

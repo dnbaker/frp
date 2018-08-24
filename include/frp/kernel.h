@@ -314,6 +314,8 @@ template<typename KernelBlock,
 class Kernel {
     std::vector<KernelBlock> blocks_;
     Finalizer             finalizer_;
+    const size_t              indim_;
+    size_t                   outdim_;
 public:
     using FloatType = typename KernelBlock::float_type;
 #ifdef SIGMA_RESCALE
@@ -323,22 +325,26 @@ public:
     template<typename... Args>
     Kernel(size_t stacked_size, size_t input_size,
            uint64_t seed,
-           Args &&... args)
+           Args &&... args): indim_(input_size)
 #ifdef SIGMA_RESCALE
-        : sigma_(sigma)
+        , sigma_(sigma)
 #endif
     {
         size_t input_ru = roundup(input_size);
         stacked_size = std::max(stacked_size, input_ru);
         if(stacked_size % input_ru)
             stacked_size = input_ru - (stacked_size % input_ru);
-        if(stacked_size % input_ru) std::fprintf(stderr, "Stacked size is not evenly divisible.\n"), exit(1);
+        outdim_ = stacked_size;
         size_t nblocks = (stacked_size) / input_ru;
-        aes::AesCtr gen(seed);
+        aes::AesCtr<uint64_t> gen(seed);
         while(blocks_.size() < nblocks) {
             blocks_.emplace_back(input_ru, gen(), std::forward<Args>(args)...);
         }
     }
+
+    size_t nblocks() const {return blocks_.size();}
+    size_t indim() const {return indim_;}
+    size_t outdim() const {return outdim_;}
 
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
@@ -362,11 +368,15 @@ public:
             blocks_[i].apply(sv, in);
             finalizer_.apply(sv);
         }
-        vec::blockmul(out, std::sqrt(2.)/std::sqrt(static_cast<FloatType>(out.size() >> 1)));
-        // TODO: add this multiplication to the finalizer to avoid a second RAM pass-through.
+
 #ifdef SIGMA_RESCALE
-        vec::blockmul(out, sigma_ / std::sqrt(std::sqrt(in.size())));
+#define MULVAL (std::sqrt(2. / static_cast<FloatType>(out.size() >> 1)) * sigma_ / std::sqrt(std::sqrt(in.size())))
+#else
+#define MULVAL (std::sqrt(2. / static_cast<FloatType>(out.size() >> 1)))
 #endif
+        vec::blockmul(out, MULVAL);
+#undef MULVAL
+        // TODO: add this multiplication to the finalizer to avoid a second RAM pass-through.
     }
 };
 

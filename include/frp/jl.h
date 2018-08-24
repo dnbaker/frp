@@ -26,8 +26,8 @@ public:
         matrix_ *= 1. / std::sqrt(static_cast<double>(m_));
     }
     void fill(uint64_t seed, bool orthogonalize=true) {
-        aes::AesCtr rng(seed);
-        boost::random::detail::unit_normal_distribution<FloatType> dist;
+        aes::AesCtr<uint64_t> rng(seed);
+        boost::random::normal_distribution<FloatType> dist;
         fill(rng, dist, orthogonalize);
     }
     template<typename InVec, typename OutVec>

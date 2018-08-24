@@ -255,7 +255,7 @@ public:
     }
     RFFTBlock(int n, fftw_r2r_kind kind=FFTW_REDFT10,
               bool oop=false, int flags=FFTW_PATIENT):
-                  plan_(nullptr), kind_(kind), n_(0), flags_(flags), oop_(oop) 
+                  plan_(nullptr), kind_(kind), n_(0), flags_(flags), oop_(oop)
     {
         load_wisdom();
         resize(n);
@@ -346,7 +346,7 @@ public:
     }
     FFTBlock(int n, int direction=FFTW_FORWARD,
              bool oop=false, int flags=FFTW_PATIENT):
-             plan_(nullptr), direction_(direction), n_(0), flags_(flags), oop_(oop) 
+             plan_(nullptr), direction_(direction), n_(0), flags_(flags), oop_(oop)
     {
         load_wisdom();
         resize(n);

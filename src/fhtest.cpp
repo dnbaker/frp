@@ -18,7 +18,7 @@ float norm(T &a) {
     return std::sqrt(blaze::dot(a, a));
 }
 
-template<typename... Types>                                                        
+template<typename... Types>
 using unormd = boost::random::detail::unit_normal_distribution<Types...>;
 
 int main(int argc, char *argv[]) {
