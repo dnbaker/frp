@@ -104,3 +104,6 @@
 [submodule "vec"]
 	path = vec
 	url = https://github.com/dnbaker/vec
+[submodule "klib"]
+	path = klib
+	url = https://github.com/attractivechaos/klib
