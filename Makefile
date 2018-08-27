@@ -10,7 +10,7 @@ STD=c++17
 endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable -Wno-ignored-qualifiers\
+		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable -Wno-ignored-qualifiers -Wsuggest-attribute=malloc \
         -DBOOST_NO_RTTI
         # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
