@@ -158,9 +158,10 @@ public:
             fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
         }
         if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
-        blaze::reset(out);
-
-        subvector(out, 0, in.size()) = in;
+        if(&out[0] != in[0]) {
+            subvector(out, 0, in.size()) = in;
+        }
+        blaze::reset(subvector(out, in.size(), out.size() - in.size()));
         auto half_vector(subvector(out, 0, transform_size()));
         tx_.apply(half_vector);
     }
