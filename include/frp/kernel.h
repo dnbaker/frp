@@ -152,6 +152,15 @@ public:
     auto       &rsbref()       {return std::get<RandomScalingBlock>(tx_.get_tuple());}
     const auto &rsbref() const {return std::get<RandomScalingBlock>(tx_.get_tuple());}
 #endif
+    template<typename OutputType>
+    void apply(OutputType &out, size_t nelem) const {
+        if(out.size() != final_output_size_) {
+            fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+        }
+        blaze::reset(subvector(out, nelem, out.size() - nelem));
+        auto half_vector(subvector(out, 0, transform_size()));
+        tx_.apply(half_vector);
+    }
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
@@ -347,7 +356,28 @@ public:
     size_t indim() const {return indim_;}
     size_t outdim() const {return outdim_;}
 
-    template<typename InputType, typename OutputType>
+    template<typename OutputType>
+    void apply(OutputType &out, size_t nelem) const {
+        size_t in_rounded(roundup(nelem));
+        blaze::DynamicVector<FloatType> tmp(nelem);
+        tmp = ::blaze::subvector(out, 0, nelem);
+        if(out.size() != (blocks_.size() << 1) * in_rounded) {
+            if constexpr(blaze::IsView<OutputType>::value) {
+                throw std::runtime_error(ks::sprintf("[%s] Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                                                     __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, nelem, (size_t)roundup(nelem)).data());
+            } else {
+                std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                             out.size(), (blocks_.size() << 1) * in_rounded, nelem, (size_t)roundup(nelem));
+                out.resize((blocks_.size() << 1) * in_rounded);
+            }
+        }
+        for(size_t i = 0; i < blocks_.size(); ++i) {
+            auto sv(subvector(out, (in_rounded << 1) * i, in_rounded));
+            blocks_[i].apply(sv, tmp);
+            finalizer_.apply(sv);
+        }
+    }
+    template<typename InputType, typename OutputType, typename=std::enable_if_t<!std::is_arithmetic_v<InputType>>>
     void apply(OutputType &out, const InputType &in) const {
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
@@ -360,7 +390,6 @@ public:
                 out.resize((blocks_.size() << 1) * in_rounded);
             }
         }
-        //in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
 #if 0
         #pragma omp parallel for
 #endif
