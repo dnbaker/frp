@@ -43,6 +43,7 @@ void time_stuff(Mat1 &outm, const Mat2 &in, const char *taskname, const KernelTy
     Timer time(std::string("How long to apply kernel ") + taskname + " times on dimensions " + std::to_string(insize) + ", " + std::to_string(outsize) + ".");
     for(size_t i(0); i < nrows; ++i) {
         auto orow(row(outm, i));
+        std::fprintf(stderr, "dims: orow %zu. outm: %zu/%zu. in dims: %zu/%zu\n", orow.size(), outm.rows(), outm.columns(), in.rows(), in.columns());
         kernel.apply(orow, row(in, i));
     }
 }

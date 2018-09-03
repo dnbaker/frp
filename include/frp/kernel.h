@@ -167,10 +167,10 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            fprintf(stderr, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", , __FILE__, __LINE__, __PRETTY_FUNCTION__out.size(), final_output_size_);
+            fprintf(stderr, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
         }
         if(roundup(in.size()) != transform_size()) {::std::cerr << "ZOMG error in " << __PRETTY_FUNCTION__ << " at line " << __LINE__ <<'\n'; throw std::runtime_error("ZOMG");}
-        if(&out[0] != in[0]) {
+        if(&out[0] != &in[0]) {
             subvector(out, 0, in.size()) = in;
         }
         blaze::reset(subvector(out, in.size(), out.size() - in.size()));
@@ -206,7 +206,7 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            char buf[128];
+            char buf[512];
             std::sprintf(buf, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
             ::std::cerr << buf;
             throw std::runtime_error(buf);
@@ -271,7 +271,7 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            char buf[128];
+            char buf[512];
             std::sprintf(buf, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
             ::std::cerr << buf;
             throw std::runtime_error(buf);
@@ -312,7 +312,7 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            char buf[128];
+            char buf[512];
             std::sprintf(buf, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
             ::std::cerr << buf;
             throw std::runtime_error(buf);
@@ -354,11 +354,10 @@ public:
         if(stacked_size % input_ru)
             stacked_size = input_ru - (stacked_size % input_ru);
         outdim_ = stacked_size;
-        size_t nblocks = (stacked_size) / input_ru;
         aes::AesCtr<uint64_t> gen(seed);
-        while(blocks_.size() < nblocks) {
-            blocks_.emplace_back(input_ru, gen(), std::forward<Args>(args)...);
-        }
+        for(size_t nblocks = stacked_size / input_ru;
+            blocks_.size() < nblocks;
+            blocks_.emplace_back(input_ru, gen(), std::forward<Args>(args)...));
     }
 
     size_t nblocks() const {return blocks_.size();}

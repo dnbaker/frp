@@ -35,7 +35,7 @@ struct DerivedClass: BaseClass {
     }
 };
 
-int main(int argc, char *argv[]) {
+int main() {
 #if 0
     const unsigned len(argc == 1 ? 1 << 16 : std::atoi(argv[1]));
     DynamicVector<FLOAT_TYPE> vec(len);

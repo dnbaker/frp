@@ -14,7 +14,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
         -DBOOST_NO_RTTI
         # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
-OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -mavx2 -march=native -fopenmp -DUSE_FASTRANGE \
+OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
       -funsafe-math-optimizations -ftree-vectorize
 OS:=$(shell uname)
 
@@ -42,13 +42,13 @@ BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) -I/usr//local/Cellar/zlib/1.2.11/include
+INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) -I/usr//local/Cellar/zlib/1.2.11/include -Ifastrange
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS) fht.o fast_copy.o  vec/sleef/build/include/sleef.h
+OBJS:=$(OBJS) fht.o vec/sleef/build/include/sleef.h
 
 all: $(OBJS) $(EX) python
 print-%  : ; @echo $* = $($*)
@@ -74,13 +74,13 @@ test/%.o: test/%.cpp $(OBJS)
 	$(CC) $(CCFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %.o: FFHT/%.c
-	cd FFHT && make $@ && cp $@ .. && cd ..
+	+cd FFHT && make $@ && cp $@ .. && cd ..
 
 fftw-3.3.7: fftw-3.3.7.tar.gz
 	tar -zxvf fftw-3.3.7.tar.gz
 
 fftw3.h: fftw-3.3.7
-	cd fftw-3.3.7 && \
+	+cd fftw-3.3.7 && \
 	./configure --enable-avx2 --prefix=$$PWD && make && make install && \
 	./configure --prefix=$$PWD --enable-long-double && make && make install &&\
 	./configure --enable-avx2 --prefix=$$PWD --enable-single && make && make install &&\
@@ -102,6 +102,6 @@ vec/sleef/build/include/sleef.h: vec/sleef/build
 	cd $< && cmake .. && make && cd ../..
 
 clean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o frp/src/*o && cd FFHT && make clean && cd ..
+	+rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) fftw3.h unit lib/*o frp/src/*o && cd FFHT && make clean && cd ..
 
 mostlyclean: clean

@@ -23,7 +23,7 @@ using FFKernelType = kernel::Kernel<FFKernelBase, kernel::GaussianFinalizer>;
 
 struct GaussianKernel {
     template<typename V1, typename V2>
-    double operator()(const V1 &v1, const V2 &v2, double sigma) {
+    double operator()(const V1 &v1, const V2 &v2, double sigma) const {
         double dist(dot(v1 - v2, v1 - v2));
         assert(dist >= 0.);
         auto xp = -dist / (2. * sigma * sigma);
@@ -40,6 +40,11 @@ int usage(char *arg) {
 template<typename Mat1, typename Mat2, typename KernelType>
 double time_stuff(Mat1 &outm, const Mat2 &in, const char *taskname, const KernelType &kernel, double sigma) {
     const size_t nrows(in.rows()), insize(in.columns()), outsize(outm.columns());
+    {
+        char buf[1 << 10];
+        std::sprintf(buf, "Input row length: %zu. Output row length: %zu. Kernel {in,out}dim: %zu/%zu\n", in.columns(), outm.columns(), kernel.indim(), kernel.outdim());
+        ::std::cerr << buf;
+    }
     Timer time(std::string(taskname) + " " + std::to_string(nrows) + " times on dimensions " + std::to_string(insize) + ", " + std::to_string(outsize) + " and sigma = " + std::to_string(sigma) + ".");
     for(size_t i(0); i < nrows; ++i) {
         auto orow(row(outm, i));
@@ -52,14 +57,14 @@ int main(int argc, char *argv[]) {
     int c;
     size_t insize(1 << 6), outsize(1 << 14), nrows(250);
     double sigma(1.);
-    bool override(false);
+    bool force(false);
     while((c = getopt(argc, argv, "n:i:S:e:M:s:p:b:l:o:5OBrh?")) >= 0) {
         switch(c) {
             case 'i': insize = std::strtoull(optarg, 0, 10); break;
             case 's': sigma = std::atof(optarg); break;
             case 'S': outsize = std::strtoull(optarg, 0, 10); break;
             case 'n': nrows = std::strtoull(optarg, 0, 10); break;
-            case 'O': override = true; break;
+            case 'O': force = true; break;
             case 'h': case '?': usage: return usage(*argv);
         }
     }
@@ -89,7 +94,7 @@ int main(int argc, char *argv[]) {
 #endif
     double times[4]{0};
     {
-        if((insize * outsize) < (5000 * 32000) || override) {
+        if((insize * outsize) < (5000 * 32000) || force) {
             {
             KernelType kernel(outsize, insize, 1337, sigma);
             times[0] = time_stuff(outm, in, "rf", kernel, sigma);
