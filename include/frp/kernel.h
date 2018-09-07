@@ -392,10 +392,11 @@ public:
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
             if constexpr(blaze::IsView<OutputType>::value) {
-                auto ks(ks::sprintf("[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
-                                    __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), static_cast<size_t>(roundup(in.size()))));
-                ks.write(stderr);
-                throw std::runtime_error(ks.data());
+                char buf[2048];
+                std::sprintf(buf, "[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                                    __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), static_cast<size_t>(roundup(in.size())));
+                ::std::cerr << buf;
+                throw std::runtime_error(buf);
             } else {
                 std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                              out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size()));

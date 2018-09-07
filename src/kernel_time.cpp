@@ -105,9 +105,9 @@ int main(int argc, char *argv[]) {
         times[2] = time_stuff(outm, in, "sorf", sorfkernel, sigma);
         times[3] = time_stuff(outm, in, "ff", ffkernel, sigma);
     }
-    std::vector<std::string> names {"rf", "orf", "sorf", "ff"};
-    for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%s\t", names[i].data());
+    static constexpr const char * names[]{"rf", "orf", "sorf", "ff"};
+    for(const auto name: names) std::fprintf(stdout, "%s\t", name);
     std::fputc('\n', stdout);
-    for(size_t i(0); i < 4; ++i) std::fprintf(stdout, "%lf\t", times[i]);
+    for(const auto time: times) std::fprintf(stdout, "%lf\t", time);
     std::fputc('\n', stdout);
 }
