@@ -206,7 +206,7 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            char buf[512];
+            char buf[1024];
             std::sprintf(buf, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
             ::std::cerr << buf;
             throw std::runtime_error(buf);

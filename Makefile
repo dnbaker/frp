@@ -58,10 +58,10 @@ obj: $(OBJS) $(EXEC_OBJS)
 test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) -c $< -o $@ $(LIB)
 
-%.fo: %.cpp
+%.fo: %.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%.o: %.cpp
+%.o: %.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.cpp $(OBJS) fftw3.h
@@ -73,7 +73,7 @@ test/%.o: test/%.cpp $(OBJS)
 %.o: %.c
 	$(CC) $(CCFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%.o: FFHT/%.c
+%.o: FFHT/%.c $(OBJS) fftw3.h
 	+cd FFHT && make $@ && cp $@ .. && cd ..
 
 fftw-3.3.7: fftw-3.3.7.tar.gz
