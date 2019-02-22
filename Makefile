@@ -11,11 +11,11 @@ endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable -Wno-ignored-qualifiers -Wsuggest-attribute=malloc \
-        -DBOOST_NO_RTTI
         # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
-      -funsafe-math-optimizations -ftree-vectorize
+      -funsafe-math-optimizations -ftree-vectorize \
+        -DBOOST_NO_RTTI
 OS:=$(shell uname)
 
 EXTRA=
@@ -48,12 +48,15 @@ ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS) fht.o vec/sleef/build/include/sleef.h
+OBJS:=$(OBJS) fht.o vec/sleef/build/include/sleef.h FFHT/fast_copy.c
 
 all: $(OBJS) $(EX) python
 print-%  : ; @echo $* = $($*)
 
 obj: $(OBJS) $(EXEC_OBJS)
+
+fht.o: FFHT/fht.c
+	cd FFHT && make fht.o && cp fht.o ..
 
 test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) -c $< -o $@ $(LIB)
