@@ -306,7 +306,7 @@ public:
     explicit OnlineShuffler(ResultType size=0, ResultType seed=0): seed_{seed ^ size}, rng_(seed) {}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
-        fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n");
+        fprintf(stderr, "[W:%s] OnlineShuffler can only shuffle from arrays of different sizes by sampling.\n", __PRETTY_FUNCTION__);
         const auto isz(in.size());
         if(isz == out.size()) {
             out = in;

@@ -141,8 +141,11 @@ public:
                    HadamardBlock(size, renorm),
                    RademType(size, (seed ^ (size * size)) + seed)))
     {
-        if(final_output_size_ & (final_output_size_ - 1))
-            throw std::runtime_error((std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.").data());
+        if(final_output_size_ & (final_output_size_ - 1)) {
+            const auto msg = std::string(__PRETTY_FUNCTION__) + "'s size should be a power of two.\n";
+            std::cerr << msg;
+            throw std::runtime_error(msg);
+        }
         auto &rsbref(std::get<RandomScalingBlock>(tx_.get_tuple()));
         auto &gmref(std::get<GaussianMatrixType>(tx_.get_tuple()));
         rsbref.rescale(float_type(size)/std::sqrt(gmref.vec_norm()));
@@ -152,15 +155,25 @@ public:
     auto       &rsbref()       {return std::get<RandomScalingBlock>(tx_.get_tuple());}
     const auto &rsbref() const {return std::get<RandomScalingBlock>(tx_.get_tuple());}
 #endif
+    template<typename OutputType>
+    void apply(OutputType &out, size_t nelem) const {
+        if(out.size() != final_output_size_) {
+            fprintf(stderr, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
+        }
+        blaze::reset(subvector(out, nelem, out.size() - nelem));
+        auto half_vector(subvector(out, 0, transform_size()));
+        tx_.apply(half_vector);
+    }
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            fprintf(stderr, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            fprintf(stderr, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
         }
-        if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
-        blaze::reset(out);
-
-        subvector(out, 0, in.size()) = in;
+        if(roundup(in.size()) != transform_size()) {::std::cerr << "ZOMG error in " << __PRETTY_FUNCTION__ << " at line " << __LINE__ <<'\n'; throw std::runtime_error("ZOMG");}
+        if(&out[0] != &in[0]) {
+            subvector(out, 0, in.size()) = in;
+        }
+        blaze::reset(subvector(out, in.size(), out.size() - in.size()));
         auto half_vector(subvector(out, 0, transform_size()));
         tx_.apply(half_vector);
     }
@@ -181,7 +194,10 @@ public:
     KernelBlock(size_t size, uint64_t seed=-1,
                 FloatType sigma=1., size_t nblocks=3):
                     final_output_size_(size), sorf_(sigma) {
-        if(nblocks == 0) throw std::runtime_error("Need more than 0 blocks for sorf::KernelBlock. (Recommended: 3.)");
+        if(nblocks == 0) {
+            const char *s = "Need more than 0 blocks for sorf::KernelBlock. (Recommended: 3.)\n";
+            ::std::cerr << s; throw std::runtime_error(s);
+        }
         while(blocks_.size() < nblocks)
             blocks_.emplace_back(std::make_pair(HadamardBlock(),
                                  RademType(size, seed++)));
@@ -190,11 +206,12 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            char buf[128];
-            std::sprintf(buf, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            char buf[1024];
+            std::sprintf(buf, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
+            ::std::cerr << buf;
             throw std::runtime_error(buf);
         }
-        if(roundup(in.size()) != transform_size()) throw std::runtime_error("ZOMG");
+        if(roundup(in.size()) != transform_size()) {::std::cerr << "ZOMG error in " << __PRETTY_FUNCTION__ << " at line " << __LINE__ <<'\n'; throw std::runtime_error("ZOMG");}
         blaze::reset(out);
         subvector(out, 0, in.size()) = in;
         //std::fprintf(stderr, "Applying sorf::KernelBlock\n");
@@ -254,8 +271,9 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            char buf[128];
-            std::sprintf(buf, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            char buf[512];
+            std::sprintf(buf, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
+            ::std::cerr << buf;
             throw std::runtime_error(buf);
         }
         // std::fprintf(stderr, "Applying orf::KernelBlock\n");
@@ -294,8 +312,9 @@ public:
     template<typename InputType, typename OutputType>
     void apply(OutputType &out, const InputType &in) const {
         if(out.size() != final_output_size_) {
-            char buf[128];
-            std::sprintf(buf, "Warning: Output size was wrong (%zu, not %zu). Resizing\n", out.size(), final_output_size_);
+            char buf[512];
+            std::sprintf(buf, "[%s:%d:%s] Warning: Output size was wrong (%zu, not %zu). Resizing\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, out.size(), final_output_size_);
+            ::std::cerr << buf;
             throw std::runtime_error(buf);
         }
         // std::fprintf(stderr, "Applying rf::KernelBlock\n");
@@ -335,31 +354,55 @@ public:
         if(stacked_size % input_ru)
             stacked_size = input_ru - (stacked_size % input_ru);
         outdim_ = stacked_size;
-        size_t nblocks = (stacked_size) / input_ru;
         aes::AesCtr<uint64_t> gen(seed);
-        while(blocks_.size() < nblocks) {
-            blocks_.emplace_back(input_ru, gen(), std::forward<Args>(args)...);
-        }
+        for(size_t nblocks = stacked_size / input_ru;
+            blocks_.size() < nblocks;
+            blocks_.emplace_back(input_ru, gen(), std::forward<Args>(args)...));
     }
 
     size_t nblocks() const {return blocks_.size();}
     size_t indim() const {return indim_;}
     size_t outdim() const {return outdim_;}
 
-    template<typename InputType, typename OutputType>
+    template<typename OutputType>
+    void apply(OutputType &out, size_t nelem) const {
+        size_t in_rounded(roundup(nelem));
+        blaze::DynamicVector<FloatType> tmp(nelem);
+        tmp = ::blaze::subvector(out, 0, nelem);
+        if(out.size() != (blocks_.size() << 1) * in_rounded) {
+            if constexpr(blaze::IsView<OutputType>::value) {
+                auto ks(ks::sprintf("[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                                    __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, nelem, static_cast<size_t>(roundup(nelem))));
+                ks.write(stderr);
+                throw std::runtime_error(ks.data());
+            } else {
+                std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                             out.size(), (blocks_.size() << 1) * in_rounded, nelem, (size_t)roundup(nelem));
+                out.resize((blocks_.size() << 1) * in_rounded);
+            }
+        }
+        for(size_t i = 0; i < blocks_.size(); ++i) {
+            auto sv(subvector(out, (in_rounded << 1) * i, in_rounded));
+            blocks_[i].apply(sv, tmp);
+            finalizer_.apply(sv);
+        }
+    }
+    template<typename InputType, typename OutputType, typename=std::enable_if_t<!std::is_arithmetic_v<InputType>>>
     void apply(OutputType &out, const InputType &in) const {
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
             if constexpr(blaze::IsView<OutputType>::value) {
-                throw std::runtime_error(ks::sprintf("[%s] Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
-                                                     __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size())).data());
+                char buf[2048];
+                std::sprintf(buf, "[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
+                                    __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), static_cast<size_t>(roundup(in.size())));
+                ::std::cerr << buf;
+                throw std::runtime_error(buf);
             } else {
                 std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                              out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size()));
                 out.resize((blocks_.size() << 1) * in_rounded);
             }
         }
-        //in_rounded <<= 1; // To account for the doubling for the sin/cos entry for each random projection.
 #if 0
         #pragma omp parallel for
 #endif

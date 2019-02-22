@@ -14,7 +14,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
         -DBOOST_NO_RTTI
         # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
-OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -mavx2 -march=native -fopenmp -DUSE_FASTRANGE \
+OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
       -funsafe-math-optimizations -ftree-vectorize
 OS:=$(shell uname)
 
@@ -48,7 +48,7 @@ ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS) fht.o fast_copy.o  vec/sleef/build/include/sleef.h
+OBJS:=$(OBJS) fht.o vec/sleef/build/include/sleef.h
 
 all: $(OBJS) $(EX) python
 print-%  : ; @echo $* = $($*)
@@ -58,10 +58,10 @@ obj: $(OBJS) $(EXEC_OBJS)
 test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) -c $< -o $@ $(LIB)
 
-%.fo: %.cpp
+%.fo: %.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%.o: %.cpp
+%.o: %.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.cpp $(OBJS) fftw3.h
@@ -73,14 +73,14 @@ test/%.o: test/%.cpp $(OBJS)
 %.o: %.c
 	$(CC) $(CCFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%.o: FFHT/%.c
-	cd FFHT && make $@ && cp $@ .. && cd ..
+%.o: FFHT/%.c $(OBJS) fftw3.h
+	+cd FFHT && make $@ && cp $@ .. && cd ..
 
 fftw-3.3.7: fftw-3.3.7.tar.gz
 	tar -zxvf fftw-3.3.7.tar.gz
 
 fftw3.h: fftw-3.3.7
-	cd fftw-3.3.7 && \
+	+cd fftw-3.3.7 && \
 	./configure --enable-avx2 --prefix=$$PWD && make && make install && \
 	./configure --prefix=$$PWD --enable-long-double && make && make install &&\
 	./configure --enable-avx2 --prefix=$$PWD --enable-single && make && make install &&\
@@ -102,6 +102,6 @@ vec/sleef/build/include/sleef.h: vec/sleef/build
 	cd $< && cmake .. && make && cd ../..
 
 clean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o frp/src/*o && cd FFHT && make clean && cd ..
+	+rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) fftw3.h unit lib/*o frp/src/*o && cd FFHT && make clean && cd ..
 
 mostlyclean: clean
