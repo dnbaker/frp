@@ -16,8 +16,9 @@ BOOST_DIRS=math config random utility assert static_assert \
     range iterator io predef concept_check detail lexical_cast \
     numeric_conversion functional array container move thread smart_ptr
 
-BOOST_INCS=$(patsubst %,-I../%/include,$(BOOST_DIRS))
-INCLUDES=-I`python3-config --includes` -I../pybind11/include -I../include -I.. -I../sleef/build/include $(BOOST_INCS)
+BOOST_INCS=$(patsubst %,-I../boost/%/include,$(BOOST_DIRS))
+INCLUDES=-I`python3-config --includes` -I../pybind11/include -I../include -I.. -I../sleef/build/include $(BOOST_INCS) -I../fastrange \
+        -I ../vec/blaze -I ../vec/sleef//build/include
 
 
 MFLAGS=-msse4.1 -mavx2 -march=native

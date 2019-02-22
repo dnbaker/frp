@@ -42,7 +42,7 @@ BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) -I/usr//local/Cellar/zlib/1.2.11/include
+INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) -I/usr//local/Cellar/zlib/1.2.11/include -Ifastrange
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)

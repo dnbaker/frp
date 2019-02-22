@@ -5,6 +5,7 @@
 #include "vec/vec.h"
 #include "x86intrin.h"
 
+#ifndef VECTOR_WIDTH
 #ifdef __AVX2__
 #define VECTOR_WIDTH (32ul)
 #elif __SSE2__
@@ -12,6 +13,7 @@
 #else
 #define VECTOR_WIDTH (8ul)
 #endif
+#endif // VECTOR_WIDTH
 
 namespace frp { namespace linalg {
 
