@@ -36,6 +36,56 @@ the  smallest  length  and  doubling  on  each  iteration  the  input  dimension
 FWHT is done in-place.
 */
 
+#if __GNUC__ || __clang__
+constexpr INLINE unsigned clz(unsigned long long x) {
+    return __builtin_clzll(x);
+}
+constexpr INLINE unsigned clz(unsigned long x) {
+    return __builtin_clzl(x);
+}
+constexpr INLINE unsigned clz(unsigned x) {
+    return __builtin_clz(x);
+}
+#else
+
+#define clztbl(x, arg) do {\
+    switch(arg) {\
+        case 0:                         x += 4; break;\
+        case 1:                         x += 3; break;\
+        case 2: case 3:                 x += 2; break;\
+        case 4: case 5: case 6: case 7: x += 1; break;\
+    }} while(0)
+
+constexpr INLINE int clz_manual( uint32_t x )
+{
+  int n(0);
+  if ((x & 0xFFFF0000) == 0) {n  = 16; x <<= 16;}
+  if ((x & 0xFF000000) == 0) {n +=  8; x <<=  8;}
+  if ((x & 0xF0000000) == 0) {n +=  4; x <<=  4;}
+  clztbl(n, x >> (32 - 4));
+  return n;
+}
+
+// Overload
+constexpr INLINE int clz_manual( uint64_t x )
+{
+  int n(0);
+  if ((x & 0xFFFFFFFF00000000ull) == 0) {n  = 32; x <<= 32;}
+  if ((x & 0xFFFF000000000000ull) == 0) {n += 16; x <<= 16;}
+  if ((x & 0xFF00000000000000ull) == 0) {n +=  8; x <<=  8;}
+  if ((x & 0xF000000000000000ull) == 0) {n +=  4; x <<=  4;}
+  clztbl(n, x >> (64 - 4));
+  return n;
+}
+#define clz(x) clz_manual(x)
+#endif
+
+template<typename T>
+static constexpr INLINE unsigned ilog2(T x) noexcept {
+    return sizeof(T) * CHAR_BIT - clz(x)  - 1;
+}
+static constexpr unsigned log2_64(uint64_t x) {return ilog2(x);}
+
 class PRNRademacher {
     size_t      n_;
     uint64_t seed_;
@@ -94,6 +144,8 @@ public:
     }
     CompactRademacherTemplate(CompactRademacherTemplate &&other) = default;
     CompactRademacherTemplate(const CompactRademacherTemplate &other) = default;
+    CompactRademacherTemplate &operator=(const CompactRademacherTemplate &o) = default;
+    CompactRademacherTemplate &operator=(CompactRademacherTemplate &&o) = default;
     template<typename AsType>
     class CompactAs {
         static constexpr AsType values[2] {static_cast<AsType>(1), static_cast<AsType>(-1)};

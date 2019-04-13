@@ -29,18 +29,20 @@ class DCI {
     size_t n_inserted_;
 public:
     size_t total() const {return m_ * l_;}
-    DCI(size_t m, size_t l, size_t d, bool orthonormalize=true): m_(m), l_(l), mat_(m * l, d), map_(m * l) {
+    DCI(size_t m, size_t l, size_t d, bool orthonormalize=false): m_(m), l_(l), mat_(m * l, d), map_(m * l), n_inserted_(0) {
         blaze::randomize(mat_);
         std::fprintf(stderr, "Made mat of %zu/%zu\n", mat_.rows(), mat_.columns());
         if(orthonormalize) {
             std::fprintf(stderr, "about to qr\n");
             try {
-            matrix_type q, r;
-            blaze::qr(mat_, q, r);
-            assert(mat_.rows() == q.rows());
-            assert(mat_.columns() == q.columns());
-            swap(mat_, q);
-            } catch(const std::exception &ex) {
+                matrix_type q, r;
+                blaze::qr(mat_, q, r);
+                std::fprintf(stderr, "coldist %lf, rowdists %lf, q sizes %zu/%zu\n", dot(column(r, 0), column(r, 1)),  dot(row(r, 0), row(r, 1)), q.rows(), q.columns());
+                std::fprintf(stderr, "coldist %lf, rowdists %lf, q sizes %zu/%zu\n", dot(column(q, 0), column(q, 1)),  dot(row(q, 0), row(q, 1)), q.rows(), q.columns());
+                assert(mat_.columns() == q.columns());
+                assert(mat_.rows() == q.rows());
+                swap(mat_, q);
+            } catch(const std::exception &ex) { // Orthonormalize
                 std::fprintf(stderr, "failure: %s\n", ex.what()); throw;
             }
         }
@@ -78,13 +80,13 @@ public:
                         lbs.push_back(map.rbegin()->second), ubs.push_back(map.rbegin()->second);
                     else lbs.push_back(it->second);
                     auto it2 = it;
-                    if(++it2 == map.end())
-                        ubs.push_back(it->second);
+                    ++it2;
+                    ubs.push_back(it2 == map.end() ? it->second: it2->second);
                 }
             }
         }
     }
-    size_t size() const {return map_[0].size();}
+    size_t size() const {return n_inserted_;}
     size_t ind(size_t m, size_t l) const {
         return l * m_ + m;
     }
@@ -93,6 +95,6 @@ public:
 
 }
 
-} // frp
+} // namespace frp
 
 #endif
