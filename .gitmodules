@@ -1,6 +1,6 @@
 [submodule "FFHT"]
 	path = FFHT
-	url = https://github.com/dnbaker/FFHT
+	url = https://github.com/FALCONN-LIB/FFHT
     branch = master
 [submodule "fastrange"]
 	path = fastrange
