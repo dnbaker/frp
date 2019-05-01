@@ -252,9 +252,10 @@ class UnitGaussianScalingBlock: public ScalingBlock<FloatType, VectorOrientation
     using VectorType = VectorKind<FloatType, VectorOrientation>;
 public:
     template<typename...Args>
-    UnitGaussianScalingBlock(uint64_t seed=0, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
+    UnitGaussianScalingBlock(uint64_t seed, Args &&...args): ScalingBlock<FloatType, VectorOrientation, VectorKind>(forward<Args>(args)...) {
         unit_gaussian_fill(this->vec_, seed);
     }
+    UnitGaussianScalingBlock(): UnitGaussianScalingBlock(uint64_t(0)) {}
 };
 
 template<typename RademacherType>

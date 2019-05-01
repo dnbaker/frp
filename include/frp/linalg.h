@@ -34,6 +34,7 @@ void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, unsigned flags=RESCALE_T
 
 template<typename ValueType>
 void mempluseq(ValueType *data, size_t nelem, ValueType val) {
+    data += nelem * val;
     throw runtime_error("Not implemented.");
 }
 

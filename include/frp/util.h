@@ -162,7 +162,7 @@ void pv(const T &view, FILE *fp=stderr) {
     ks::string str;
     ksprint(view, str);
     str.terminate();
-    std::cerr << str.data();
+    str.write(fp);
 }
 
 

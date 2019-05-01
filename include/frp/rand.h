@@ -4,7 +4,7 @@
 #include <ctime>
 #include "fastrange/fastrange.h"
 #include "include/thirdparty/fast_mutex.h"
-#include "frp/aesctr.h"
+#include "aesctr/aesctr.h"
 
 namespace rng {
 

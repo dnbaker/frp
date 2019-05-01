@@ -12,7 +12,7 @@
 #include "frp/spinner.h"
 #include "frp/stackstruct.h"
 #include "frp/jl.h"
-#include "frp/aesctr.h"
+#include "aesctr/aesctr.h"
 #include "frp/parser.h"
 #include "frp/kernel.h"
 

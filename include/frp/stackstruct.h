@@ -230,7 +230,7 @@ public:
     void load_wisdom() {
         if(std::ifstream(wisdom_fname().data()).good()) {
             if(fft::FFTTypes<FloatType>::loadfn(wisdom_fname().data()) == 0) {
-                throw std::runtime_error(ks::sprintf("Could not load wisdom from %s\n", wisdom_fname()).data());
+                throw std::runtime_error(ks::sprintf("Could not load wisdom from %s\n", wisdom_fname().data()).data());
             } else {
                 std::fprintf(stderr, "Loaded wisdom from %s\n", wisdom_fname().data());
             }
@@ -321,7 +321,7 @@ public:
     void load_wisdom() {
         if(std::ifstream(wisdom_fname().data()).good()) {
             if(fft::FFTTypes<FloatType>::loadfn(wisdom_fname().data()) == 0) {
-                throw std::runtime_error(ks::sprintf("Could not load wisdom from %s\n", wisdom_fname()).data());
+                throw std::runtime_error(ks::sprintf("Could not load wisdom from %s\n", wisdom_fname().data()).data());
             } else {
                 std::fprintf(stderr, "Loaded wisdom from %s\n", wisdom_fname().data());
             }
@@ -422,7 +422,7 @@ public:
 
     template<typename OutVector>
     void apply(OutVector &out, blaze::DynamicVector<ComplexType> *scratch=nullptr) {
-        blaze::DynamicVector<ComplexType> *sv(scratch ? *scratch: scratch_space_);
+        blaze::DynamicVector<ComplexType> &sv(scratch ? *scratch: scratch_space_);
         if(sv.size() != vec_.size()) sv.resize(vec_.size());
         if(out.size() != vec_.size()) throw std::runtime_error("Wrong sizes in circulant application.");
         vec::vecmul(&out[0], &vec_[0], out.size());
