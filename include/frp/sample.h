@@ -34,19 +34,20 @@ void subsample(const FullVector &in, SmallVector &out, SubsampleStrategy strat, 
     if(strat == RANDOM_NO_REPLACEMENT)
         strat = out.size() > 100 ? RANDOM_NO_REPLACEMENT_HASH_SET: RANDOM_NO_REPLACEMENT_VEC;
     switch(strat) {
-        case FIRST_M:
+        default:
+        case FIRST_M: {
             auto sv(subvector(in, 0, out.size()));
             out = sv;
-        break;
+        } break;
         case RANDOM_NO_REPLACEMENT_HASH_SET:
         {
-            auto indices(random_set_in_range<unsigned>(out.size(), in.size()));
+            auto indices(random_set_in_range<unsigned>(out.size(), in.size(), seed));
             unsigned ind(0);
             for(const auto el: indices) out[ind++] = in[el];
         }
         break;
         case RANDOM_NO_REPLACEMENT_VEC: {
-            aes::AesCtr<uint32_t> gen;
+            aes::AesCtr<uint32_t> gen(seed);
             std::vector<unsigned> indices;
             while(indices.size() < out.size()) {
                 const auto tmp(fastrange(gen(), in.size()));
@@ -59,7 +60,7 @@ void subsample(const FullVector &in, SmallVector &out, SubsampleStrategy strat, 
         break;
         case RANDOM_W_REPLACEMENT:
         {
-            aes::AesCtr<uint32_t> gen;
+            aes::AesCtr<uint32_t> gen(seed);
             for(auto &el: out) {
                 el = in[fastrange(gen(), out.size())];
             }

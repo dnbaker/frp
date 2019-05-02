@@ -107,3 +107,9 @@
 [submodule "klib"]
 	path = klib
 	url = https://github.com/attractivechaos/klib
+[submodule "distmat"]
+	path = distmat
+	url = https://github.com/dnbaker/distmat
+[submodule "aesctr"]
+	path = aesctr
+	url = https://github.com/dnbaker/aesctr

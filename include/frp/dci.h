@@ -15,7 +15,7 @@ auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
     return blaze::dot(r, x);
 }
 
-template<typename ValueType, typename IdType=std::uint32_t, typename FType=float, template <typename, typename> typename MapType=std::map>
+template<typename ValueType, typename IdType=std::uint32_t, typename FType=float, template <typename...> typename MapType=std::map>
 class DCI {
     /*
      To use this: Hold values in their own container. (This is non-owning.)

@@ -109,6 +109,12 @@ public:
 };
 
 class FastJLTransform {
+    /* https://www.cs.princeton.edu/~chazelle/pubs/FJLT-sicomp09.pdf
+     * THE FAST JOHNSON-LINDENSTRAUSS TRANSFORM AND APPROXIMATE NEAREST NEIGHBORS
+     * SIAM J. COMPUT ©2009 Society for Industrial and Applied MathematicsVol. 39, No. 1,p. 32
+     *
+     * The success of this approach to accelerating ANN suggests the potential utility of the OJLT in said searches.
+     */
     size_t from_, to_;
     HadamardRademacherSDBlock block_;
     uint64_t seed_;
@@ -153,11 +159,12 @@ public:
     void transform_inplace(Vec1 &in) const {
         block_.apply(in);
         const auto mult = std::sqrt(static_cast<double>(from_) / to_);
-        // Note: we multiply in the same pass as the shuffle for convenience.
+        // Note: we multiply in the same pass as the shuffle under the hope that the cache efficiency
+        // of a signle pass outweighs the value of SIMD acceleration
         switch(sample_method_) {
             case FIRST_M:
                 in.resize(to_); // The buffer following is unused/unnecessary. We simply sample the first d rows wlog
-                in *= std::sqrt(static_cast<double>(from_) / to_);
+                in *= mult;
                 break;
             case RANDOM_NO_REPLACEMENT: case RANDOM_NO_REPLACEMENT_HASH_SET: case RANDOM_NO_REPLACEMENT_VEC: case RANDOM_W_REPLACEMENT: default:
                 aes::AesCtr<uint32_t> gen(seed_ ^ 1337);
@@ -176,10 +183,10 @@ public:
     }
     template<typename FloatType, typename=std::enable_if_t<std::is_floating_point<FloatType>::value>>
     void transform_inplace(FloatType *in) const {
-        block_.apply(in);
         // Apply transform and renormalize.
         if(sample_method_ != FIRST_M) throw std::runtime_error("Sampling methods besides FIRST_M not implemented for pointers.");
         if(from_ < to_) throw std::runtime_error("FastJLTransform only supports dimensionality reduction.");
+        block_.apply(in);
         using SType = typename vec::SIMDTypes<FloatType>;
         const FloatType *end(in + to_);
         const typename SType::Type vmul = SType::set1(std::sqrt(static_cast<FloatType>(from_) / to_));
