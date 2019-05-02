@@ -18,6 +18,14 @@
 #include "boost/random.hpp"
 #include <zlib.h>
 
+#ifndef CONST_IF
+#if __cpp_if_constexpr
+#define CONST_IF(x) if constexpr(x)
+#else
+#define CONST_IF(x) if(x)
+#endif
+#endif
+
 #ifndef FLOAT_TYPE
 #define FLOAT_TYPE double
 #endif

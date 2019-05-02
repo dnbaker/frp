@@ -104,6 +104,9 @@ vec/sleef/build: vec/sleef
 vec/sleef/build/include/sleef.h: vec/sleef/build
 	cd $< && cmake .. && make && cd ../..
 
+sleef.h:vec/sleef/build/include/sleef.h
+	cp vec/sleef/build/include/sleef.h sleef.h
+
 clean:
 	+rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) fftw3.h unit lib/*o frp/src/*o && cd FFHT && make clean && cd ..
 
