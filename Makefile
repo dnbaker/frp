@@ -48,7 +48,7 @@ ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS) fht.o vec/sleef/build/include/sleef.h
+OBJS:=$(OBJS) vec/sleef/build/include/sleef.h
 
 all: $(OBJS) $(EX) python
 print-%  : ; @echo $* = $($*)

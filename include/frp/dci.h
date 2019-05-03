@@ -4,12 +4,15 @@
 #define FHT_HEADER_ONLY 1
 #endif
 #include "FFHT/fast_copy.h"
+#include "FFHT/fht.h"
 #include "blaze/Math.h"
 #include <map>
 #include <cmath>
 #include <set>
 #include "omp.h"
 #include "./heap.h"
+
+template<typename T> class TD;
 
 namespace frp {
 
@@ -33,7 +36,7 @@ class DCI {
     using map_type = MapType<FType, IdType>;
     using set_type = SetTemplate<IdType>;
     using matrix_type = blaze::DynamicMatrix<FType>;
-    using bin_tree_iterator = typename set_type::const_iterator;
+    using bin_tree_iterator = typename map_type::const_iterator;
     matrix_type mat_;
     std::vector<map_type> map_;
     std::vector<const ValueType*> val_ptrs_;
@@ -96,7 +99,7 @@ public:
         }
         if(bi.second != map.end())
             return &*(bi.second--);
-        return nullptr;
+        return static_cast<decltype(&*(bi.second))>(nullptr);
     }
     std::vector<IdType> query(const ValueType &val, unsigned k) const {
 
@@ -107,8 +110,8 @@ public:
         // Get a pair of iterators
         for(size_t i = 0; i < l_ * m_; ++i) {
             FType dist = dot(row(mat_, i), val);
-            dists[i] = dists;
-            bounds.emplace_back(std::make_pair(map_.lower_bound(dist), map_.upper_bound(dist)));
+            dists[i] = dist;
+            bounds.emplace_back(std::make_pair(map_[i].lower_bound(dist), map_[i].upper_bound(dist)));
         }
 
 
@@ -128,8 +131,9 @@ public:
                 for(size_t j = 0; j < m_; ++j) {
                     auto index = ind(j, l);
                     auto pair = next_best(map_[index], bounds[index], dists[index]);
+                    //TD<decltype(pair)> td;
                     if(!pair) throw std::runtime_error("Failure in navigating tree");
-                    if(++countsvec[pair->second] == m_)
+                    if(++C[pair->second] == m_)
                         candidates.insert(j);
                 }
                 if(should_stop(i, candidates, k)) break;
@@ -141,9 +145,9 @@ public:
             u.insert(sit->begin(), sit->end()), ++sit;
         dists.resize(u.size());
         size_t di = 0;
-        heap::ObjScoreHeap<size_t, std::hash<size_t>, FType> osh;
+        heap::ObjScoreHeap<size_t, std::hash<size_t>, FType> osh(k);
         for(auto e: u) {
-            osh.addh(e, blaze::sqrNorm(*val_ptrs_[e], val));
+            osh.addh(e, blaze::sqrNorm(*val_ptrs_[e] -  val));
         }
         std::vector<IdType> ids; ids.reserve(k);
         for(const auto &x: osh)
