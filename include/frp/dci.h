@@ -3,7 +3,7 @@
 #ifndef FHT_HEADER_ONLY
 #define FHT_HEADER_ONLY 1
 #endif
-#include "FFHT/fast_copy.h"
+#include "./ifc.h"
 #include "FFHT/fht.h"
 #include "blaze/Math.h"
 #include <map>

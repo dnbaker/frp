@@ -19,7 +19,7 @@
 #ifndef FHT_HEADER_ONLY
 #  define FHT_HEADER_ONLY
 #endif
-#include "FFHT/fast_copy.h"
+#include "./ifc.h"
 
 #ifndef CONST_IF
 #if __cpp_if_constexpr
