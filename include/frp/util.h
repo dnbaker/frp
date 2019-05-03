@@ -22,10 +22,10 @@
 #include "./ifc.h"
 
 #ifndef CONST_IF
-#if __cpp_if_constexpr
-#define CONST_IF(x) if constexpr(x)
+#if __cplusplus >= 201703L
+#define CONST_IF(...) if constexpr(__VA_ARGS__)
 #else
-#define CONST_IF(x) if(x)
+#define CONST_IF(...) if(__VA_ARGS__)
 #endif
 #endif
 
