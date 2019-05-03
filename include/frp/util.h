@@ -40,8 +40,8 @@
 #  ifndef unlikely
 #    define unlikely(x) __builtin_expect((x),0)
 #  endif
-#  ifndef UNUSED
-#    define UNUSED(x) __attribute__((unused)) x
+#  ifndef FRP_UNUSED
+#    define FRP_UNUSED(x) __attribute__((unused)) x
 #  endif
 #else
 #  ifndef likely
@@ -50,8 +50,8 @@
 #  ifndef unlikely
 #    define unlikely(x) (x)
 #  endif
-#  ifndef UNUSED
-#    define UNUSED(x) (x)
+#  ifndef FRP_UNUSED
+#    define FRP_UNUSED(x) (x)
 #  endif
 #endif
 
