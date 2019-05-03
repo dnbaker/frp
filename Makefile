@@ -69,6 +69,8 @@ test/%.o: test/%.cpp $(OBJS)
 
 %: src/%.cpp $(OBJS) fftw3.h
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+dcitest: src/dcitest.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %f: src/%.cpp $(OBJS) fftw3.h
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)

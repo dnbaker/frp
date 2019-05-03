@@ -1,10 +1,15 @@
 #ifndef FRP_DCI_H__
 #define FRP_DCI_H__
+#ifndef FHT_HEADER_ONLY
+#define FHT_HEADER_ONLY 1
+#endif
+#include "FFHT/fast_copy.h"
 #include "blaze/Math.h"
 #include <map>
 #include <cmath>
 #include <set>
 #include "omp.h"
+#include "./heap.h"
 
 namespace frp {
 
@@ -15,7 +20,10 @@ auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
     return blaze::dot(r, x);
 }
 
-template<typename ValueType, typename IdType=std::uint32_t, typename FType=float, template <typename...> typename MapType=std::map>
+template<typename ValueType,
+         typename IdType=std::uint32_t, typename FType=float,
+         template <typename...> class MapType=std::map,
+         template <typename...> class SetTemplate=std::set>
 class DCI {
     /*
      To use this: Hold values in their own container. (This is non-owning.)
@@ -23,7 +31,9 @@ class DCI {
      https://arxiv.org/abs/1512.00442
     */
     using map_type = MapType<FType, IdType>;
+    using set_type = SetTemplate<IdType>;
     using matrix_type = blaze::DynamicMatrix<FType>;
+    using bin_tree_iterator = typename set_type::const_iterator;
     matrix_type mat_;
     std::vector<map_type> map_;
     std::vector<const ValueType*> val_ptrs_;
@@ -70,50 +80,82 @@ public:
             assert(val_ptrs_.size() == n_inserted_);
         }
     }
-    bool should_stop(size_t i, const std::set<IdType> &x, unsigned k) {
+    bool should_stop(size_t i, const std::set<IdType> &x, unsigned k) const {
         return x.size() >= k; // Arbitrary, probably bad. (Will implement better later.)
     }
-    void query(const ValueType &val, unsigned k) {
-        //std::vector<IdType> lbs, ubs;
-        std::vector<std::set<IdType>> candidatesvec(l_);
+    static auto next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
+        if(bi.first != map.begin()) {
+            if(bi.second != map.end()) {
+                auto diff = std::abs(bi.first->first - val) - std::abs(bi.second->first - val);
+                if(diff < 0.)
+                    return &*(bi.first--);
+                else
+                    return &*(bi.second--);
+            }
+            return &*(bi.first--);
+        }
+        if(bi.second != map.end())
+            return &*(bi.second--);
+        return nullptr;
+    }
+    std::vector<IdType> query(const ValueType &val, unsigned k) const {
+
+        // First step: dot product the query with all reference positions
+        std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds;
+        std::vector<set_type> candidatesvec(l_);
+        std::vector<FType> dists(l_ * m_);
+        // Get a pair of iterators
+        for(size_t i = 0; i < l_ * m_; ++i) {
+            FType dist = dot(row(mat_, i), val);
+            dists[i] = dists;
+            bounds.emplace_back(std::make_pair(map_.lower_bound(dist), map_.upper_bound(dist)));
+        }
+
+
+        // FIXME: consider sparse representation. I don't expect dense to be best.
+        // Allocate counts
         std::vector<std::vector<unsigned>> countsvec(l_);
         for(auto &v: countsvec) v.resize(size());
+
+        // Iterate through ith closest along each projection direction.
         for(size_t i = 0; i < size(); ++i) {
             for(size_t l = 0; l < l_; ++l) {
                 auto &candidates = candidatesvec[l];
                 auto &C = countsvec[l];
-                throw std::runtime_error("NotImplemented: getting ith closest along line.");
-#if 0
-                for(size_t  j = 0; j < m_; ++j) {
+                /* 1. Get `ith` closest to q_{jl} [the `dist` above]
+                 * 2. 
+                 */
+                for(size_t j = 0; j < m_; ++j) {
                     auto index = ind(j, l);
-                    assert(index < mat_.rows());
-                    auto &map = map_[index];
-                    auto r = row(mat_, index);
-                    FType dist = dot(val, r);
-                    auto it1 = map.lower_bound(dist), it2 = map.upper_bound(dist);
-                    IdType id;
-                    if(it1->first == dist)
-                        id = it1->second;
-                    else if(it2->first == dist) id = it2->second;
-                    else {
-                        id = blaze::sqrNorm(val - (*val_ptrs_[it1->second])) < blaze::sqrNorm(val - (*val_ptrs_[it2->second]))
-                             ? it1->second: it2->second;
-                    }
-                    ++C[id];
+                    auto pair = next_best(map_[index], bounds[index], dists[index]);
+                    if(!pair) throw std::runtime_error("Failure in navigating tree");
+                    if(++countsvec[pair->second] == m_)
+                        candidates.insert(j);
                 }
-                for(size_t  j = 0; j < m_; ++j) {
-                    if(C[j] == m_)  // Should this be >= instead of ==, like the paper says?
-                        candidates.insert(id);
-                }
-#endif
                 if(should_stop(i, candidates, k)) break;
             }
         }
-        throw std::runtime_error("NotImplemented: final collation of the other lists of items.");
+        auto sit = candidatesvec.begin();
+        set_type u = std::move(*sit++);
+        while(sit != candidatesvec.end())
+            u.insert(sit->begin(), sit->end()), ++sit;
+        dists.resize(u.size());
+        size_t di = 0;
+        heap::ObjScoreHeap<size_t, std::hash<size_t>, FType> osh;
+        for(auto e: u) {
+            osh.addh(e, blaze::sqrNorm(*val_ptrs_[e], val));
+        }
+        std::vector<IdType> ids; ids.reserve(k);
+        for(const auto &x: osh)
+            ids.push_back(x.first);
+        return ids;
     }
     size_t size() const {return n_inserted_;}
     size_t ind(size_t m, size_t l) const {
         return l * m_ + m;
+    }
+    std::pair<uint32_t, uint32_t> invind(size_t index) const {
+        return std::make_pair(uint32_t(index / m_), uint32_t(index % m_));
     }
     std::pair<size_t, size_t> offset2ind(size_t offset) const {return std::pair<size_t, size_t>(offset % m_, offset / m_);}
 };

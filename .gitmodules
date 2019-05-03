@@ -113,3 +113,6 @@
 [submodule "aesctr"]
 	path = aesctr
 	url = https://github.com/dnbaker/aesctr
+[submodule "flat_hash_map"]
+	path = flat_hash_map
+	url = https://github.com/skarupke/flat_hash_map
