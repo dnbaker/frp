@@ -125,7 +125,6 @@ public:
             }
             size_t i;
 #ifdef USE_OPENMP
-#pragma message("use openmp")
             #pragma omp parallel for schedule(dynamic, 8192)
 #endif
             for(i = 0; i < std::min(ret.size(), offsets.size()); ++i) {

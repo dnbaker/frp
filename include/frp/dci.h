@@ -9,7 +9,6 @@
 #include <map>
 #include <cmath>
 #include <set>
-#include "omp.h"
 #include "./heap.h"
 
 template<typename T> class TD;

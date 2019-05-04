@@ -403,9 +403,6 @@ public:
                 out.resize((blocks_.size() << 1) * in_rounded);
             }
         }
-#if 0
-        #pragma omp parallel for
-#endif
         for(size_t i = 0; i < blocks_.size(); ++i) {
             auto sv(subvector(out, (in_rounded << 1) * i, in_rounded));
             blocks_[i].apply(sv, in);
