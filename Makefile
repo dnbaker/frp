@@ -42,7 +42,10 @@ BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) -I/usr//local/Cellar/zlib/1.2.11/include -Ifastrange -Idistmat -Iaesctr
+INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/\
+      -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) \
+    -I/usr//local/Cellar/zlib/1.2.11/include -Ifastrange -Idistmat -Iaesctr \
+        -Iinclude/frp
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
@@ -68,6 +71,8 @@ test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.cpp $(OBJS) fftw3.h
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+pca: src/pca.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 dcitest: src/dcitest.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
