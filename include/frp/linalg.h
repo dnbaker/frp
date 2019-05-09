@@ -2,7 +2,12 @@
 #define _GFRP_LINALG_H__
 #define _USE_MATH_DEFINES
 #include <queue>
-#include "frp/util.h"
+#include <cstdint>
+#include <limits>
+#include <type_traits>
+#ifdef NO_BLAZE
+#undef NO_BLAZE
+#endif
 #include "vec/vec.h"
 #include "x86intrin.h"
 
@@ -17,6 +22,10 @@
 #endif // VECTOR_WIDTH
 
 namespace frp { namespace linalg {
+using std::runtime_error;
+using std::numeric_limits;
+using std::enable_if_t;
+using std::is_arithmetic;
 
 enum GramSchmitFlags: unsigned {
     FLIP = 1,

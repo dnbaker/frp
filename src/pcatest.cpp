@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include "frp/linalg.h"
 #include <iostream>
 
