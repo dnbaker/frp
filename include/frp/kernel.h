@@ -26,7 +26,7 @@ public:
         DT dest;
         VT *srcptr((VT *)&in[0]);
         if(use_lowprec_) {
-            if constexpr(IS_CONTIGUOUS_UNCOMPRESSED_BLAZE(VecType)) {
+            CONST_IF(IS_CONTIGUOUS_UNCOMPRESSED_BLAZE(VecType)) {
                 for(u32 i((in.size() >> 1) / ratio); i;) {
                     dest = SIMDType::sincos_u35(SIMDType::load((FloatType *)&srcptr[i - 1]));
                     SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
@@ -48,7 +48,7 @@ public:
                 }
             }
         } else {
-            if constexpr(IS_CONTIGUOUS_UNCOMPRESSED_BLAZE(VecType)) {
+            CONST_IF(IS_CONTIGUOUS_UNCOMPRESSED_BLAZE(VecType)) {
                 for(u32 i((in.size() >> 1) / ratio); i;) {
                     dest = SIMDType::sincos_u10(SIMDType::load((FloatType *)&srcptr[i - 1]));
                     SIMDType::store((FloatType *)&srcptr[(i << 1) - 1], dest.y);
@@ -403,9 +403,6 @@ public:
                 out.resize((blocks_.size() << 1) * in_rounded);
             }
         }
-#if 0
-        #pragma omp parallel for
-#endif
         for(size_t i = 0; i < blocks_.size(); ++i) {
             auto sv(subvector(out, (in_rounded << 1) * i, in_rounded));
             blocks_[i].apply(sv, in);

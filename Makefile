@@ -42,13 +42,16 @@ BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/ -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) -I/usr//local/Cellar/zlib/1.2.11/include -Ifastrange -Idistmat -Iaesctr
+INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/\
+      -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) \
+    -I/usr//local/Cellar/zlib/1.2.11/include -Ifastrange -Idistmat -Iaesctr \
+        -Iinclude/frp
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS) fht.o vec/sleef/build/include/sleef.h
+OBJS:=$(OBJS) vec/sleef/build/include/sleef.h
 
 all: $(OBJS) $(EX) python
 print-%  : ; @echo $* = $($*)
@@ -68,6 +71,10 @@ test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.cpp $(OBJS) fftw3.h
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+pcatest: src/pcatest.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+dcitest: src/dcitest.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %f: src/%.cpp $(OBJS) fftw3.h
@@ -103,6 +110,9 @@ vec/sleef/build: vec/sleef
 
 vec/sleef/build/include/sleef.h: vec/sleef/build
 	cd $< && cmake .. && make && cd ../..
+
+sleef.h:vec/sleef/build/include/sleef.h
+	cp vec/sleef/build/include/sleef.h sleef.h
 
 clean:
 	+rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) fftw3.h unit lib/*o frp/src/*o && cd FFHT && make clean && cd ..

@@ -1,7 +1,13 @@
 #ifndef _GFRP_LINALG_H__
 #define _GFRP_LINALG_H__
 #define _USE_MATH_DEFINES
-#include "frp/util.h"
+#include <queue>
+#include <cstdint>
+#include <limits>
+#include <type_traits>
+#ifdef NO_BLAZE
+#undef NO_BLAZE
+#endif
 #include "vec/vec.h"
 #include "x86intrin.h"
 
@@ -16,6 +22,10 @@
 #endif // VECTOR_WIDTH
 
 namespace frp { namespace linalg {
+using std::runtime_error;
+using std::numeric_limits;
+using std::enable_if_t;
+using std::is_arithmetic;
 
 enum GramSchmitFlags: unsigned {
     FLIP = 1,
@@ -408,6 +418,70 @@ constexpr inline auto ndball_surface_area(size_t nd, FloatType r) {
     return 2. * std::pow(static_cast<FloatType>(M_PI), nd) / tgamma(nd) * std::pow(r, nd - 1);
 }
 
+template<typename T>
+auto normalize(T &mat) {
+    blaze::DynamicVector<float> averages(mat.columns()), std(mat.columns());
+    for(size_t i = 0; i < mat.rows(); averages += row(mat, i++));
+    averages /= mat.rows();
+    for(size_t i = 0; i < mat.rows(); row(mat, i++) -= averages);
+    return averages;
+}
+template<typename T>
+auto naive_cov(const T &mat, bool by_feature=true, bool bias=true) {
+    if(by_feature) {
+        auto cmean = blaze::sum<blaze::columnwise>(mat) /  mat.rows();
+        T cpy = mat;
+        for(size_t i = 0; i < mat.rows(); ++i) {
+            row(cpy, i) -= cmean;
+        }
+        blaze::SymmetricMatrix<T> ret = trans(cpy) * cpy;
+        ret /= mat.rows() - bias;
+        return ret;
+    } else {
+        auto cmean = blaze::sum<blaze::rowwise>(mat) /  mat.columns();
+        T cpy = mat;
+        for(size_t i = 0; i < mat.columns(); ++i) {
+            column(cpy, i) -= cmean;
+        }
+        blaze::SymmetricMatrix<T> ret = cpy * trans(cpy);
+        ret /= mat.columns() - bias;
+        return ret;
+    }
+}
+
+
+template<typename...Args>
+auto cov(Args &&...args) {return naive_cov(std::forward<Args>(args)...);}
+// Until I've benchmarked, default to the naive implementation which I've verified is correct.
+
+template<typename T>
+auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
+    using FType = typename T::ElementType;
+
+    auto c = cov(mat, by_feature, bias);
+    blaze::DynamicVector<FType> eigv;
+    T eigenvectors;
+    blaze::eigen(c, eigv, eigenvectors);
+    // Sort by eigenvalue, largest to smallest
+    std::vector<uint32_t> vec(eigv.size());
+    std::iota(vec.begin(), vec.end(), 0u);
+    std::sort(vec.begin(), vec.end(), [&eigv](auto x, auto y) {
+        return eigv[x] > eigv[y];
+    });
+    std::fprintf(stderr, "Sorted eigenvalues\n");
+    if(ncomp > 0) {
+        std::sort(&vec[0], &vec[ncomp]);
+        T subset(mat.columns(), ncomp);
+        std::fprintf(stderr, "Got subset\n");
+        for(int i = 0; i < ncomp; ++i)
+            column(subset, i) = column(eigenvectors, vec[i]);
+        return std::make_pair(subset, eigv);
+        //eigenvectors.resize(
+    }
+    else {
+        return std::make_pair(eigenvectors, eigv);
+    }
+}
 
 }} // namespace frp::linalg
 

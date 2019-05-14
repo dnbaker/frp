@@ -12,11 +12,22 @@
 #include <type_traits>
 #include <unordered_set>
 #include "kspp/ks.h"
-#include "FFHT/fast_copy.h"
 #include "blaze/Math.h"
 #include "boost/random/normal_distribution.hpp"
 #include "boost/random.hpp"
 #include <zlib.h>
+#ifndef FHT_HEADER_ONLY
+#  define FHT_HEADER_ONLY
+#endif
+#include "./ifc.h"
+
+#ifndef CONST_IF
+#if __cplusplus >= 201703L
+#define CONST_IF(...) if constexpr(__VA_ARGS__)
+#else
+#define CONST_IF(...) if(__VA_ARGS__)
+#endif
+#endif
 
 #ifndef FLOAT_TYPE
 #define FLOAT_TYPE double
@@ -29,8 +40,8 @@
 #  ifndef unlikely
 #    define unlikely(x) __builtin_expect((x),0)
 #  endif
-#  ifndef UNUSED
-#    define UNUSED(x) __attribute__((unused)) x
+#  ifndef FRP_UNUSED
+#    define FRP_UNUSED(x) __attribute__((unused)) x
 #  endif
 #else
 #  ifndef likely
@@ -39,8 +50,8 @@
 #  ifndef unlikely
 #    define unlikely(x) (x)
 #  endif
-#  ifndef UNUSED
-#    define UNUSED(x) (x)
+#  ifndef FRP_UNUSED
+#    define FRP_UNUSED(x) (x)
 #  endif
 #endif
 

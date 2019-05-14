@@ -5,6 +5,7 @@
 #include "frp/linalg.h"
 #include "frp/stackstruct.h"
 #include "frp/sample.h"
+#include "frp/util.h"
 #include "frp/tx.h"
 #include "FFHT/fht.h"
 #include "boost/math/special_functions/detail/igamma_inverse.hpp"

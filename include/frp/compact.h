@@ -213,13 +213,6 @@ public:
                 throw std::runtime_error("Vector is too big for he gotdam feet");
             std::fprintf(stderr, "Warning: CompactRademacherTemplate is too big. Only affecting elements in my size (%zu) vs vector size (%zu). Any F*Ts might not be so kind.\n", size_t(size()), size_t(vec.size()));
         }
-        //std::fprintf(stderr, "Applyied %s vector of size %zu.\n", __PRETTY_FUNCTION__, vec.size());
-#if 0
-#if USE_OPENMP
-        #pragma omp parallel for schedule(dynamic, 8192)
-#endif
-#endif
-        // Think about loading words and working my way manually.
         for(T i = 0, e(std::min(vec.size(), size())); i < e; ++i) {
             vec[i] *= tmp[i];
         }
