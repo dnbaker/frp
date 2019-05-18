@@ -434,7 +434,7 @@ auto naive_cov(const T &mat, bool by_feature=true, bool bias=true) {
         for(size_t i = 0; i < mat.rows(); ++i) {
             row(cpy, i) -= cmean;
         }
-        blaze::SymmetricMatrix<T> ret = trans(cpy) * cpy;
+        blaze::SymmetricMatrix<T> ret = declsym(trans(cpy) * cpy);
         ret /= mat.rows() - bias;
         return ret;
     } else {
@@ -443,7 +443,7 @@ auto naive_cov(const T &mat, bool by_feature=true, bool bias=true) {
         for(size_t i = 0; i < mat.columns(); ++i) {
             column(cpy, i) -= cmean;
         }
-        blaze::SymmetricMatrix<T> ret = cpy * trans(cpy);
+        blaze::SymmetricMatrix<T> ret = declsym(cpy * trans(cpy));
         ret /= mat.columns() - bias;
         return ret;
     }
@@ -456,6 +456,8 @@ auto cov(Args &&...args) {return naive_cov(std::forward<Args>(args)...);}
 
 template<typename T>
 auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
+    // TODO: a smarter one that doesn't require a full eigensolve, at least for a subset of eigenvectors
+    // TODO: consider whitening transforms for clean-ups.
     using FType = typename T::ElementType;
 
     auto c = cov(mat, by_feature, bias);

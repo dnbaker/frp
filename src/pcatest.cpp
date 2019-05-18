@@ -9,7 +9,7 @@ using namespace linalg;
 // Python code above works.
 // The key is take the matrix, sub
 int main(int argc, char *argv[]) {
-    int nrows = argc == 1 ? 25: std::atoi(argv[1]), ncols = argc < 3 ? 5: std::atoi(argv[2]), ncomp = argc < 4 ? 3: std::atoi(argv[3]);
+    int nrows = argc == 1 ? 25: std::atoi(argv[1]), ncols = argc < 3 ? 5: std::atoi(argv[2]), ncomp = argc < 4 ? ncols: std::atoi(argv[3]);
     blaze::DynamicMatrix<float> mat(nrows, ncols);
     std::mt19937_64 mt;
     std::uniform_real_distribution<float> gen;
