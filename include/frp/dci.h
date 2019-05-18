@@ -91,6 +91,7 @@ public:
         }
     }
     bool should_stop(size_t i, const std::set<IdType> &x, unsigned k) const {
+        std::fprintf(stderr, "Warning: this needs to be rigorously decided. This code is a simple stopgap measure.\n");
         return x.size() >= k; // Arbitrary, probably bad. (Will implement better later.)
     }
     static auto next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
@@ -100,12 +101,11 @@ public:
                 if(diff < 0.)
                     return &*(bi.first--);
                 else
-                    return &*(bi.second--);
+                    return &*(bi.second++);
             }
             return &*(bi.first--);
         }
-        if(bi.second != map.end())
-            return &*(bi.second--);
+        if(bi.second != map.end()) return &*(bi.second++);
         return static_cast<decltype(&*(bi.second))>(nullptr);
     }
     std::vector<IdType> query(const ValueType &val, unsigned k) const {
@@ -116,9 +116,10 @@ public:
         std::vector<FType> dists(l_ * m_);
         // Get a pair of iterators
         for(size_t i = 0; i < l_ * m_; ++i) {
-            FType dist = dot(row(mat_, i), val);
+            const FType dist = dot(row(mat_, i), val);
             dists[i] = dist;
-            bounds.emplace_back(std::make_pair(map_[i].lower_bound(dist), map_[i].upper_bound(dist)));
+            const auto &pos = map_[i];
+            bounds.emplace_back(std::make_pair(pos.lower_bound(dist), pos.upper_bound(dist)));
         }
 
 
