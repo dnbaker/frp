@@ -22,6 +22,7 @@
 #endif // VECTOR_WIDTH
 
 namespace frp { namespace linalg {
+using std::forward;
 using std::runtime_error;
 using std::numeric_limits;
 using std::enable_if_t;
@@ -40,6 +41,21 @@ template<typename MatrixKind1, typename MatrixKind2>
 void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, unsigned flags=RESCALE_TO_GAUSSIAN) {
     b = a;
     gram_schmidt(b, flags);
+}
+template<class Container>
+auto meanvar(const Container &c) {
+    using FloatType = typename std::decay<decltype(c[0])>::type;
+    FloatType sum(0.), varsum(0.0);
+    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
+        for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
+    } else {
+        for(const auto entry: c) sum += entry, varsum += entry * entry;
+    }
+    const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
+    varsum -= sum * sum * inv;
+    varsum *= inv;
+    sum *= inv;
+    return std::make_pair(sum, varsum);
 }
 
 template<typename ValueType>

@@ -3,8 +3,10 @@
 #include <random>
 #include "frp/rand.h"
 #include "frp/linalg.h"
+#include "boost/random.hpp"
 
 namespace frp {
+using std::forward;
 
 // Fill a matrix with distributions. Contains utilities for filling
 // vectors with C++ std distributions as well as Rademacher.
