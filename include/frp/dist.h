@@ -3,6 +3,7 @@
 #include <random>
 #include "frp/rand.h"
 #include "frp/linalg.h"
+#include "boost/random.hpp"
 
 namespace frp {
 

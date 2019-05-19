@@ -25,7 +25,7 @@ namespace frp { namespace linalg {
 
 template<class Container>
 auto meanvar(const Container &c) {
-    using FloatType = decay_t<decltype(c[0])>;
+    using FloatType = std::decay_t<decltype(c[0])>;
     FloatType sum(0.), varsum(0.0);
     if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
         for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
