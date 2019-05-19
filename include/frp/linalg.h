@@ -22,6 +22,22 @@
 #endif // VECTOR_WIDTH
 
 namespace frp { namespace linalg {
+
+template<class Container>
+auto meanvar(const Container &c) {
+    using FloatType = decay_t<decltype(c[0])>;
+    FloatType sum(0.), varsum(0.0);
+    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
+        for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
+    } else {
+        for(const auto entry: c) sum += entry, varsum += entry * entry;
+    }
+    const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
+    varsum -= sum * sum * inv;
+    varsum *= inv;
+    sum *= inv;
+    return std::make_pair(sum, varsum);
+}
 using std::runtime_error;
 using std::numeric_limits;
 using std::enable_if_t;

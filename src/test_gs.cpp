@@ -1,5 +1,6 @@
 #include "frp/linalg.h"
 #include "frp/dist.h"
+#include <iostream>
 using namespace frp; // enter Froopyland!
 using namespace frp::linalg;
 

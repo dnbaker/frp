@@ -145,22 +145,6 @@ auto sum(const Container &c) {
     return std::accumulate(c.begin(), c.end(), static_cast<decay_t<decltype(*c.begin())>>(0));
 }
 
-template<class Container>
-auto meanvar(const Container &c) {
-    using FloatType = decay_t<decltype(c[0])>;
-    FloatType sum(0.), varsum(0.0);
-    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
-        for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
-    } else {
-        for(const auto entry: c) sum += entry, varsum += entry * entry;
-    }
-    const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
-    varsum -= sum * sum * inv;
-    varsum *= inv;
-    sum *= inv;
-    return std::make_pair(sum, varsum);
-}
-
 template<typename T>
 void ksprint(const T &view, ks::string &buf, bool scientific=true) {
     const char fmt[5] = {'%', 'l', (char)('f' - scientific), ',', '\0'};
