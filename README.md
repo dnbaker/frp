@@ -15,12 +15,21 @@ special functions and random number generators. Only required boost headers are 
     2. PRNVector (PseudoRandom Number Vector) to provide access to random vectors using only constant memory requires instead of explicitly storing them by generating values as needed.
     3. Utilities for sampling and filling containers from distributions.
     4. Acquiring cache sizes from the OS.
-    5. Implementation of the Gram-Schmidt algorithm for orthogonalizing matrices.
+4. Linear algebra methods
+    1. Implementation of the Gram-Schmidt algorithm for orthogonalizing matrices.
+    2. PCA using full eigendecomposition for symmetric matrices.
+    3. Covariance Matrix calculation
+5. Miscellaneous, related work
+    1. Dynamic Continuous Indexing for real-valued data
+        1. [Dynamic Continuous Indexing](https://arxiv.org/abs/1512.00442)
+        2. TODO: array-based binary trees for traversal
+        3. TODO: [Prioritized DCI](https://arxiv.org/abs/1703.00440)
+        
 
-#TODO
+# TODO
 
 1. Add Kernels:
-    2. Laplacian [See Recht and Rahimi]
+    1. Laplacian [See Recht and Rahimi]
     3. Cauchy [ibid.]
     4. Angular [See arxiv 1703.00864]
     5. Dot Product [See arxiv 1407.5599, table 1 for the rest]
@@ -32,7 +41,11 @@ special functions and random number generators. Only required boost headers are 
     11. Skewed-Chi Squared
     12. Skewed-Intersection
     13. Exponential Semigroup
-    14. Reciprocal Semingroup
+    14. Reciprocal Semigroup
     15. Arc-Cosine
 2. See if accuracy found in [Generalization Properties of Learning with Random Features](https://arxiv.org/abs/1602.04474)
    can be extended to the linearithmic runtime/linear space regime.
+
+## Commentary
+
+The initial design of this library was to implement methods from [https://arxiv.org/abs/1703.00864](https://arxiv.org/abs/1703.00864). The core transformss on which it is built are fast fast-hadamard transform accelerated structured matrix vector products. This has applications in memory-efficient, accelerated Johnson-Lindenstrauss Transforms, gaussian kernel approximation for linearizing datasets and FastFood/Adaptive Random Spinners.
