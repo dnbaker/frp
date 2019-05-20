@@ -92,7 +92,7 @@ fftw-3.3.7: fftw-3.3.7.tar.gz
 PLATFORM_CONF_STR?=--enable-avx2
 
 fftw3.h: fftw-3.3.7/lib/libfftw3l.a fftw-3.3.7/lib/libfftw3.a fftw-3.3.7/lib/libfftw3f.a
-	cp fftw3-3.3.7/api/fftw3.h .
+	cp fftw-3.3.7/api/fftw3.h .
 
 python:
 	cd py && make
