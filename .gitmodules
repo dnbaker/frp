@@ -116,3 +116,6 @@
 [submodule "flat_hash_map"]
 	path = flat_hash_map
 	url = https://github.com/skarupke/flat_hash_map
+[submodule "boost/multiprecision"]
+	path = boost/multiprecision
+	url = https://github.com/boostorg/multiprecision
