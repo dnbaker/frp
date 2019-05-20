@@ -9,7 +9,8 @@
 #include <map>
 #include <cmath>
 #include <set>
-#include "./heap.h"
+#include <queue>
+#include <vector>
 
 template<typename T> class TD;
 
@@ -21,6 +22,13 @@ template<typename FloatType, bool SO, typename T>
 auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
     return blaze::dot(r, x);
 }
+
+struct ScoredHeap {
+    template<typename FType>
+    bool operator()(const std::pair<size_t, FType> &a, const std::pair<size_t, FType> &b) const {
+        return a.second < b.second;
+    }
+};
 
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=float,
@@ -145,13 +153,18 @@ public:
             u.insert(sit->begin(), sit->end()), ++sit;
         dists.resize(u.size());
         size_t di = 0;
-        heap::ObjScoreHeap<size_t, std::hash<size_t>, FType> osh(k);
-        for(auto e: u) {
-            osh.addh(e, blaze::sqrNorm(*val_ptrs_[e] -  val));
+        std::priority_queue<std::pair<size_t, FType>, std::vector<std::pair<size_t, FType>>, ScoredHeap> pq;
+        for(auto it = u.begin(); it != u.end(); ++it) {
+            FType tmp = blaze::sqrNorm(*val_ptrs_[*it] -  val);
+            if(pq.size() == k && tmp < pq.top().second) {
+                pq.pop();
+                pq.push(std::pair<size_t, FType>(*it, tmp));
+            }
         }
-        std::vector<IdType> ids; ids.reserve(k);
-        for(const auto &x: osh)
-            ids.push_back(x.first);
+        std::vector<IdType> ids;
+        ids.reserve(k);
+        for(size_t i = k; i--; ids.push_back(pq.top().first), pq.pop());
+        std::reverse(ids.begin(), ids.end());
         return ids;
     }
     size_t size() const {return n_inserted_;}

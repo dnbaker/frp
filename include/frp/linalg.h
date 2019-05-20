@@ -23,6 +23,22 @@
 
 namespace frp { namespace linalg {
 using std::forward;
+
+template<class Container>
+auto meanvar(const Container &c) {
+    using FloatType = std::decay_t<decltype(c[0])>;
+    FloatType sum(0.), varsum(0.0);
+    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
+        for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
+    } else {
+        for(const auto entry: c) sum += entry, varsum += entry * entry;
+    }
+    const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
+    varsum -= sum * sum * inv;
+    varsum *= inv;
+    sum *= inv;
+    return std::make_pair(sum, varsum);
+}
 using std::runtime_error;
 using std::numeric_limits;
 using std::enable_if_t;
@@ -41,21 +57,6 @@ template<typename MatrixKind1, typename MatrixKind2>
 void gram_schmidt(const MatrixKind1 &a, MatrixKind2 &b, unsigned flags=RESCALE_TO_GAUSSIAN) {
     b = a;
     gram_schmidt(b, flags);
-}
-template<class Container>
-auto meanvar(const Container &c) {
-    using FloatType = typename std::decay<decltype(c[0])>::type;
-    FloatType sum(0.), varsum(0.0);
-    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
-        for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
-    } else {
-        for(const auto entry: c) sum += entry, varsum += entry * entry;
-    }
-    const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
-    varsum -= sum * sum * inv;
-    varsum *= inv;
-    sum *= inv;
-    return std::make_pair(sum, varsum);
 }
 
 template<typename ValueType>
@@ -450,7 +451,7 @@ auto naive_cov(const T &mat, bool by_feature=true, bool bias=true) {
         for(size_t i = 0; i < mat.rows(); ++i) {
             row(cpy, i) -= cmean;
         }
-        blaze::SymmetricMatrix<T> ret = trans(cpy) * cpy;
+        blaze::SymmetricMatrix<T> ret = declsym(trans(cpy) * cpy);
         ret /= mat.rows() - bias;
         return ret;
     } else {
@@ -459,7 +460,7 @@ auto naive_cov(const T &mat, bool by_feature=true, bool bias=true) {
         for(size_t i = 0; i < mat.columns(); ++i) {
             column(cpy, i) -= cmean;
         }
-        blaze::SymmetricMatrix<T> ret = cpy * trans(cpy);
+        blaze::SymmetricMatrix<T> ret = declsym(cpy * trans(cpy));
         ret /= mat.columns() - bias;
         return ret;
     }
@@ -472,6 +473,8 @@ auto cov(Args &&...args) {return naive_cov(std::forward<Args>(args)...);}
 
 template<typename T>
 auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
+    // TODO: a smarter one that doesn't require a full eigensolve, at least for a subset of eigenvectors
+    // TODO: consider whitening transforms for clean-ups.
     using FType = typename T::ElementType;
 
     auto c = cov(mat, by_feature, bias);

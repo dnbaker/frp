@@ -145,7 +145,6 @@ auto sum(const Container &c) {
     return std::accumulate(c.begin(), c.end(), static_cast<decay_t<decltype(*c.begin())>>(0));
 }
 
-
 template<typename T>
 void ksprint(const T &view, ks::string &buf, bool scientific=true) {
     const char fmt[5] = {'%', 'l', (char)('f' - scientific), ',', '\0'};
