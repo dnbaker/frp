@@ -89,15 +89,23 @@ dcitest: src/dcitest.cpp $(OBJS)
 fftw-3.3.7: fftw-3.3.7.tar.gz
 	tar -zxvf fftw-3.3.7.tar.gz
 
-fftw3.h: fftw-3.3.7
-	+cd fftw-3.3.7 && \
-	./configure --enable-avx2 --prefix=$$PWD && make && make install && \
-	./configure --prefix=$$PWD --enable-long-double && make && make install &&\
-	./configure --enable-avx2 --prefix=$$PWD --enable-single && make && make install &&\
-	cp api/fftw3.h .. && cd ..
+PLATFORM_CONF_STR?=--enable-avx2
+
+fftw3.h: fftw-3.3.7/lib/libfftw3l.a fftw-3.3.7/lib/libfftw3.a fftw-3.3.7/lib/libfftw3f.a
+	cp fftw3-3.3.7/api/fftw3.h .
 
 python:
 	cd py && make
+
+fftw-3.3.7/lib/libfftw3.a: fftw-3.3.7
+	+cd fftw-3.3.7 && (make clean || echo "") &&\
+	./configure $(PLATFORM_CONF_STR) --prefix=$$PWD && make && make install
+fftw-3.3.7/lib/libfftw3f.a: fftw-3.3.7 fftw-3.3.7/lib/libfftw3.a
+	+cd fftw-3.3.7 && (make clean || echo "") &&\
+	./configure $(PLATFORM_CONF_STR) --prefix=$$PWD --enable-single && make && make install
+fftw-3.3.7/lib/libfftw3l.a: fftw-3.3.7 fftw-3.3.7/lib/libfftw3f.a
+	+cd fftw-3.3.7 && (make clean || echo "") &&\
+	./configure --prefix=$$PWD --enable-long-double && make && make install && cp api/fftw3.h ..
 
 
 tests: clean unit
