@@ -98,13 +98,13 @@ python:
 	cd py && make
 
 fftw-3.3.7/lib/libfftw3.a: fftw-3.3.7
-	+cd fftw-3.3.7 && (make clean || echo "") &&\
+	+cd fftw-3.3.7 &&\
 	./configure $(PLATFORM_CONF_STR) --prefix=$$PWD && make && make install
 fftw-3.3.7/lib/libfftw3f.a: fftw-3.3.7 fftw-3.3.7/lib/libfftw3.a
-	+cd fftw-3.3.7 && (make clean || echo "") &&\
+	+cd fftw-3.3.7 &&\
 	./configure $(PLATFORM_CONF_STR) --prefix=$$PWD --enable-single && make && make install
 fftw-3.3.7/lib/libfftw3l.a: fftw-3.3.7 fftw-3.3.7/lib/libfftw3f.a
-	+cd fftw-3.3.7 && (make clean || echo "") &&\
+	+cd fftw-3.3.7 &&\
 	./configure --prefix=$$PWD --enable-long-double && make && make install && cp api/fftw3.h ..
 
 
