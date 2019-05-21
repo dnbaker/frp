@@ -80,24 +80,34 @@ public:
             auto &map = map_[i];
             FType key = dot(val, row(mat_, i));
             auto it = map.find(key);
-            while(it != map.end() && key != 0.) {
+            while(__builtin_expect(it != map.end(), 0)) {
                 std::fprintf(stderr, "Warning: dot product between val and our row is the same as another's and is nonzero, which is unexpected. This might point to duplicates\n");
                 key = std::nextafter(key, std::numeric_limits<FType>::max());
                 it = map.find(key);
             }
             map.emplace(key, ind);
-            val_ptrs_.emplace_back(std::addressof(val));
-            assert(val_ptrs_.size() == n_inserted_);
         }
+        val_ptrs_.emplace_back(std::addressof(val));
+        std::fprintf(stderr, "ind: %u. inserted: %u. valp sz: %zu\n", ind, unsigned(n_inserted_), val_ptrs_.size());
+        assert(val_ptrs_.size() == n_inserted_);
     }
     bool should_stop(size_t i, const std::set<IdType> &x, unsigned k) const {
         std::fprintf(stderr, "Warning: this needs to be rigorously decided. This code is a simple stopgap measure.\n");
         return x.size() >= k; // Arbitrary, probably bad. (Will implement better later.)
     }
     static auto next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
+#if 0
+        std::fprintf(stderr, "map size: %zu\n", map.size());
+#endif
         if(bi.first != map.begin()) {
+#if 0
+            std::fprintf(stderr, "bifirst real\n");
+#endif
             if(bi.second != map.end()) {
                 auto diff = std::abs(bi.first->first - val) - std::abs(bi.second->first - val);
+#if 0
+                std::fprintf(stderr, "second real. Diff: %lf. >= 0 ? %s\n", double(diff), diff >= 0 ? "true": "false");
+#endif
                 if(diff < 0.)
                     return &*(bi.first--);
                 else
@@ -105,6 +115,9 @@ public:
             }
             return &*(bi.first--);
         }
+#if 0
+        std::fprintf(stderr, "bifirst unreal. second real? %s\n", bi.second != map.end() ? "true": "false");
+#endif
         if(bi.second != map.end()) return &*(bi.second++);
         return static_cast<decltype(&*(bi.second))>(nullptr);
     }
@@ -120,6 +133,9 @@ public:
             dists[i] = dist;
             const auto &pos = map_[i];
             bounds.emplace_back(std::make_pair(pos.lower_bound(dist), pos.upper_bound(dist)));
+#if 0
+            std::fprintf(stderr, "Pos sisze: %zu. %i/%i\n", pos.size(), pos.lower_bound(dist) == pos.begin(), pos.upper_bound(dist) == pos.end());
+#endif
         }
 
 

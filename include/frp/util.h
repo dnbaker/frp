@@ -22,7 +22,7 @@
 #include "./ifc.h"
 
 #ifndef CONST_IF
-#if __cplusplus >= 201703L
+#if defined(__cpp_if_constexpr) && __cplusplus >= __cpp_if_constexpr
 #define CONST_IF(...) if constexpr(__VA_ARGS__)
 #else
 #define CONST_IF(...) if(__VA_ARGS__)
@@ -127,15 +127,45 @@ static constexpr INLINE unsigned ilog2(uint64_t x) noexcept {
 
 template<typename T> class TD;
 
+template<typename T, bool SO, typename F>
+void for_each_nz(blaze::DynamicVector<T, SO> &x, const F &func) {
+    for(size_t i = 0; i < x.size(); ++i) {
+        func(i, x[i]);
+    }
+}
+template<typename T, bool SO, typename F>
+void for_each_nz(blaze::CompressedVector<T, SO> &x, const F &func) {
+    size_t i = 0;
+    for(auto it = x.begin(), e = x.end(); it != e; ++it) {
+        func(it->index(), x->value());
+    }
+}
+template<typename T, bool SO, typename F>
+void for_each_nz(const blaze::DynamicVector<T, SO> &x, const F &func) {
+    for(size_t i = 0; i < x.size(); ++i) {
+        func(i, x[i]);
+    }
+}
+template<typename T, bool SO, typename F>
+void for_each_nz(const blaze::CompressedVector<T, SO> &x, const F &func) {
+    size_t i = 0;
+    for(auto it = x.begin(), e = x.end(); it != e; ++it) {
+        func(it->index(), x->value());
+    }
+}
+
 template<class Container>
 auto mean(const Container &c) {
     using FloatType = decay_t<decltype(c[0])>;
     FloatType sum(0.);
+    for_each_nz(c, [&](auto x, auto y){sum += y;});
+#if 0
     if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
         for(const auto entry: c) sum += entry.value();
     } else {
         for(const auto entry: c) sum += entry;
     }
+#endif
     sum /= c.size();
     return sum;
 }

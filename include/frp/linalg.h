@@ -28,11 +28,7 @@ template<class Container>
 auto meanvar(const Container &c) {
     using FloatType = std::decay_t<decltype(c[0])>;
     FloatType sum(0.), varsum(0.0);
-    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
-        for(const auto entry: c) sum += entry.value(), varsum += entry.value() * entry.value();
-    } else {
-        for(const auto entry: c) sum += entry, varsum += entry * entry;
-    }
+    for_each_nz(c, [&](auto ind, auto y) {sum += y; varsum += y * y;});
     const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
     varsum -= sum * sum * inv;
     varsum *= inv;
@@ -296,12 +292,15 @@ void mempluseq<double>(double *data, size_t nelem, double val) {
 template<typename MatrixType, typename ValueType,
          typename=enable_if_t<is_arithmetic<ValueType>::value>>
 MatrixType &operator+=(MatrixType &in, ValueType val) {
-    if constexpr(blaze::IsMatrix<MatrixType>::value) {
-        if constexpr(blaze::IsSparseMatrix<MatrixType>::value) {
+    CONST_IF(blaze::IsMatrix<MatrixType>::value) {
+        CONST_IF(blaze::IsSparseMatrix<MatrixType>::value) {
             for(size_t i(0); i < in.rows(); ++i) {
+                for_each_nz(row(in, i), [&](auto i, auto &v) {v += val;});
+#if 0
                 for(auto it(in.begin(i)), eit(in.end(i)); it != eit; ++it) {
                     it->value() += val;
                 }
+#endif
             }
         } else {
             if(size_t(&in(0, 1) - &in(0, 0)) == 1) {
@@ -315,8 +314,8 @@ MatrixType &operator+=(MatrixType &in, ValueType val) {
             }
         }
     } else {
-        if constexpr(blaze::IsSparseVector<MatrixType>::value) {
-            for(auto it(in.begin()), eit(in.end()); it != eit; ++it) it->value() += val;
+        CONST_IF(blaze::IsSparseVector<MatrixType>::value) {
+                for_each_nz(in, [&](auto i, auto &v) {v += val;});
         } else {
             if(size_t(&in[0] - &in[1]) == 1) {
                 mempluseq(&in[0], in.size(), val);

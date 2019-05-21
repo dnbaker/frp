@@ -370,7 +370,7 @@ public:
         blaze::DynamicVector<FloatType> tmp(nelem);
         tmp = ::blaze::subvector(out, 0, nelem);
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
-            if constexpr(blaze::IsView<OutputType>::value) {
+            CONST_IF(blaze::IsView<OutputType>::value) {
                 auto ks(ks::sprintf("[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                                     __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, nelem, static_cast<size_t>(roundup(nelem))));
                 ks.write(stderr);
@@ -391,7 +391,7 @@ public:
     void apply(OutputType &out, const InputType &in) const {
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
-            if constexpr(blaze::IsView<OutputType>::value) {
+            CONST_IF(blaze::IsView<OutputType>::value) {
                 char buf[2048];
                 std::sprintf(buf, "[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                                     __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), static_cast<size_t>(roundup(in.size())));
