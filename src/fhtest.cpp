@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     size = roundup(size);
     blaze::DynamicVector<float> dps(size);
     blaze::DynamicVector<float> dpsout(size);
-    aes::AesCtr aes(0);
+    aes::AesCtr<> aes(0);
     unormd<float> vals;
     for(auto &el: dps) el = vals(aes);
 #if 0

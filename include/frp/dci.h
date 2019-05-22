@@ -24,8 +24,8 @@ auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
 }
 
 struct ScoredHeap {
-    template<typename FType>
-    bool operator()(const std::pair<size_t, FType> &a, const std::pair<size_t, FType> &b) const {
+    template<typename FType, typename SizeType>
+    bool operator()(const std::pair<SizeType, FType> &a, const std::pair<SizeType, FType> &b) const {
         return a.second < b.second;
     }
 };
@@ -121,7 +121,33 @@ public:
         if(bi.second != map.end()) return &*(bi.second++);
         return static_cast<decltype(&*(bi.second))>(nullptr);
     }
-    std::vector<IdType> query(const ValueType &val, unsigned k) const {
+    std::vector<std::pair<IdType, FType>> query(const ValueType &val, unsigned k) const {
+        bool klt = k < val_ptrs_.size();
+        std::vector<std::pair<IdType,FType>> vs(klt ? unsigned(val_ptrs_.size()): k);
+        if(k < val_ptrs_.size()) {
+            k = val_ptrs_.size();
+#if USE_PQ
+            std::priority_queue<std::pair<IdType, FType>, std::vector<std::pair<IdType, FType>>, ScoredHeap> pq;
+            IdType i = 0;
+            for(const auto v: val_ptrs_) {
+                FType tmp = blaze::sqrNorm(*v -  val);
+                if(pq.size() == k && tmp < pq.top().second) {
+                    pq.pop();
+                    pq.push(std::pair<IdType, FType>(*it, tmp));
+                }
+            }
+            for(int i = k; i--;pq.pop()) vs[i] = pq.top();
+#else
+            size_t ind = 0;
+            auto it = val_ptrs_.begin();
+            std::generate_n(vs.begin(), k, [&](){
+                const ValueType *ptr = *it++;
+                return std::pair<IdType, FType>(ind++, blaze::sqrNorm(*ptr - val));
+            });
+            std::sort(vs.begin(), vs.end(), ScoredHeap());
+#endif
+            return vs;
+        }
 
         // First step: dot product the query with all reference positions
         std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds;
@@ -177,11 +203,8 @@ public:
                 pq.push(std::pair<size_t, FType>(*it, tmp));
             }
         }
-        std::vector<IdType> ids;
-        ids.reserve(k);
-        for(size_t i = k; i--; ids.push_back(pq.top().first), pq.pop());
-        std::reverse(ids.begin(), ids.end());
-        return ids;
+        for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
+        return vs;
     }
     size_t size() const {return n_inserted_;}
     size_t ind(size_t m, size_t l) const {

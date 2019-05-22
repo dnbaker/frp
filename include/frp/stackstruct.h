@@ -124,19 +124,34 @@ struct is_dense {
 };
 
 
+class Assigner {
+public:
+    template<typename F, bool SO, template<typename, bool> class T1, template<typename, bool> class T2>
+    void apply(T1<F,SO> &ret, const T2<F, SO> &src) const {
+        ret = src;
+    }
+    template<typename F, bool SO, template<typename, bool> class T1, template<typename, bool> class T2>
+    void apply(T1<F,SO> &ret, const T2<F, !SO> &src) const {
+        ret = transpose(src);
+    }
+};
+
 template<typename VecType1, typename VecType2, typename=std::enable_if_t<blaze::IsVector<VecType2>::value>>
 void fht(const VecType1 &in, VecType2 &out, bool renormalize=true) {
     std::fprintf(stderr, "About to call fht on sizes of %zu in and %zu out.\n", in.size(), out.size());
     static_assert(is_same<typename VecType1::ElementType, typename VecType2::ElementType>::value, "Input vectors must have the same type.");
-    if constexpr(is_dense<VecType1, VecType2>::value) {
+    CONST_IF(is_dense<VecType1, VecType2>::value) {
         fast_copy(&out[0], &in[0], sizeof(in[0]) * out.size());
         fht(out, renormalize);
         return;
     } else {
-        if constexpr(blaze::TransposeFlag<VecType1>::value == blaze::TransposeFlag<VecType2>::value) {
+#if 1
+        Assigner()(apply(out, in));
+        fht(out, renormalize);
+#else
+        CONST_IF(blaze::TransposeFlag<VecType1>::value == blaze::TransposeFlag<VecType2>::value) {
             if(out.size() == in.size()) {
                 out = in;
-                fht(out, renormalize);
             } else throw runtime_error("NotImplemented.");
         } else {
             if(out.size() == in.size()) {
@@ -144,6 +159,7 @@ void fht(const VecType1 &in, VecType2 &out, bool renormalize=true) {
                 fht(out, renormalize);
             } else throw runtime_error("NotImplemented.");
         }
+#endif
     }
     //std::fprintf(stderr, "Called fht on sizes of %zu in and %zu out.\n", in.size(), out.size());
 }
@@ -162,14 +178,12 @@ struct HadamardBlock {
     }
     template<typename OutVector>
     void apply(OutVector &out) const {
-        if constexpr(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
+        if(blaze::IsSparseVector<OutVector>::value || blaze::IsSparseMatrix<OutVector>::value) {
             throw runtime_error("Fast Hadamard transform not implemented for sparse vectors yet.");
         }
-        if((out.size() & (out.size() - 1)) == 0) {
-            fht(out, renormalize_);
-        } else {
+        if(out.size() & (out.size() - 1)) 
             throw runtime_error("NotImplemented: either copy to another array, perform, and then subsample the last n rows, resize the output array.");
-        }
+        fht(out, renormalize_);
         //std::fprintf(stderr, "[%s] Called fht on size %zu.\n", __PRETTY_FUNCTION__, out.size());
     }
     template<typename FloatType>

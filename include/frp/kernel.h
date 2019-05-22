@@ -4,6 +4,17 @@
 
 namespace frp {
 
+struct ApplyMatmul {
+    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
+    void apply(OType &out, blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,!SO> &inp) {
+        out = mat * inp;
+    }
+    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
+    void apply(OType &out, blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,SO> &inp) {
+        out = trans(mat * trans(inp));
+    }
+};
+
 namespace kernel {
 
 
@@ -277,15 +288,14 @@ public:
             throw std::runtime_error(buf);
         }
         // std::fprintf(stderr, "Applying orf::KernelBlock\n");
-        if constexpr(blaze::TransposeFlag<InputType>::value) {
-            out = trans(matrix_ * trans(in));
-        } else {
-            out = matrix_ * in;
-        }
+        ApplyMatmul mm;
+        mm.apply(out, matrix_, in);
     }
 };
 
 } // namespace orf
+
+
 namespace rf {
 
 template<typename FloatType, typename RademType=CompactRademacher>
@@ -318,11 +328,8 @@ public:
             throw std::runtime_error(buf);
         }
         // std::fprintf(stderr, "Applying rf::KernelBlock\n");
-        if constexpr(blaze::TransposeFlag<InputType>::value) {
-            out = trans(matrix_ * trans(in));
-        } else {
-            out = matrix_ * in;
-        }
+        ApplyMatmul mm;
+        mm.apply(out, matrix_, in);
     }
 };
 
@@ -387,11 +394,11 @@ public:
             finalizer_.apply(sv);
         }
     }
-    template<typename InputType, typename OutputType, typename=std::enable_if_t<!std::is_arithmetic_v<InputType>>>
+    template<typename InputType, typename OutputType, typename=std::enable_if_t<!std::is_arithmetic<InputType>::value>>
     void apply(OutputType &out, const InputType &in) const {
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
-            CONST_IF(blaze::IsView<OutputType>::value) {
+            if constexpr(blaze::IsView<OutputType>::value) {
                 char buf[2048];
                 std::sprintf(buf, "[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                                     __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), static_cast<size_t>(roundup(in.size())));

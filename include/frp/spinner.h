@@ -85,11 +85,10 @@ public:
         std::cerr << "Applying scaling block with norm " << vec_norm() << ":\n";
         pv(out); std::cerr << '\n';
 #endif
-        if constexpr(blaze::TransposeFlag<VectorType>::value != blaze::TransposeFlag<Vector>::value) {
+        CONST_IF(blaze::TransposeFlag<VectorType>::value != blaze::TransposeFlag<Vector>::value) {
             if(&out[1] - &out[0] != 1) throw std::runtime_error("Can't use vectorized approach. Change your code so you can.");
             vec::vecmul(&out[0], &vec_[0], out.size());
-        }
-        else out *= vec_;
+        } else out *= vec_;
 #if VERBOSE
         std::cerr << "Applied scaling block with norm " << vec_norm() << ":\n";
         pv(out); std::cerr << '\n';
@@ -200,7 +199,7 @@ public:
         using PackedType = typename Space::Type;
         PackedType el, *ptr((PackedType *)&this->vec_[0]);
         PackedType two(Space::set1(2.));
-        if constexpr(high_prec) {
+        CONST_IF(high_prec) {
             for(size_t i(this->vec_.size() / Space::COUNT); --i;) {
                 el = Space::load((FloatType *)&ptr[i]);
                 for(u32 j(0); j < Space::COUNT; ++j) el[j] = boost::math::gamma_p_inv(val, el[j]);
@@ -421,9 +420,6 @@ public:
         void operator()(OutVector &out) const {
             std::get<Index - 1>(ref_.blocks_).apply(out);
             ApplicationStruct<OutVector, Index - 1> as(ref_);
-            if constexpr(Index - 1 == 4) {
-                //TD<decay_t<decltype(std::get<Index - 1>(ref_.blocks_))>> td;
-            }
 #if !NDEBUG
         try {
 #endif

@@ -89,6 +89,9 @@ dcitest: src/dcitest.cpp $(OBJS)
 fftw-3.3.7: fftw-3.3.7.tar.gz
 	tar -zxvf fftw-3.3.7.tar.gz
 
+fftw-3.3.7.exist: fftw-3.3.7.tar.gz
+	tar -zxvf fftw-3.3.7.tar.gz && touch fftw-3.3.7.exist
+
 PLATFORM_CONF_STR?=--enable-avx2
 
 fftw3.h: fftw-3.3.7/lib/libfftw3l.a fftw-3.3.7/lib/libfftw3.a fftw-3.3.7/lib/libfftw3f.a
@@ -97,13 +100,13 @@ fftw3.h: fftw-3.3.7/lib/libfftw3l.a fftw-3.3.7/lib/libfftw3.a fftw-3.3.7/lib/lib
 python:
 	cd py && make
 
-fftw-3.3.7/lib/libfftw3.a: fftw-3.3.7
+fftw-3.3.7/lib/libfftw3.a: fftw-3.3.7.exist
 	+cd fftw-3.3.7 &&\
 	./configure $(PLATFORM_CONF_STR) --prefix=$$PWD && make && make install
-fftw-3.3.7/lib/libfftw3f.a: fftw-3.3.7 fftw-3.3.7/lib/libfftw3.a
+fftw-3.3.7/lib/libfftw3f.a: fftw-3.3.7.exist fftw-3.3.7/lib/libfftw3.a
 	+cd fftw-3.3.7 &&\
 	./configure $(PLATFORM_CONF_STR) --prefix=$$PWD --enable-single && make && make install
-fftw-3.3.7/lib/libfftw3l.a: fftw-3.3.7 fftw-3.3.7/lib/libfftw3f.a
+fftw-3.3.7/lib/libfftw3l.a: fftw-3.3.7.exist fftw-3.3.7/lib/libfftw3f.a
 	+cd fftw-3.3.7 &&\
 	./configure --prefix=$$PWD --enable-long-double && make && make install && cp api/fftw3.h ..
 

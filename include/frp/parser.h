@@ -115,7 +115,7 @@ public:
         // TODO: speed this up by avoiding making a vector of positions and just parse in the first pass.
         template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
         void set(VectorType<FloatType, Orientation> &ret, uivec_t &offsets, const int delim=',') {
-            if constexpr(blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value)
+            CONST_IF(blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value)
                 blaze::reset(ret);
             ks::split(data(), delim, len(), offsets);
             if(offsets.size() != ret.size()) {
@@ -130,13 +130,13 @@ public:
             for(i = 0; i < std::min(ret.size(), offsets.size()); ++i) {
                 ret[i] = std::atof(data() + offsets[i]);
             }
-            if constexpr(!blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value) {
+            CONST_IF(!blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value) {
                 std::memset(&ret[i], 0, (ret.size() - i) * sizeof(FloatType)); // Zero the last elements in array.
             }
         }
         template<template <typename, bool> typename VectorType, typename FloatType, bool Orientation>
         void set(VectorType<FloatType, Orientation> &ret, const int delim=',') {
-            if constexpr(blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value)
+            CONST_IF(blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value)
                 blaze::reset(ret);
             char *p(data()), *line_end(p + len());
             size_t i(0), e(ret.size());
@@ -145,7 +145,7 @@ public:
                 if(((p = std::strchr(p, delim)) == nullptr) | (i == e)) break;
                 ++p;
             }
-            if constexpr(!blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value) {
+            CONST_IF(!blaze::IsSparseVector<VectorType<FloatType, Orientation>>::value) {
                 std::memset(&ret[i], 0, (ret.size() - i) * sizeof(FloatType)); // Zero the last elements in array.
             }
         }
