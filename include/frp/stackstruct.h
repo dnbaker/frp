@@ -95,21 +95,17 @@ struct FFTTypes<long double> {
 
 template<typename VecType>
 void fht(VecType &vec, bool renormalize=true) {
-    if(vec.size() & (vec.size() - 1)) {
+    if(vec.size() & (vec.size() - 1))
         throw runtime_error(ks::sprintf("vec size %zu not a power of two. NotImplemented.", vec.size()).data());
-    } else {
-        ::fht(&vec[0], log2_64(vec.size()));
-    }
+    ::fht(&vec[0], log2_64(vec.size()));
     if(renormalize) vec *= 1. / std::sqrt(vec.size());
 }
 
 template<template<typename, bool> typename VecType, typename FloatType, bool VectorOrientation, typename=enable_if_t<is_floating_point<FloatType>::value>>
 void fht(VecType<FloatType, VectorOrientation> &vec, bool renormalize=true) {
-    if(vec.size() & (vec.size() - 1)) {
+    if(vec.size() & (vec.size() - 1))
         throw runtime_error(ks::sprintf("vec size %zu not a power of two. NotImplemented.", vec.size()).data());
-    } else {
-        ::fht(&vec[0], log2_64(vec.size()));
-    }
+    ::fht(&vec[0], log2_64(vec.size()));
     if(renormalize) vec *= 1. / std::sqrt(vec.size());
 }
 
@@ -145,23 +141,9 @@ void fht(const VecType1 &in, VecType2 &out, bool renormalize=true) {
         fht(out, renormalize);
         return;
     } else {
-#if 1
         Assigner()(apply(out, in));
         fht(out, renormalize);
-#else
-        CONST_IF(blaze::TransposeFlag<VecType1>::value == blaze::TransposeFlag<VecType2>::value) {
-            if(out.size() == in.size()) {
-                out = in;
-            } else throw runtime_error("NotImplemented.");
-        } else {
-            if(out.size() == in.size()) {
-                out = transpose(in);
-                fht(out, renormalize);
-            } else throw runtime_error("NotImplemented.");
-        }
-#endif
     }
-    //std::fprintf(stderr, "Called fht on sizes of %zu in and %zu out.\n", in.size(), out.size());
 }
 
 struct HadamardBlock {

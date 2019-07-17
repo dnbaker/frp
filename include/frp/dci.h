@@ -4,7 +4,6 @@
 #define FHT_HEADER_ONLY 1
 #endif
 #include "./ifc.h"
-#include "FFHT/fht.h"
 #include "blaze/Math.h"
 #include <map>
 #include <cmath>
