@@ -20,6 +20,7 @@ static constexpr inline T seedind2val_lazy(T ind, T seed) {
     return (ind ^ seed) * 6364136223846793005ULL;
 }
 
+
 // TODO: kernel fusion between fht and random diagonal matrix multiplication from fixed seeds.
 
 } // detail
