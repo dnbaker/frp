@@ -2,9 +2,31 @@
 #define FRP_GPU_FHT_H
 namespace frp {
 
+namespace detail {
+// Derived from WyHash
+static constexpr const uint64_t _wyp0=0xa0761d6478bd642full, _wyp1=0xe7037ed1a0b428dbull;
+
+template<typename T>
+static constexpr inline T seedind2val(T ind, T seed) {
+    uint64_t oldstate = ind;
+    uint64_t newstart = ind * 6364136223846793005ULL + seed;
+    uint32_t xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
+    uint32_t rot = oldstate >> 59u;
+    return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+}
+
+template<typename T>
+static constexpr inline T seedind2val_lazy(T ind, T seed) {
+    return (ind ^ seed) * 6364136223846793005ULL;
+}
+
+// TODO: kernel fusion between fht and random diagonal matrix multiplication from fixed seeds.
+
+} // detail
+
 template<typename T, bool renormalize=true>
 __global__ void fht_kernel(T *ptr, size_t l2, int nthreads) {
-    // According to my benchmarks, expect computation ~12,000x as fast as CPU
+    // This maps pretty well to the GPU
     int tid = blockIdx.x*blockDim.x + threadIdx.x;
     int n = 1 << l2;
     for(int i = 0; i < l2; ++i) {
@@ -88,5 +110,6 @@ __global__ void radfht_kernel(T *ptr, uint32_t *rvals, size_t l2, int nthreads) 
         }
     }
 }
+
 } // frp
 #endif /* FRP_GPU_FHT_H */
