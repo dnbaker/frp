@@ -125,6 +125,12 @@ static constexpr INLINE unsigned ilog2(uint64_t x) noexcept {
     return sizeof(uint64_t) * CHAR_BIT - __builtin_clzll(x)  - 1;
 }
 
+template<typename T>
+float random_gaussian_from_seed(T hv) const {
+    static constexpr const float _wynorm1=1.0f/(1ull<<15);
+    return (((hv>>16)&0xffff)+((hv>>32)&0xffff)+(hv>>48))*_wynorm1-3.0f;
+}
+
 template<typename T> class TD;
 
 template<typename T, bool SO, typename F>

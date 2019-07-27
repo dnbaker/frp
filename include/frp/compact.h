@@ -127,7 +127,6 @@ class CompactRademacherTemplate {
     std::vector<T> data_;
     using FloatType = FLOAT_TYPE;
 
-    static constexpr FloatType values_[2] {1, -1};
     static constexpr size_t NBITS = sizeof(T) * CHAR_BIT;
     static constexpr size_t SHIFT = log2_64(NBITS);
     static constexpr size_t BITMASK = NBITS - 1;
@@ -191,7 +190,7 @@ public:
     }
     int bool_idx(size_type idx) const {return !(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
 
-    FloatType operator[](size_type idx) const {return values_[bool_idx(idx)];}
+    FloatType operator[](size_type idx) const {return bool_idx(idx) ? FloatType(-1.): FloatType(1.);}
     template<typename InVector, typename OutVector>
     void apply(const InVector &in, OutVector &out) const {
         static_assert(is_same<decay_t<decltype(in[0])>, FloatType>::value, "Input vector should be the same type as this structure.");
@@ -227,7 +226,13 @@ struct UnchangedRNGDistribution {
     void reset() {}
 };
 
-template<typename RNG=aes::AesCtr<uint64_t>, typename Distribution=UnchangedRNGDistribution>
+struct Int2GaussianDistribution {
+    template<typename RNG>
+    auto operator()(RNG &rng) const {return random_gaussian_from_seed(rng());}
+    void reset() {}
+};
+
+template<typename RNG=aes::AesCtr<uint64_t>, typename Distribution=UnchangedRNGDistribution, typename >
 class PRNVector {
     // Vector of random values generated
     const uint64_t    seed_;
