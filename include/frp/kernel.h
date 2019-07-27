@@ -6,17 +6,31 @@ namespace frp {
 
 struct ApplyMatmul {
     template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
-    void apply(OType &out, blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,!SO> &inp) {
+    void apply(OType &out, const blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,!SO> &inp) const {
         out = mat * inp;
     }
     template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
-    void apply(OType &out, blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,SO> &inp) {
+    void apply(OType &out, const blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,SO> &inp) const {
         out = trans(mat * trans(inp));
     }
 };
 
 namespace kernel {
 
+template<typename T, bool val> struct ResizeOrErrorImpl;
+template<typename T> struct ResizeOrError: public ResizeOrErrorImpl<T, blaze::IsView<std::decay_t<T>>::value> {};
+template<typename T> struct ResizeOrErrorImpl<T,true> {
+    template<typename=typename std::enable_if<blaze::IsView<std::decay_t<T>>::value>::type>
+    static void apply(const T &x, size_t newsize) {
+        throw std::runtime_error("Can't resize a view");
+    }
+};
+template<typename T> struct ResizeOrErrorImpl<T,false> {
+    template<typename...Args, typename=typename std::enable_if<!blaze::IsView<std::decay_t<T>>::value>::type>
+    static void apply(const T &x, Args &&...sizes) {
+        x.resize(std::forward<Args>(sizes)...);
+    }
+};
 
 struct GaussianFinalizer {
 private:
@@ -377,6 +391,8 @@ public:
         blaze::DynamicVector<FloatType> tmp(nelem);
         tmp = ::blaze::subvector(out, 0, nelem);
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
+            ResizeOrError<OutputType>::apply(out, (blocks_.size() << 1) * in_rounded);
+#if 0
             CONST_IF(blaze::IsView<OutputType>::value) {
                 auto ks(ks::sprintf("[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
                                     __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, nelem, static_cast<size_t>(roundup(nelem))));
@@ -387,6 +403,7 @@ public:
                              out.size(), (blocks_.size() << 1) * in_rounded, nelem, (size_t)roundup(nelem));
                 out.resize((blocks_.size() << 1) * in_rounded);
             }
+#endif
         }
         for(size_t i = 0; i < blocks_.size(); ++i) {
             auto sv(subvector(out, (in_rounded << 1) * i, in_rounded));
@@ -398,17 +415,7 @@ public:
     void apply(OutputType &out, const InputType &in) const {
         size_t in_rounded(roundup(in.size()));
         if(out.size() != (blocks_.size() << 1) * in_rounded) {
-            if constexpr(blaze::IsView<OutputType>::value) {
-                char buf[2048];
-                std::sprintf(buf, "[%s] Wanted to resize out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
-                                    __PRETTY_FUNCTION__, out.size(), (blocks_.size() << 1) * in_rounded, in.size(), static_cast<size_t>(roundup(in.size())));
-                ::std::cerr << buf;
-                throw std::runtime_error(buf);
-            } else {
-                std::fprintf(stderr, "Resizing out block from %zu to %zu to match %zu input and %zu rounded up input.\n",
-                             out.size(), (blocks_.size() << 1) * in_rounded, in.size(), (size_t)roundup(in.size()));
-                out.resize((blocks_.size() << 1) * in_rounded);
-            }
+            ResizeOrError<OutputType>::apply(out, (blocks_.size() << 1) * in_rounded);
         }
         for(size_t i = 0; i < blocks_.size(); ++i) {
             auto sv(subvector(out, (in_rounded << 1) * i, in_rounded));
@@ -426,6 +433,7 @@ public:
         // TODO: add this multiplication to the finalizer to avoid a second RAM pass-through.
     }
 };
+
 
 template<typename FloatType, typename RademType>
 using FastFoodKernelBlock = ff::KernelBlock<FloatType, RademType>;
