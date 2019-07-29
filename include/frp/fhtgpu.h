@@ -25,6 +25,54 @@ static constexpr inline T seedind2val_lazy(T ind, T seed) {
 
 } // detail
 
+template<typename T, bool renormalize=true, typename T2>
+__global__ void grsfht_kernel(T *ptr, size_t l2, int nthreads, T theta, T2 *vals) {
+    // Givens rotations-fht kernel
+    // This maps pretty well to the GPU
+    int tid = blockIdx.x*blockDim.x + threadIdx.x;
+    int n = 1 << l2;
+    for(int i = 0; i < l2; ++i) {
+        T theta = vals[i];
+        T m1 = cos(theta), m2 = sin(theta);
+        int s1 = 1 << i, s2 = s1 << 1;
+        int nthreads_active = min(n >> (i + 1), nthreads);
+        int npert = n / nthreads_active;
+        if(tid < nthreads_active) {
+            for(int j = tid * npert, e = j + npert; j != e; j += s2) {
+                #pragma unroll
+                for(size_t k = 0; k < s1; ++k) {
+                    auto u = ptr[j + k], v = ptr[j + k + s1];
+                    ptr[j + k] = u * mc - v * ms, ptr[j + k + s1] = ms * u + mc * v;
+                }
+            }
+        }
+        __syncthreads();
+    }
+}
+
+template<typename T, bool renormalize=true>
+__global__ void pfht_kernel(T *ptr, size_t l2, int nthreads, T theta) {
+    // This maps pretty well to the GPU
+    int tid = blockIdx.x*blockDim.x + threadIdx.x;
+    int n = 1 << l2;
+    T mc = cos(theta), ms = sin(theta);
+    for(int i = 0; i < l2; ++i) {
+        int s1 = 1 << i, s2 = s1 << 1;
+        int nthreads_active = min(n >> (i + 1), nthreads);
+        int npert = n / nthreads_active;
+        if(tid < nthreads_active) {
+            for(int j = tid * npert, e = j + npert; j != e; j += s2) {
+                #pragma unroll
+                for(size_t k = 0; k < s1; ++k) {
+                    auto u = ptr[j + k], v = ptr[j + k + s1];
+                    ptr[j + k] = u * mc - v * ms, ptr[j + k + s1] = ms * u + mc * v;
+                }
+            }
+        }
+        __syncthreads();
+    }
+}
+
 template<typename T, bool renormalize=true>
 __global__ void fht_kernel(T *ptr, size_t l2, int nthreads) {
     // This maps pretty well to the GPU
