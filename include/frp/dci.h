@@ -24,8 +24,8 @@ auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
 
 struct ScoredHeap {
     template<typename FType, typename SizeType>
-    bool operator()(const std::pair<SizeType, FType> &a, const std::pair<SizeType, FType> &b) const {
-        return a.second < b.second;
+    static inline constexpr bool operator()(const std::pair<SizeType, FType> &a, const std::pair<SizeType, FType> &b) const {
+        return std::tie(a.second, a.first) < std::tie(b.second, b.first);
     }
 };
 
