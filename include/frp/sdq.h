@@ -8,12 +8,13 @@
 
 namespace frp {
 
+// Sorted deque
 template<typename T, typename All=std::allocator<T>>
 class sdeque {
     std::deque<T, All> data_;
 public:
     template<typename...Args>
-    SortedDeque(Args &&...args): data_(std::forward<Args>(args)...) {
+    sdeque(Args &&...args): data_(std::forward<Args>(args)...) {
         sort(data_.begin(), data_.end());
     }
     auto find(const T &x) const {
@@ -36,6 +37,9 @@ public:
     auto end()   const {return data_.end();}
     auto cbegin() {return data_.cbegin();}
     auto cend()   {return data_.cend();}
+    using iterator = typename std::deque<T, All>::iterator;
+    using const_iterator = typename std::deque<T, All>::const_iterator;
+    using value_type = T;
 };
 
 } // frp

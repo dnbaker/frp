@@ -126,8 +126,8 @@ static constexpr INLINE unsigned ilog2(uint64_t x) noexcept {
 }
 
 template<typename T>
-float random_gaussian_from_seed(T hv) const {
-    static constexpr const float _wynorm1=1.0f/(1ull<<15);
+static constexpr float random_gaussian_from_seed(T hv) {
+    constexpr float _wynorm1=1.0f/(1ull<<15);
     return (((hv>>16)&0xffff)+((hv>>32)&0xffff)+(hv>>48))*_wynorm1-3.0f;
 }
 
@@ -202,6 +202,17 @@ size_t countchars(const char *line, int delim) {
     while(*line && *line != '\n') ret += (*line++ == delim);
     return ret;
 }
+
+#if USE_PDQSORT
+#include "pdqsort.h"
+template<typename... Args>
+auto sort(Args &&...args) {
+    return pdqsort(std::forward<Args>(args)...);
+}
+#else
+#include <algorithm>
+using std::sort;
+#endif
 
 } // namespace frp
 

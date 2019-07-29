@@ -4,13 +4,17 @@
 #define FHT_HEADER_ONLY 1
 #endif
 #include "./ifc.h"
+#include "./util.h"
 #include "sdq.h"
+#include <deque>
 #include "blaze/Math.h"
 #include <map>
 #include <cmath>
 #include <set>
 #include <queue>
 #include <vector>
+
+
 
 template<typename T> class TD;
 
@@ -23,16 +27,22 @@ auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
     return blaze::dot(r, x);
 }
 
+template<typename FType, typename SizeType>
+struct ProjID: public std::pair<FType, SizeType> {
+    template<typename...Args>
+    ProjID(Args &&...args): std::pair<FType, SizeType>(std::forward<Args>(args)...) {}
+    FType f() const {return this->first;}
+    FType id() const {return this->second;}
+};
+
 struct ScoredHeap {
-    template<typename FType, typename SizeType>
-    bool operator()(const std::pair<SizeType, FType> &a, const std::pair<SizeType, FType> &b) const {
-        return a.second < b.second;
+    template<typename FType, typename SizeType, typename=typename std::enable_if<std::is_floating_point<FType>::value>::type>
+    inline constexpr bool operator()(const std::pair<FType, SizeType> &a, const std::pair<FType, SizeType> &b) const {
     }
 };
 
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=float,
-         template <typename...> class MapType=std::map,
          template <typename...> class SetTemplate=std::set>
 class DCI {
     /*
@@ -40,12 +50,13 @@ class DCI {
      Provide a distance metric/dot function which performs dot through ADL.
      https://arxiv.org/abs/1512.00442
     */
-    using map_type = MapType<FType, IdType>;
+    using ProjI = ProjID<FType, IdType>;
+    using map_type = sdeque<ProjI>;
     using set_type = SetTemplate<IdType>;
     using matrix_type = blaze::DynamicMatrix<FType>;
     using bin_tree_iterator = typename map_type::const_iterator;
     matrix_type mat_;
-    std::vector<map_type> map_;
+    std::vector<sdeque<ProjI>> map_;
     std::vector<const ValueType*> val_ptrs_;
     size_t m_, l_;
     size_t n_inserted_;
@@ -78,74 +89,54 @@ public:
     void add_item(const ValueType &val) {
         IdType ind = n_inserted_++;
         for(size_t i = 0; i < mat_.rows(); ++i) {
-            auto &map = map_[i];
-            FType key = dot(val, row(mat_, i));
-            auto it = map.find(key);
-            while(__builtin_expect(it != map.end(), 0)) {
-                std::fprintf(stderr, "Warning: dot product between val and our row is the same as another's and is nonzero, which is unexpected. This might point to duplicates\n");
-                key = std::nextafter(key, std::numeric_limits<FType>::max());
-                it = map.find(key);
-            }
-            map.emplace(key, ind);
+            map_[i].emplace(dot(val, row(mat_, i)), ind);
         }
         val_ptrs_.emplace_back(std::addressof(val));
+#if VERBOSE_AF
         std::fprintf(stderr, "ind: %u. inserted: %u. valp sz: %zu\n", ind, unsigned(n_inserted_), val_ptrs_.size());
+#endif
         assert(val_ptrs_.size() == n_inserted_);
     }
-    bool should_stop(size_t i, const std::set<IdType> &x, unsigned k) const {
+    bool should_stop(size_t i, const set_type &x, unsigned k) const {
         std::fprintf(stderr, "Warning: this needs to be rigorously decided. This code is a simple stopgap measure.\n");
         return x.size() >= k; // Arbitrary, probably bad. (Will implement better later.)
     }
-    static auto next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
-#if 0
-        std::fprintf(stderr, "map size: %zu\n", map.size());
-#endif
+    static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
         if(bi.first != map.begin()) {
-#if 0
-            std::fprintf(stderr, "bifirst real\n");
-#endif
             if(bi.second != map.end()) {
-                auto diff = std::abs(bi.first->first - val) - std::abs(bi.second->first - val);
-#if 0
-                std::fprintf(stderr, "second real. Diff: %lf. >= 0 ? %s\n", double(diff), diff >= 0 ? "true": "false");
-#endif
-                if(diff < 0.)
-                    return &*(bi.first--);
-                else
-                    return &*(bi.second++);
+                auto it = std::abs(bi.first->first - val) > std::abs(bi.second->first - val)
+                    ? bi.first-- : bi.second++;
+                return &*it;
             }
-            return &*(bi.first--);
+            auto it = bi.first--;
+            return &*it;
+        } else if(bi.second != map.end()) {
+            auto it = bi.second++;
+            return &*it;
         }
-#if 0
-        std::fprintf(stderr, "bifirst unreal. second real? %s\n", bi.second != map.end() ? "true": "false");
-#endif
-        if(bi.second != map.end()) return &*(bi.second++);
-        return static_cast<decltype(&*(bi.second))>(nullptr);
+        return nullptr;
     }
-    std::vector<std::pair<IdType, FType>> query(const ValueType &val, unsigned k) const {
+    std::vector<ProjI> query(const ValueType &val, unsigned k) const {
         bool klt = k < val_ptrs_.size();
-        std::vector<std::pair<IdType,FType>> vs(klt ? unsigned(val_ptrs_.size()): k);
+        std::vector<ProjI> vs(klt ? unsigned(val_ptrs_.size()): k);
         if(k < val_ptrs_.size()) {
             k = val_ptrs_.size();
 #if USE_PQ
-            std::priority_queue<std::pair<IdType, FType>, std::vector<std::pair<IdType, FType>>, ScoredHeap> pq;
+            std::priority_queue<ProjI, std::vector<ProjI>> pq;
             IdType i = 0;
             for(const auto v: val_ptrs_) {
-                FType tmp = blaze::sqrNorm(*v -  val);
+                FType tmp = blaze::norm(*v -  val);
                 if(pq.size() == k && tmp < pq.top().second) {
                     pq.pop();
-                    pq.push(std::pair<IdType, FType>(*it, tmp));
+                    pq.push(ProjI(tmp, i++));
                 }
             }
             for(int i = k; i--;pq.pop()) vs[i] = pq.top();
 #else
             size_t ind = 0;
             auto it = val_ptrs_.begin();
-            std::generate_n(vs.begin(), k, [&](){
-                const ValueType *ptr = *it++;
-                return std::pair<IdType, FType>(ind++, blaze::sqrNorm(*ptr - val));
-            });
-            std::sort(vs.begin(), vs.end(), ScoredHeap());
+            std::generate_n(vs.begin(), k, [&](){return ProjI(blaze::norm(*(*it++) - val), ind++);});
+            sort(vs.begin(), vs.end());
 #endif
             return vs;
         }
@@ -159,10 +150,8 @@ public:
             const FType dist = dot(row(mat_, i), val);
             dists[i] = dist;
             const auto &pos = map_[i];
-            bounds.emplace_back(std::make_pair(pos.lower_bound(dist), pos.upper_bound(dist)));
-#if 0
-            std::fprintf(stderr, "Pos sisze: %zu. %i/%i\n", pos.size(), pos.lower_bound(dist) == pos.begin(), pos.upper_bound(dist) == pos.end());
-#endif
+            auto it = std::lower_bound(map_[i].begin(), map_[i].end(), dist, [](const auto &x, auto y) {return x.f() < y;});
+            bounds.emplace_back(std::make_pair(it, it));
         }
 
 
@@ -195,14 +184,15 @@ public:
         while(sit != candidatesvec.end())
             u.insert(sit->begin(), sit->end()), ++sit;
         dists.resize(u.size());
-        size_t di = 0;
-        std::priority_queue<std::pair<size_t, FType>, std::vector<std::pair<size_t, FType>>, ScoredHeap> pq;
+        std::priority_queue<ProjI, std::vector<ProjI>, ScoredHeap> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
-            FType tmp = blaze::sqrNorm(*val_ptrs_[*it] -  val);
-            if(pq.size() == k && tmp < pq.top().second) {
-                pq.pop();
-                pq.push(std::pair<size_t, FType>(*it, tmp));
-            }
+            FType tmp = blaze::norm(*val_ptrs_[*it] - val);
+            if(pq.size() == k) {
+                if(tmp < pq.top().second) {
+                    pq.pop();
+                    pq.push(ProjI(tmp, *it));
+                }
+            } else pq.push(ProjI(tmp, *it));
         }
         for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
         return vs;
