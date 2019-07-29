@@ -4,6 +4,7 @@
 #define FHT_HEADER_ONLY 1
 #endif
 #include "./ifc.h"
+#include "sdq.h"
 #include "blaze/Math.h"
 #include <map>
 #include <cmath>
@@ -65,7 +66,8 @@ public:
                 assert(mat_.rows() == q.rows());
                 swap(mat_, q);
             } catch(const std::exception &ex) { // Orthonormalize
-                std::fprintf(stderr, "failure: %s\n", ex.what()); throw;
+                std::fprintf(stderr, "failure: %s\n", ex.what());
+                throw;
             }
         }
         for(size_t i = 0; i < mat_.rows(); ++i) {
