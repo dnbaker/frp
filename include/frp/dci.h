@@ -15,7 +15,6 @@
 #include <vector>
 
 
-
 template<typename T> class TD;
 
 namespace frp {
@@ -41,6 +40,13 @@ struct ScoredHeap {
     }
 };
 
+template<typename T>
+double cossim(const T &x, const T &y) {
+    auto sim = dot(x, y);
+    auto xs = dot(x, x), ys = dot(x, y);
+    return sim / std::sqrt(xs + ys);
+}
+
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=float,
          template <typename...> class SetTemplate=std::set>
@@ -63,27 +69,32 @@ class DCI {
     double eps_;
 public:
     size_t total() const {return m_ * l_;}
-    DCI(size_t m, size_t l, size_t d, double eps=1e-5, bool orthonormalize=false): m_(m), l_(l), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps) {
+    DCI(size_t m, size_t l, size_t d, double eps=1e-5, bool orthonormalize=true): m_(m), l_(l), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps) {
         blaze::randomize(mat_);
         std::fprintf(stderr, "Made mat of %zu/%zu\n", mat_.rows(), mat_.columns());
         if(orthonormalize) {
-            std::fprintf(stderr, "about to qr\n");
             try {
                 matrix_type q, r;
+                std::fprintf(stderr, "coldist %lf, rowdists %lf, q sizes %zu/%zu\n", cossim(column(mat_, 0), column(mat_, 1)),  cossim(row(mat_, 0), row(mat_, 1)), mat_.rows(), mat_.columns());
                 blaze::qr(mat_, q, r);
-                std::fprintf(stderr, "coldist %lf, rowdists %lf, q sizes %zu/%zu\n", dot(column(r, 0), column(r, 1)),  dot(row(r, 0), row(r, 1)), q.rows(), q.columns());
-                std::fprintf(stderr, "coldist %lf, rowdists %lf, q sizes %zu/%zu\n", dot(column(q, 0), column(q, 1)),  dot(row(q, 0), row(q, 1)), q.rows(), q.columns());
+                assert(dot(column(q, 0), column(q, 1)) < 1e-6);
                 assert(mat_.columns() == q.columns());
                 assert(mat_.rows() == q.rows());
                 swap(mat_, q);
+                for(size_t i = 0; i < mat_.rows(); ++i) {
+                    auto r = blaze::row(mat_, i);
+                    r *= 1./ norm(r);
+                }
+                std::fprintf(stderr, "coldist %lf, rowdists %lf, mat_ sizes %zu/%zu\n", cossim(column(mat_, 0), column(mat_, 1)),  cossim(row(mat_, 0), row(mat_, 1)), mat_.rows(), mat_.columns());
             } catch(const std::exception &ex) { // Orthonormalize
                 std::fprintf(stderr, "failure: %s\n", ex.what());
                 throw;
             }
-        }
-        for(size_t i = 0; i < mat_.rows(); ++i) {
-            auto r = blaze::row(mat_, i);
-            r *= 1./ norm(r);
+        } else {
+            for(size_t i = 0; i < mat_.rows(); ++i) {
+                auto r = blaze::row(mat_, i);
+                r *= 1./ norm(r);
+            }
         }
     }
     void add_item(const ValueType &val) {
@@ -142,7 +153,7 @@ public:
         }
 
         // First step: dot product the query with all reference positions
-        std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds;
+        std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
         std::vector<set_type> candidatesvec(l_);
         std::vector<FType> dists(l_ * m_);
         // Get a pair of iterators
@@ -151,22 +162,21 @@ public:
             dists[i] = dist;
             const auto &pos = map_[i];
             auto it = std::lower_bound(map_[i].begin(), map_[i].end(), dist, [](const auto &x, auto y) {return x.f() < y;});
-            bounds.emplace_back(std::make_pair(it, it));
+            bounds[i] = std::make_pair(it, it);
         }
 
 
         // FIXME: consider sparse representation. I don't expect dense to be best.
         // Allocate counts
-        std::vector<std::vector<unsigned>> countsvec(l_);
-        for(auto &v: countsvec) v.resize(size());
+        blaze::DynamicMatrix<uint32_t> countsvec(l_, size());
 
         // Iterate through ith closest along each projection direction.
         for(size_t i = 0; i < size(); ++i) {
             for(size_t l = 0; l < l_; ++l) {
                 auto &candidates = candidatesvec[l];
-                auto &C = countsvec[l];
+                auto C = row(countsvec, l);
                 /* 1. Get `ith` closest to q_{jl} [the `dist` above]
-                 * 2. 
+                 * 2.
                  */
                 for(size_t j = 0; j < m_; ++j) {
                     auto index = ind(j, l);

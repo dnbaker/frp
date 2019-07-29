@@ -4,8 +4,9 @@
 using namespace frp;
 using namespace dci;
 int main() {
-    int nd = 4;
-    DCI<blaze::DynamicVector<float>> dci(10, 4, nd);
+    int nd = 40;
+    DCI<blaze::DynamicVector<float>> dci(20, 120, nd);
+    //DCI<blaze::DynamicVector<float>> dci2(10, 4, nd, 1e-5, true);
     std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<float>> ls;
     std::mt19937_64 mt;
@@ -15,7 +16,7 @@ int main() {
             x = std::ldexp(double(mt()), 64);
     }
     for(const auto &v: ls)
-        dci.add_item(v);
+        dci.add_item(v);//, dci2.add_item(v);
     dci.query(ls[0], 3);
     std::cerr << "added item to dci\n";
 }
