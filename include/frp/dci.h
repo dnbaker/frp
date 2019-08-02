@@ -15,8 +15,6 @@
 #include <vector>
 
 
-template<typename T> class TD;
-
 namespace frp {
 
 namespace dci {
@@ -57,13 +55,14 @@ class DCI {
      https://arxiv.org/abs/1512.00442
     */
     using ProjI = ProjID<FType, IdType>;
-    using map_type = sdeque<ProjI>;
+    using map_type = sorted::vector<ProjI>;
     using set_type = SetTemplate<IdType>;
     using matrix_type = blaze::DynamicMatrix<FType>;
+    using value_type = ValueType;
     using bin_tree_iterator = typename map_type::const_iterator;
     matrix_type mat_;
-    std::vector<sdeque<ProjI>> map_;
-    std::vector<const ValueType*> val_ptrs_;
+    std::vector<map_type> map_;
+    std::vector<const value_type*> val_ptrs_;
     size_t m_, l_;
     size_t n_inserted_;
     double eps_;
@@ -75,7 +74,6 @@ public:
         if(orthonormalize) {
             try {
                 matrix_type q, r;
-                std::fprintf(stderr, "coldist %lf, rowdists %lf, q sizes %zu/%zu\n", cossim(column(mat_, 0), column(mat_, 1)),  cossim(row(mat_, 0), row(mat_, 1)), mat_.rows(), mat_.columns());
                 blaze::qr(mat_, q, r);
                 assert(dot(column(q, 0), column(q, 1)) < 1e-6);
                 assert(mat_.columns() == q.columns());
@@ -85,7 +83,6 @@ public:
                     auto r = blaze::row(mat_, i);
                     r *= 1./ norm(r);
                 }
-                std::fprintf(stderr, "coldist %lf, rowdists %lf, mat_ sizes %zu/%zu\n", cossim(column(mat_, 0), column(mat_, 1)),  cossim(row(mat_, 0), row(mat_, 1)), mat_.rows(), mat_.columns());
             } catch(const std::exception &ex) { // Orthonormalize
                 std::fprintf(stderr, "failure: %s\n", ex.what());
                 throw;
@@ -160,8 +157,11 @@ public:
         for(size_t i = 0; i < l_ * m_; ++i) {
             const FType dist = dot(row(mat_, i), val);
             dists[i] = dist;
-            const auto &pos = map_[i];
-            auto it = std::lower_bound(map_[i].begin(), map_[i].end(), dist, [](const auto &x, auto y) {return x.f() < y;});
+            const map_type &pos = map_[i];
+            static_assert(std::is_same<bin_tree_iterator, typename map_type::const_iterator>::value, "must be");
+            static_assert(std::is_same<typename std::remove_const<bin_tree_iterator>::type, std::decay_t<decltype(pos.begin())>>::value, "ZOMG");
+            //TD<std::decay_t<decltype(pos.begin())>> td;
+            bin_tree_iterator it = std::lower_bound(pos.begin(), pos.end(), dist, [](const auto &x, auto y) {return x.f() < y;});
             bounds[i] = std::make_pair(it, it);
         }
 
@@ -215,6 +215,12 @@ public:
         return std::make_pair(uint32_t(index / m_), uint32_t(index % m_));
     }
     std::pair<size_t, size_t> offset2ind(size_t offset) const {return std::pair<size_t, size_t>(offset % m_, offset / m_);}
+    const value_type *operator[](size_t index) const {return val_ptrs_[index];}
+    value_type *operator[](size_t index) {return val_ptrs_[index];}
+    auto begin() {return val_ptrs_.begin();}
+    auto end() {return val_ptrs_.end();}
+    auto begin() const {return val_ptrs_.begin();}
+    auto end()   const {return val_ptrs_.end();}
 };
 
 }

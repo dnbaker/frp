@@ -232,7 +232,7 @@ struct Int2GaussianDistribution {
     void reset() {}
 };
 
-template<typename RNG=aes::AesCtr<uint64_t>, typename Distribution=UnchangedRNGDistribution, typename >
+template<typename RNG=aes::AesCtr<uint64_t>, typename Distribution=UnchangedRNGDistribution>
 class PRNVector {
     // Vector of random values generated
     const uint64_t    seed_;
