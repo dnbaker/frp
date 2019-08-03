@@ -78,6 +78,12 @@ public:
                 assert(dot(column(q, 0), column(q, 1)) < 1e-6);
                 assert(mat_.columns() == q.columns());
                 assert(mat_.rows() == q.rows());
+#if 0
+                std::cerr << "q: " << q;
+                std::cerr << "r: " << r;    
+                auto nonz = [](auto &x) {double ret = 0.; for(size_t i = 0; i < x.rows(); ++i) {for(size_t j = 0; j < x.columns(); ++j) {ret += x(i, j) != 0.;}} return ret;};
+                std::cerr << nonz(q) << " q " << nonz(r) << '\n';
+#endif
                 swap(mat_, q);
                 for(size_t i = 0; i < mat_.rows(); ++i) {
                     auto r = blaze::row(mat_, i);
@@ -96,8 +102,9 @@ public:
     }
     void add_item(const ValueType &val) {
         IdType ind = n_inserted_++;
+        auto tmp = mat_ * val;
         for(size_t i = 0; i < mat_.rows(); ++i) {
-            map_[i].emplace(dot(val, row(mat_, i)), ind);
+            map_[i].emplace(tmp[i], ind);
         }
         val_ptrs_.emplace_back(std::addressof(val));
 #if VERBOSE_AF
@@ -129,7 +136,7 @@ public:
         std::vector<ProjI> vs(klt ? unsigned(val_ptrs_.size()): k);
         if(k < val_ptrs_.size()) {
             k = val_ptrs_.size();
-#if USE_PQ
+#if 0
             std::priority_queue<ProjI, std::vector<ProjI>> pq;
             IdType i = 0;
             for(const auto v: val_ptrs_) {
@@ -143,7 +150,7 @@ public:
 #else
             size_t ind = 0;
             auto it = val_ptrs_.begin();
-            std::generate_n(vs.begin(), k, [&](){return ProjI(blaze::norm(*(*it++) - val), ind++);});
+            std::generate_n(vs.begin(), vs.size(), [&](){return ProjI(blaze::norm(*(*it++) - val), ind++);});
             sort(vs.begin(), vs.end());
 #endif
             return vs;
