@@ -5,6 +5,8 @@
 
 namespace frp {
 
+namespace jl {
+
 template<typename MatrixType>
 class JLTransform  {
     using FloatType = typename MatrixType::ElementType;
@@ -203,6 +205,9 @@ public:
 using OJLTransform = OrthogonalJLTransform;
 using OJLT = OJLTransform;
 using FJLT = FastJLTransform;
+
+} // namespace jl
+using namespace jl;
 
 } // namespace frp
 
