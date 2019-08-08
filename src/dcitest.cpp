@@ -31,7 +31,6 @@ std::pair<UDMF,UDMU> nn_data(const DCIType &dc) {
         }
     }
     UDMU labels(dist, dist);
-    std::fprintf(stderr, "Label stuff\n");
     _Pragma("omp parallel for")
     for(size_t i = 0; i < n; ++i) {
         auto r = row(labels, i);
@@ -45,10 +44,11 @@ std::pair<UDMF,UDMU> nn_data(const DCIType &dc) {
         }
 #endif
     }
-    std::cerr << "Distances! " << dists << '\n';
+    //std::cerr << "Distances! " << dists << '\n';
     std::fprintf(stderr, "Return pair stuff\n");
     return std::make_pair(std::move(dists), std::move(labels));
 }
+
 
 template<typename T1, typename I=std::uint32_t>
 auto distmat2nn(const T1 &mat, size_t k) {
@@ -58,7 +58,6 @@ auto distmat2nn(const T1 &mat, size_t k) {
     blaze::DynamicMatrix<I> ret(mat.columns(), k);
     //#pragma omp parallel for
     for(size_t i = 0; i < mat.rows(); ++i) {
-        
         std::fprintf(stderr, "Label stuff2nn %zu\n", i);
         auto r = row(mat, i);
         std::cerr << "Matrix row: " << r;
@@ -68,7 +67,6 @@ auto distmat2nn(const T1 &mat, size_t k) {
         assert(k == pq.size());
         size_t j;
         for(j = 0;j < mat.rows();++j) {
-            std::fprintf(stderr, "%zu\n", j);
             auto pqp = &pq[0];
             if(heapsz < pq.size()) {
 #if !NDEBUG
@@ -103,24 +101,26 @@ auto distmat2nn(const T1 &mat, size_t k) {
 
 
 int main() {
-    int nd = 40;
-    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(20, 10, nd);
-    //DCI<blaze::DynamicVector<float>> dci2(10, 4, nd, 1e-5, true);
+    int nd = 40, npoints = 100;
+    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(4, 5, nd);
     std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<FLOAT_TYPE>> ls;
     std::mt19937_64 mt;
-    std::normal_distribution<FLOAT_TYPE> gen;
-    omp_set_num_threads(std::thread::hardware_concurrency());
-    for(size_t i = 0; i < 100; ++i) {
+    for(ssize_t i = 0; i < npoints; ++i) {
+        std::normal_distribution<FLOAT_TYPE> gen;
+        omp_set_num_threads(std::thread::hardware_concurrency());
         ls.emplace_back(nd);
         for(auto &x: ls.back())
             x = gen(mt);
-        std::cerr << ls.back() << '\n';
     }
+    std::fprintf(stderr, "Generated\n");
     for(const auto &v: ls)
         dci.add_item(v);//, dci2.add_item(v);
+    std::fprintf(stderr, "Added\n");
     auto [x, y] = nn_data(dci);
+    std::fprintf(stderr, "nn\n");
     auto nnmat = distmat2nn(x, std::max(3, nd - 15));
-    dci.query(ls[0], 3);
-    std::cerr << "added item to dci\n";
+    //std::cerr << nnmat << '\n';
+    auto topn = dci.query(ls[0], 3);
+    std::fprintf(stderr, "topn: %zu is n\n", topn.size());
 }

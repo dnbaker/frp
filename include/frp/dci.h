@@ -32,12 +32,6 @@ struct ProjID: public std::pair<FType, SizeType> {
     FType id() const {return this->second;}
 };
 
-struct ScoredHeap {
-    template<typename FType, typename SizeType, typename=typename std::enable_if<std::is_floating_point<FType>::value>::type>
-    inline constexpr bool operator()(const std::pair<FType, SizeType> &a, const std::pair<FType, SizeType> &b) const {
-    }
-};
-
 template<typename T>
 double cossim(const T &x, const T &y) {
     auto sim = dot(x, y);
@@ -68,13 +62,15 @@ class DCI {
     double eps_;
 public:
     size_t total() const {return m_ * l_;}
-    DCI(size_t m, size_t l, size_t d, double eps=1e-5, bool orthonormalize=true): m_(m), l_(l), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps) {
+    DCI(size_t m, size_t l, size_t d, double eps=1e-5, bool orthonormalize=false): m_(m), l_(l), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps) {
         blaze::randomize(mat_);
         std::fprintf(stderr, "Made mat of %zu/%zu\n", mat_.rows(), mat_.columns());
         if(orthonormalize) {
             try {
-                matrix_type q, r;
+                matrix_type r, q;
                 blaze::qr(mat_, q, r);
+                std::fprintf(stderr, "q size: %zu/%zu\n", q.rows(), q.columns());
+                std::fprintf(stderr, "mat_ size: %zu/%zu\n", mat_.rows(), mat_.columns());
                 assert(dot(column(q, 0), column(q, 1)) < 1e-6);
                 assert(mat_.columns() == q.columns());
                 assert(mat_.rows() == q.rows());
@@ -93,12 +89,17 @@ public:
                 std::fprintf(stderr, "failure: %s\n", ex.what());
                 throw;
             }
-        } else {
+        } else { // TODO: consider a triple spinner for generating these random matrix vector multiplies
             for(size_t i = 0; i < mat_.rows(); ++i) {
                 auto r = blaze::row(mat_, i);
                 r *= 1./ norm(r);
             }
         }
+    }
+    template<typename I>
+    void insert(I i1, I i2) {
+        while(i1 != i2)
+            add_item(*i1++);
     }
     void add_item(const ValueType &val) {
         IdType ind = n_inserted_++;
@@ -107,7 +108,7 @@ public:
             map_[i].emplace(tmp[i], ind);
         }
         val_ptrs_.emplace_back(std::addressof(val));
-#if VERBOSE_AF
+#if 1
         std::fprintf(stderr, "ind: %u. inserted: %u. valp sz: %zu\n", ind, unsigned(n_inserted_), val_ptrs_.size());
 #endif
         assert(val_ptrs_.size() == n_inserted_);
@@ -133,8 +134,8 @@ public:
     }
     std::vector<ProjI> query(const ValueType &val, unsigned k) const {
         bool klt = k < val_ptrs_.size();
-        std::vector<ProjI> vs(klt ? unsigned(val_ptrs_.size()): k);
-        if(k < val_ptrs_.size()) {
+        std::vector<ProjI> vs(klt ? k: unsigned(val_ptrs_.size()));
+        if(!klt) {
             k = val_ptrs_.size();
             auto prod = mat_ * val;
 #if 1
@@ -203,15 +204,16 @@ public:
         while(sit != candidatesvec.end())
             u.insert(sit->begin(), sit->end()), ++sit;
         dists.resize(u.size());
-        std::priority_queue<ProjI, std::vector<ProjI>, ScoredHeap> pq;
+        std::fprintf(stderr, "Begin:\n");
+        std::priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
             FType tmp = blaze::norm(*val_ptrs_[*it] - val);
-            if(pq.size() == k) {
-                if(tmp < pq.top().second) {
-                    pq.pop();
-                    pq.push(ProjI(tmp, *it));
-                }
-            } else pq.push(ProjI(tmp, *it));
+            if(pq.size() < k)
+                pq.push(ProjI(tmp, *it));
+            else if(tmp < pq.top().first) {
+                pq.pop();
+                pq.push(ProjI(tmp, *it));
+            }
         }
         for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
         return vs;
