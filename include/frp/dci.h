@@ -136,14 +136,16 @@ public:
         std::vector<ProjI> vs(klt ? unsigned(val_ptrs_.size()): k);
         if(k < val_ptrs_.size()) {
             k = val_ptrs_.size();
-#if 0
+            auto prod = mat_ * val;
+#if 1
             std::priority_queue<ProjI, std::vector<ProjI>> pq;
-            IdType i = 0;
-            for(const auto v: val_ptrs_) {
-                FType tmp = blaze::norm(*v -  val);
-                if(pq.size() == k && tmp < pq.top().second) {
+            for(size_t i = 0; i < prod.size(); ++i) {
+                FType tmp = prod[i];
+                if(pq.size() < k) {
+                    pq.push(ProjI(tmp, i));
+                } else if(pq.size() == k && tmp < pq.top().second) {
                     pq.pop();
-                    pq.push(ProjI(tmp, i++));
+                    pq.push(ProjI(tmp, i));
                 }
             }
             for(int i = k; i--;pq.pop()) vs[i] = pq.top();
