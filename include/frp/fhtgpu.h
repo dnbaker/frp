@@ -17,7 +17,7 @@ static constexpr inline T seedind2val(T ind, T seed) {
 
 template<typename T>
 static constexpr inline T seedind2val_lazy(T ind, T seed) {
-    return (ind ^ seed) * 6364136223846793005ULL;
+    return ((ind ^ seed) * static_cast<T>(6364136223846793005ULL)) ^ _wyp1;
 }
 
 
@@ -27,7 +27,7 @@ static constexpr inline T seedind2val_lazy(T ind, T seed) {
 
 template<typename T, bool renormalize=true, typename T2>
 __global__ void grsfht_kernel(T *ptr, size_t l2, int nthreads, T theta, T2 *vals) {
-    // Givens rotations-fht kernel
+    // Givens rotation hadamard product kernel
     // This maps pretty well to the GPU
     int tid = blockIdx.x*blockDim.x + threadIdx.x;
     int n = 1 << l2;

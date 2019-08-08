@@ -102,7 +102,7 @@ auto distmat2nn(const T1 &mat, size_t k) {
 
 int main() {
     int nd = 40, npoints = 100;
-    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(4, 5, nd);
+    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(4, 5, nd, true);
     std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<FLOAT_TYPE>> ls;
     std::mt19937_64 mt;
