@@ -1,0 +1,12 @@
+    u = array[x + 0], v = array[x + 4];
+    array[x + 0] = u + v;
+    array[x + 4] = u - v;
+    u = array[x + 1], v = array[x + 5];
+    array[x + 1] = u + v;
+    array[x + 5] = u - v;
+    u = array[x + 2], v = array[x + 6];
+    array[x + 2] = u + v;
+    array[x + 6] = u - v;
+    u = array[x + 3], v = array[x + 7];
+    array[x + 3] = u + v;
+    array[x + 7] = u - v;
