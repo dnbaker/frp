@@ -38,6 +38,8 @@ public:
     auto end()   const {return data_.end();}
     auto cbegin() {return data_.cbegin();}
     auto cend()   {return data_.cend();}
+    auto size() const {return data_.size();}
+    auto pop() {auto ret = std::move(data_.back()); data_.pop_back(); return ret;}
     using iterator = typename Container<T, All>::iterator;
     using const_iterator = typename Container<T, All>::const_iterator;
     using value_type = typename Container<T, All>::value_type;
