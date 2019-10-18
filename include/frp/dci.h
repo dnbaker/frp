@@ -82,7 +82,6 @@ struct stop_param_generator {
     }
     double get() const {
         if(t) {
-            
         }
     }
 };
@@ -113,7 +112,7 @@ class DCI {
 public:
     size_t total() const {return m_ * l_;}
     void set_data_dependence(bool val) {
-        if(val) throw NotImplementedError("Not implemented: data_dependent version");
+        if(val) throw std::runtime_error("Not implemented: data_dependent version");
         data_dependent_ = val;
     }
     void set_gamma(double gam) {
@@ -123,7 +122,6 @@ public:
         bool orthonormalize=false, float param=1., bool dd=false):
         m_(m), l_(l), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps), data_dependent_(dd)
     {
-        prepare_param();
         blaze::randomize(mat_);
         std::fprintf(stderr, "Made mat of %zu/%zu\n", mat_.rows(), mat_.columns());
         if(orthonormalize) {
@@ -137,7 +135,7 @@ public:
                 assert(mat_.rows() == q.rows());
 #if 0
                 std::cerr << "q: " << q;
-                std::cerr << "r: " << r;    
+                std::cerr << "r: " << r;
                 auto nonz = [](auto &x) {double ret = 0.; for(size_t i = 0; i < x.rows(); ++i) {for(size_t j = 0; j < x.columns(); ++j) {ret += x(i, j) != 0.;}} return ret;};
                 std::cerr << nonz(q) << " q " << nonz(r) << '\n';
 #endif
@@ -176,8 +174,8 @@ public:
     }
     bool should_stop(size_t i, const set_type &x, unsigned k) const {
         // Warning: this currenly
-        const double rat = double(n) / k;
-        const size_t ktilde = std::ceil(k * std::max(std::log(rat), std::pow(rat, 1 - std::log2(should_param_))));
+        const double rat = double(val_ptrs_.size()) / k;
+        const size_t ktilde = std::ceil(k * std::max(std::log(rat), std::pow(rat, 1 - std::log2(gamma_))));
         return x.size() >= ktilde;
     }
     static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
@@ -195,19 +193,17 @@ public:
         }
         return nullptr;
     }
-    struct sort_by_nearest {
-        bool operator()(auto x, auto y) const {return x.fabs() < y.fabs();}
-    };
     std::vector<ProjI> query(const ValueType &val, unsigned k) const {
         bool klt = k <= val_ptrs_.size();
         std::vector<ProjI> vs(klt ? k: unsigned(val_ptrs_.size()));
         if(!klt) {
             k = val_ptrs_.size();
-            auto prod = blaze::abs(mat_ * val);
-            std::priority_queue<ProjI, std::vector<ProjI>, sort_by_nearest> pq;
-            auto cm = [](const auto x, const auto y) {return std::abs(x.f()) < std::abs(y.f());};
-            for(size_t i = 0; i < prod.size(); ++i) {
-                const FType tmp = prod[i];
+            blaze::DynamicVector<FType> dists(k);
+            for(size_t i = 0; i < k; ++i)
+                dists[i] = norm(val - trans(row(mat_, i)));
+            std::priority_queue<ProjI, std::vector<ProjI>> pq;
+            for(size_t i = 0; i < dists.size(); ++i) {
+                const FType tmp = dists[i];
                 if(pq.size() < k) {
                     pq.push(ProjI(tmp, i));
                 } else if(pq.size() == k && pq.top().fabs() > tmp) {
@@ -265,10 +261,13 @@ public:
         std::fprintf(stderr, "Begin:\n");
         std::priority_queue<ProjI> pq;
 #if !NDEBUG
-        FType minabsv = 0;
+        FType minabsv = std::numeric_limits<FType>::max();
 #endif
         for(auto it = u.begin(); it != u.end(); ++it) {
             FType tmp = blaze::norm(*val_ptrs_[*it] - val);
+#if !NDEBUG
+            minabsv = std::min(minabsv, tmp);
+#endif
             if(pq.size() < k)
                 pq.push(ProjI(tmp, *it));
             else if(tmp < pq.top().first) {
@@ -277,6 +276,7 @@ public:
             }
         }
         for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
+        assert(minabsv <= vs[0].f());
         return vs;
     }
     size_t size() const {return n_inserted_;}
