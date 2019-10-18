@@ -6,7 +6,7 @@ ifndef CC
 CC=gcc
 endif
 ifndef STD
-STD=c++14
+STD=c++17
 endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \

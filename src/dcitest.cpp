@@ -69,9 +69,6 @@ auto distmat2nn(const T1 &mat, size_t k) {
         for(j = 0;j < mat.rows();++j) {
             auto pqp = &pq[0];
             if(heapsz < pq.size()) {
-#if !NDEBUG
-                size_t oldsz = heapsz;
-#endif
                 pq[heapsz] = j;
                 if(++heapsz == pq.size())
                     std::make_heap(pqp, pqp + heapsz, func);
@@ -103,11 +100,12 @@ auto distmat2nn(const T1 &mat, size_t k) {
 int main() {
     int nd = 40, npoints = 100;
     DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(4, 5, nd, true);
+    DCI<blaze::DynamicVector<FLOAT_TYPE>, uint32_t, float, std::deque> dcid(4, 5, nd, true);
     std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<FLOAT_TYPE>> ls;
     std::mt19937_64 mt;
     for(ssize_t i = 0; i < npoints; ++i) {
-        std::normal_distribution<FLOAT_TYPE> gen;
+        std::normal_distribution<FLOAT_TYPE> gen(0);
         omp_set_num_threads(std::thread::hardware_concurrency());
         ls.emplace_back(nd);
         for(auto &x: ls.back())
