@@ -25,6 +25,8 @@ static constexpr inline T seedind2val_lazy(T ind, T seed) {
 
 } // detail
 
+
+#ifdef __CUDACC__
 template<typename T, bool renormalize=true, typename T2>
 __global__ void grsfht_kernel(T *ptr, size_t l2, int nthreads, T theta, T2 *vals) {
     // Givens rotation hadamard product kernel
@@ -159,6 +161,8 @@ __global__ void radfht_kernel(T *ptr, uint32_t *rvals, size_t l2, int nthreads) 
         }
     }
 }
+
+#endif /* #ifdef __CUDACC__ */
 
 } // frp
 #endif /* FRP_GPU_FHT_H */
