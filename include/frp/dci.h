@@ -87,8 +87,14 @@ struct stop_param_generator {
 };
 #endif
 template<typename ValueType,
-         typename IdType=std::uint32_t, typename FType=float,
+         typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
          template <typename...> class SetTemplate=std::set>
+class DCI;
+
+
+template<typename ValueType,
+         typename IdType, typename FType,
+         template <typename...> class SetTemplate>
 class DCI {
     /*
      To use this: Hold values in their own container. (This is non-owning.)
@@ -104,32 +110,82 @@ class DCI {
     matrix_type mat_;
     std::vector<map_type> map_;
     std::vector<const value_type*> val_ptrs_;
-    size_t m_, l_;
+public:
+    const size_t m_, l_, d_;
+private:
     size_t n_inserted_;
     double eps_;
     double gamma_ = 1.;
-    bool data_dependent_;
+    int orthonormalize_:1;
+    int data_dependent_:1;
 public:
     size_t total() const {return m_ * l_;}
     void set_data_dependence(bool val) {
         if(val) throw std::runtime_error("Not implemented: data_dependent version");
         data_dependent_ = val;
     }
-    void set_gamma(double gam) {
-        gamma_ = gam;
+    auto &gamma() {return gamma_;}
+    auto gamma() const {return gamma_;}
+    auto data_dependent() const {return data_dependent_;}
+    auto orthonormalize() const {return orthonormalize_;}
+    auto eps() const {return eps_;}
+    auto n_inserted() const {return n_inserted_;}
+    auto &map() {return map_;}
+    const auto &map() const {return map_;}
+    auto &mat() {return mat_;}
+    const auto &mat() const {return mat_;}
+    template<template<typename...> class NewSetTemplate=std::set>
+    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() const & {
+        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    }
+    template<template<typename...> class NewSetTemplate=std::set>
+    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() const && {
+        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    }
+    template<template<typename...> class NewSetTemplate=std::set>
+    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() && {
+        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    }
+    template<template<typename...> class NewSetTemplate=std::set>
+    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() & {
+        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    }
+    template<template <typename...> class OldSetTemplate>
+    DCI(DCI<ValueType, IdType, FType, OldSetTemplate> &&o):
+        val_ptrs_(std::move(o.vps())),
+        m_(o.m_), l_(o.l_), d_(o.d_), mat_(std::move(o.mat())), n_inserted_(o.n_inserted()),
+        eps_(o.eps()), gamma_(o.gamma()), data_dependent_(o.data_dependent()), orthonormalize_(o.orthonormalize())
+    {
+        map().reserve(o.map().size());
+        for(const auto &p: o.map())
+            map_.emplace_back(p.begin(), p.end());
+    }
+    template<template <typename...> class OldSetTemplate>
+    DCI(const DCI<ValueType, IdType, FType, OldSetTemplate> &o):
+        val_ptrs_(o.vps()),
+        m_(o.m_), l_(o.l_), d_(o.d_), mat_(o.mat()), n_inserted_(o.n_inserted()),
+        eps_(o.eps()), gamma_(o.gamma()), data_dependent_(o.data_dependent()), orthonormalize_(o.orthonormalize())
+    {
+        map().reserve(o.map().size());
+        for(const auto &p: o.map())
+            map_.emplace_back(p.begin(), p.end());
     }
     DCI(size_t m, size_t l, size_t d, double eps=1e-5,
         bool orthonormalize=false, float param=1., bool dd=false):
-        m_(m), l_(l), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps), data_dependent_(dd)
+        m_(m), l_(l), d_(d), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps), gamma_(param), data_dependent_(dd), orthonormalize_(orthonormalize)
     {
         blaze::randomize(mat_);
-        std::fprintf(stderr, "Made mat of %zu/%zu\n", mat_.rows(), mat_.columns());
-        if(orthonormalize) {
+        std::fprintf(stderr, "Made mat of %zu/%zu with m, l, d as %zu, %zu, %zu\n", mat_.rows(), mat_.columns(), m, l, d);
+        orthonormalize_ = false;
+        if(orthonormalize_) {
             try {
                 matrix_type r, q;
                 blaze::qr(mat_, q, r);
                 std::fprintf(stderr, "q size: %zu/%zu\n", q.rows(), q.columns());
+                std::fprintf(stderr, "r size: %zu/%zu\n", r.rows(), r.columns());
                 std::fprintf(stderr, "mat_ size: %zu/%zu\n", mat_.rows(), mat_.columns());
+                std::cout << "q: \n\n" << q << '\n';
+                std::cout << "r: \n\n" << r << '\n';
                 assert(dot(column(q, 0), column(q, 1)) < 1e-6);
                 assert(mat_.columns() == q.columns());
                 assert(mat_.rows() == q.rows());
@@ -161,28 +217,32 @@ public:
             add_item(*i1++);
     }
     void add_item(const ValueType &val) {
-        IdType ind = n_inserted_++;
         auto tmp = mat_ * val;
+        auto ind = n_inserted_++;
         for(size_t i = 0; i < mat_.rows(); ++i) {
             map_[i].emplace(tmp[i], ind);
         }
         val_ptrs_.emplace_back(std::addressof(val));
-#if 1
+#if 0
         std::fprintf(stderr, "ind: %u. inserted: %u. valp sz: %zu\n", ind, unsigned(n_inserted_), val_ptrs_.size());
 #endif
         assert(val_ptrs_.size() == n_inserted_);
     }
-    bool should_stop(size_t i, const set_type &x, unsigned k) const {
+    bool should_stop(size_t i, size_t candidateset_size, unsigned k) const {
         // Warning: this currenly
         const double rat = double(val_ptrs_.size()) / k;
         const size_t ktilde = std::ceil(k * std::max(std::log(rat), std::pow(rat, 1 - std::log2(gamma_))));
-        return x.size() >= ktilde;
+        return candidateset_size >= ktilde;
     }
     static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
         if(bi.first != map.begin()) {
             if(bi.second != map.end()) {
+                //std::fprintf(stderr, "dist1: %f. dist2: %f.\n", std::abs(bi.first->first - val), std::abs(bi.second->first - val));
                 auto it = std::abs(bi.first->first - val) > std::abs(bi.second->first - val)
                     ? bi.first-- : bi.second++;
+                if(bi.second != map.end() && bi.first != map.begin())
+                {
+                }
                 return &*it;
             }
             auto it = bi.first--;
@@ -217,7 +277,7 @@ public:
 
         // First step: dot product the query with all reference positions
         std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
-        std::vector<set_type> candidatesvec(l_);
+        set_type candidates;
         // Get a pair of iterators
         blaze::DynamicVector<FType> dists = mat_ * val;
         for(size_t i = 0; i < l_ * m_; ++i) {
@@ -230,14 +290,15 @@ public:
         }
 
 
-        // FIXME: consider sparse representation. I don't expect dense to be best.
+        // TODO: consider sparse representation. I don't expect dense to be best.
         // Allocate counts
         blaze::DynamicMatrix<uint32_t> countsvec(l_, size());
 
         // Iterate through ith closest along each projection direction.
+        // TODO: parallelize
         for(size_t i = 0; i < size(); ++i) {
             for(size_t l = 0; l < l_; ++l) {
-                auto &candidates = candidatesvec[l];
+                //auto &candidates = candidatesvec[l];
                 auto C = row(countsvec, l);
                 /* 1. Get `ith` closest to q_{jl} [the `dist` above]
                  * 2.
@@ -245,20 +306,24 @@ public:
                 for(size_t j = 0; j < m_; ++j) {
                     auto index = ind(j, l);
                     auto pair = next_best(map_[index], bounds[index], dists[index]);
-                    //TD<decltype(pair)> td;
                     if(!pair) throw std::runtime_error("Failure in navigating tree");
-                    if(++C[pair->second] == m_)
-                        candidates.insert(j);
+                    //OMP_PRAGMA("pragma critical")
+                    if(++C[pair->second] == m_) {
+                        candidates.insert(pair->second);
+                    }
                 }
-                if(should_stop(i, candidates, k)) break;
             }
+            if(should_stop(i, candidates.size(), k)) break;
         }
+        auto &u = candidates;
+        std::fprintf(stderr, "Candidates size: %zu\n", u.size());
+#if 0
         auto sit = candidatesvec.begin();
         set_type u = std::move(*sit++);
         while(sit != candidatesvec.end())
             u.insert(sit->begin(), sit->end()), ++sit;
+#endif
         dists.resize(u.size());
-        std::fprintf(stderr, "Begin:\n");
         std::priority_queue<ProjI> pq;
 #if !NDEBUG
         FType minabsv = std::numeric_limits<FType>::max();
@@ -289,13 +354,36 @@ public:
     std::pair<size_t, size_t> offset2ind(size_t offset) const {return std::pair<size_t, size_t>(offset % m_, offset / m_);}
     const value_type *operator[](size_t index) const {return val_ptrs_[index];}
     value_type *operator[](size_t index) {return val_ptrs_[index];}
-    auto begin() {return val_ptrs_.begin();}
-    auto end() {return val_ptrs_.end();}
-    auto begin() const {return val_ptrs_.begin();}
-    auto end()   const {return val_ptrs_.end();}
+    struct iterator: public std::vector<const ValueType *>::iterator {
+        using super = typename std::vector<const ValueType *>::iterator;
+        template<typename...Args>
+        iterator(Args&&...args): super(std::forward<Args>(args)...) {}
+        ValueType *operator->() {
+            return super::operator->();
+        }
+        const ValueType *operator->() const {
+            return super::operator->();
+        }
+    };
+    struct const_iterator: public std::vector<const ValueType *>::const_iterator {
+        using super = typename std::vector<const ValueType *>::const_iterator;
+        template<typename...Args>
+        const_iterator(Args&&...args): super(std::forward<Args>(args)...) {}
+        const ValueType *operator->() const {
+            return super::operator->();
+        }
+    };
+    auto begin() {return iterator(val_ptrs_.begin());}
+    auto end() {return iterator(val_ptrs_.end());}
+    auto begin() const {return const_iterator(val_ptrs_.begin());}
+    auto end()   const {return const_iterator(val_ptrs_.end());}
+    auto &&vps() && {return std::move(val_ptrs_);}
+    const auto & vps() const && {return val_ptrs_;}
+    auto &vps()  & {return val_ptrs_;}
+    const auto & vps() const & {return val_ptrs_;}
 };
 
-}
+} // dci
 
 } // namespace frp
 

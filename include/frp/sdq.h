@@ -50,9 +50,9 @@ public:
 };
 
 template<typename T, typename All=std::allocator<T>>
-struct deque: public container<std::deque, T, All> {};
+using vector = container<std::vector, T, All>;
 template<typename T, typename All=std::allocator<T>>
-struct vector: public container<std::vector, T, All> {};
+using deque = container<std::deque, T, All>;
 
 } // frp
 #endif

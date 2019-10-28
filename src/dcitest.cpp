@@ -58,9 +58,9 @@ auto distmat2nn(const T1 &mat, size_t k) {
     blaze::DynamicMatrix<I> ret(mat.columns(), k);
     //#pragma omp parallel for
     for(size_t i = 0; i < mat.rows(); ++i) {
-        std::fprintf(stderr, "Label stuff2nn %zu\n", i);
+        //std::fprintf(stderr, "Label stuff2nn %zu\n", i);
         auto r = row(mat, i);
-        std::cerr << "Matrix row: " << r;
+        //std::cerr << "Matrix row: " << r;
         auto func = [&r](size_t j, size_t k){return r[j] > r[k];};
         size_t heapsz = 0;
         auto pq(row(ret, i));
@@ -98,14 +98,19 @@ auto distmat2nn(const T1 &mat, size_t k) {
 
 
 int main() {
-    int nd = 40, npoints = 100;
-    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(4, 5, nd, true);
-    DCI<blaze::DynamicVector<FLOAT_TYPE>, uint32_t, float, std::deque> dcid(4, 5, nd, true);
+    int nd = 40, npoints = 1000, n = 10;
+    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(4, 20, nd, 1e-5, true);
+    {
+        // make sure it works with < nd
+        DCI<blaze::DynamicVector<FLOAT_TYPE>, uint32_t, float, std::deque> dcid(4, 20, nd, 1e-5, false);
+        DCI<blaze::DynamicVector<FLOAT_TYPE>> tmp(4, 3, nd, 1e-5, true);
+    }
     std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<FLOAT_TYPE>> ls;
     std::mt19937_64 mt;
+    std::normal_distribution<FLOAT_TYPE> gen(0., 1);
+    gen.reset();
     for(ssize_t i = 0; i < npoints; ++i) {
-        std::normal_distribution<FLOAT_TYPE> gen(0);
         omp_set_num_threads(std::thread::hardware_concurrency());
         ls.emplace_back(nd);
         for(auto &x: ls.back())
@@ -116,9 +121,35 @@ int main() {
         dci.add_item(v);//, dci2.add_item(v);
     std::fprintf(stderr, "Added\n");
     auto [x, y] = nn_data(dci);
-    std::fprintf(stderr, "nn\n");
-    auto nnmat = distmat2nn(x, std::max(3, nd - 15));
+    //std::fprintf(stderr, "nn\n");
+    auto nnmat = distmat2nn(x, std::max(n, nd - 15));
+    std::priority_queue<frp::dci::ProjID<FLOAT_TYPE, int>> pqs;
+    for(int i = 0; i < npoints; ++i) {
+        pqs.emplace(norm(ls[0] - ls[i]), i);
+        if(pqs.size() > n) {
+            //std::fprintf(stderr, "Last thing: %f\n", pqs.top().f());
+            pqs.pop();
+        }
+    }
+    while(pqs.size()) {
+        //std::fprintf(stderr, "popping %f\n", pqs.top().f());
+        pqs.pop();
+    }
     //std::cerr << nnmat << '\n';
-    auto topn = dci.query(ls[0], 3);
-    std::fprintf(stderr, "topn: %zu is n\n", topn.size());
+    auto topn = dci.query(ls[0], n);
+    std::fprintf(stderr, "topn, where n is %zu: \n\n", topn.size());
+    auto tnbeg = topn.begin();
+    assert(tnbeg->id() == 0);
+    double mv = norm(ls[tnbeg++->id()] - ls[0]);
+    std::fprintf(stderr, "first dist: %le\n", mv);
+    assert(mv == 0.0); // Should be itself
+    do {
+        auto id = tnbeg->id();
+        blaze::DynamicVector<FLOAT_TYPE> &rl(ls[id]);
+        blaze::DynamicVector<FLOAT_TYPE> &rr(ls[0]);
+        double newv = norm(rl - rr);
+        assert(mv <= newv);
+        std::fprintf(stderr, "dist: %f, id %u\n", newv, unsigned(id));
+    } while(++tnbeg != topn.end());
+    auto dcid2 = dci.template cvt<std::set>();
 }
