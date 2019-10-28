@@ -141,13 +141,13 @@ int main(int argc, char *argv[]) {
             x = gen(mt);
     }
     std::fprintf(stderr, "Generated\n");
-    for(const auto &v: ls)
-        dci.add_item(v);//, dci2.add_item(v);
+    //OMP_PRAGMA("omp parallel for")
+    for(size_t i = 0; i < ls.size(); ++i)
+        dci.add_item(ls[i]);
     std::fprintf(stderr, "Added\n");
     //std::cerr << nnmat << '\n';
     auto topn = dci.query(ls[0], k);
     std::fprintf(stderr, "topn, where n is %zu: \n\n", topn.size());
-    assert(topn.begin()->id() == 0);
     std::reverse(topn.begin(), topn.end());
     auto tnbeg = topn.begin();
     double mv = norm(ls[tnbeg++->id()] - ls[0]);
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
     } while(++tnbeg != topn.end());
     std::reverse(topn.begin(), topn.end());
     assert(std::is_sorted(topn.begin(), topn.end()));
-    auto dcid2 = dci.template cvt<std::set>();
+    auto dcid2 = dci.template cvt<>();
     std::fprintf(stderr, "Doing exact, feel free to skip\n");
     //auto [x, y] = nn_data(dci);
     //std::fprintf(stderr, "nn\n");

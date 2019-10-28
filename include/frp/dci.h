@@ -224,24 +224,19 @@ public:
     }
     void add_item(const ValueType &val) {
         auto tmp = mat_ * val;
-        {
-            ProjI to_insert;
-            #pragma omp critical
-            to_insert.second = n_inserted_++;
-            for(size_t i = 0; i < mat_.rows(); ++i) {
-                auto &m = map_[i];
-                to_insert.first = tmp[i];
-                #pragma omp critical
-                map_[i].emplace(tmp[i], ind);
-            }
-            val_ptrs_.emplace_back(std::addressof(val));
+        ProjI to_insert;
+        const auto id = n_inserted_++;
+        val_ptrs_.emplace_back(std::addressof(val));
+        #pragma omp parallel for
+        for(size_t i = 0; i < mat_.rows(); ++i) {
+            map_[i].emplace(ProjI(tmp[i], id));
         }
 #if 0
         std::fprintf(stderr, "ind: %u. inserted: %u. valp sz: %zu\n", ind, unsigned(n_inserted_), val_ptrs_.size());
         assert(val_ptrs_.size() == n_inserted_);
 #endif
     }
-    bool should_stop(size_t i, size_t candidateset_size, unsigned k, FType o=5.) const {
+    bool should_stop(size_t i, size_t candidateset_size, unsigned k, FType o=10.) const {
         // Warning: this currenly
         const double rat = double(val_ptrs_.size()) / k;
         const size_t ktilde = std::ceil(k * std::log(rat));
@@ -327,6 +322,7 @@ public:
                     }
                 }
             }
+            if(i == size() - 1) std::fprintf(stderr, "ran through all iterations\n");
             if(should_stop(i, candidates.size(), k)) break;
         }
         auto &u = candidates;
