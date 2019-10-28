@@ -2,6 +2,8 @@
 #include <iostream>
 #include <thread>
 #include "omp.h"
+#include "aesctr/wy.h"
+#include <getopt.h>
 
 using namespace frp;
 using namespace dci;
@@ -81,7 +83,7 @@ auto distmat2nn(const T1 &mat, size_t k) {
         }
         for(auto it = pq.end();it != pq.begin();std::pop_heap(pq.begin(), it--, func));
         assert(std::is_sorted(pq.begin(), pq.end(), func));
-        std::cerr << pq << '\n';
+        // std::cerr << pq << '\n';
 #if 0
         for(auto v: pq) {
             if(r[v] > r[pq[0]]) {
@@ -97,21 +99,43 @@ auto distmat2nn(const T1 &mat, size_t k) {
 }
 
 
-int main() {
-    int nd = 40, npoints = 1000, n = 10;
-    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(4, 20, nd, 1e-5, true);
+void usage() {
+    std::fprintf(stderr, "Usage: dcitest <flags>\n-d: dimension [400]\n-n: number of points [100000]"
+                         "-l: Number of levels [15]\n"
+                         "-m: Number of sublevels per level [5]\n"
+                         "-k: Number of neighbors to retrieve [5]\n"
+                         "-h: Usage (this menu)\n");
+    std::exit(1);
+}
+
+int main(int argc, char *argv[]) {
+    int c, nd = 400, npoints = 100000, k = 10, l = 15, m = 5;
+    while((c = getopt(argc, argv, "d:n:k:l:m:h")) >= 0) {
+         switch(c) {
+             case 'd': nd = std::atoi(optarg); break;
+             case 'n': npoints = std::atoi(optarg); break;
+             case 'k': k = std::atoi(optarg); break;
+             case 'l': l = std::atoi(optarg); break;
+             case 'm': m = std::atoi(optarg); break;
+             case 'h': case '?': usage();
+         }
+    }
+    std::fprintf(stderr, "nd: %d. np: %d. n: %d\n", nd, npoints, k);
+    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true);
+#if 0
     {
         // make sure it works with < nd
         DCI<blaze::DynamicVector<FLOAT_TYPE>, uint32_t, float, std::deque> dcid(4, 20, nd, 1e-5, false);
         DCI<blaze::DynamicVector<FLOAT_TYPE>> tmp(4, 3, nd, 1e-5, true);
     }
+#endif
     std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<FLOAT_TYPE>> ls;
-    std::mt19937_64 mt;
-    std::normal_distribution<FLOAT_TYPE> gen(0., 1);
+    wy::WyHash<uint64_t, 8> mt;
+    std::normal_distribution<FLOAT_TYPE> gen(2.5, std::sqrt(2.5));
     gen.reset();
+    omp_set_num_threads(std::thread::hardware_concurrency());
     for(ssize_t i = 0; i < npoints; ++i) {
-        omp_set_num_threads(std::thread::hardware_concurrency());
         ls.emplace_back(nd);
         for(auto &x: ls.back())
             x = gen(mt);
@@ -120,36 +144,50 @@ int main() {
     for(const auto &v: ls)
         dci.add_item(v);//, dci2.add_item(v);
     std::fprintf(stderr, "Added\n");
-    auto [x, y] = nn_data(dci);
-    //std::fprintf(stderr, "nn\n");
-    auto nnmat = distmat2nn(x, std::max(n, nd - 15));
-    std::priority_queue<frp::dci::ProjID<FLOAT_TYPE, int>> pqs;
-    for(int i = 0; i < npoints; ++i) {
-        pqs.emplace(norm(ls[0] - ls[i]), i);
-        if(pqs.size() > n) {
-            //std::fprintf(stderr, "Last thing: %f\n", pqs.top().f());
-            pqs.pop();
-        }
-    }
-    while(pqs.size()) {
-        //std::fprintf(stderr, "popping %f\n", pqs.top().f());
-        pqs.pop();
-    }
     //std::cerr << nnmat << '\n';
-    auto topn = dci.query(ls[0], n);
+    auto topn = dci.query(ls[0], k);
     std::fprintf(stderr, "topn, where n is %zu: \n\n", topn.size());
+    assert(topn.begin()->id() == 0);
+    std::reverse(topn.begin(), topn.end());
     auto tnbeg = topn.begin();
-    assert(tnbeg->id() == 0);
     double mv = norm(ls[tnbeg++->id()] - ls[0]);
     std::fprintf(stderr, "first dist: %le\n", mv);
-    assert(mv == 0.0); // Should be itself
     do {
         auto id = tnbeg->id();
         blaze::DynamicVector<FLOAT_TYPE> &rl(ls[id]);
         blaze::DynamicVector<FLOAT_TYPE> &rr(ls[0]);
         double newv = norm(rl - rr);
-        assert(mv <= newv);
         std::fprintf(stderr, "dist: %f, id %u\n", newv, unsigned(id));
     } while(++tnbeg != topn.end());
+    std::reverse(topn.begin(), topn.end());
+    assert(std::is_sorted(topn.begin(), topn.end()));
     auto dcid2 = dci.template cvt<std::set>();
+    std::fprintf(stderr, "Doing exact, feel free to skip\n");
+    //auto [x, y] = nn_data(dci);
+    //std::fprintf(stderr, "nn\n");
+    //auto nnmat = distmat2nn(x, std::max(n, nd - 15));
+    std::priority_queue<frp::dci::ProjID<FLOAT_TYPE, int>> pqs;
+    std::fprintf(stderr, "Beginning exact calculation\n");
+    #pragma omp parallel for schedule(static, 32)
+    for(int i = 0; i < npoints; ++i) {
+        const auto v = norm(ls[0] - ls[i]);
+        if(pqs.empty() || v < pqs.top().f()) {
+            const auto tmp = frp::dci::ProjID<FLOAT_TYPE, int>(v, i);
+            #pragma omp critical
+            {
+                pqs.push(tmp);
+                if(pqs.size() > unsigned(k)) {
+                    //std::fprintf(stderr, "Last thing: %f\n", pqs.top().f());
+                    pqs.pop();
+                }
+            }
+        }
+    }
+    std::vector<frp::dci::ProjID<FLOAT_TYPE, int>> exact_topn;
+    while(pqs.size()) {
+        auto p = pqs.top();
+        exact_topn.push_back(p);
+        std::fprintf(stderr, "exact %zu: %f, %d\n", pqs.size(), p.f(), p.id());
+        pqs.pop();
+    }
 }

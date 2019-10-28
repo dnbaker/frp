@@ -117,8 +117,7 @@ static uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
     static constexpr size_t COUNT = 0;
 #endif
     size_t i = 0;
-#if 0
-//#if HAS_AVX_512 || __AVX__
+#if HAS_AVX_512 || defined(__AVX__)
     CONST_IF(COUNT) {
         using LV = F2VType<FType, sizeof(VType)>;
         for(; i < c.size() / COUNT;ret = (ret << COUNT) | cmp_zero<FType, typename LV::type>(LV::load((&c[i++ * COUNT]))));
@@ -133,9 +132,10 @@ struct MatrixLSHasher: public LSHasher<FType, ::blaze::DynamicMatrix, SO> {
     using super = LSHasher<FType, ::blaze::DynamicMatrix, SO>;
     template<typename...CArgs>
     MatrixLSHasher(CArgs &&...args): super(std::forward<CArgs>(args)...) {
-        std::normal_distribution<FType> dist;
-        std::mt19937_64 mt;
+        OMP_PRAGMA("omp parallel for")
         for(size_t i = 0; i < this->container_.rows(); ++i) {
+            std::normal_distribution<FType> dist;
+            std::mt19937_64 mt(i);
             auto r = row(this->container_, i);
             for(auto &e: r)
                 e = dist(mt);

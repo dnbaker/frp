@@ -15,6 +15,7 @@
 #include <set>
 #include <queue>
 #include <vector>
+#include "flat_hash_map/flat_hash_map.hpp"
 
 namespace frp {
 
@@ -53,12 +54,14 @@ INLINE auto perform_lbound(const T &x, ItemType item) {
 
 template<typename FType, typename SizeType>
 struct ProjID: public std::pair<FType, SizeType> {
+    static_assert(std::is_integral<SizeType>::value, "must be integral");
+    static_assert(std::is_floating_point<FType>::value, "must be floating point");
     template<typename...Args>
     ProjID(Args &&...args): std::pair<FType, SizeType>(std::forward<Args>(args)...) {}
     ProjID() {}
     FType f() const {return this->first;}
     FType fabs() const {return std::abs(this->first);}
-    FType id() const {return this->second;}
+    SizeType id() const {return this->second;}
     bool operator<(FType x) const {return f() < x;}
     bool operator<=(FType x) const {return f() <= x;}
     bool operator>(FType x) const {return f() > x;}
@@ -88,12 +91,14 @@ struct stop_param_generator {
 #endif
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
-         template <typename...> class SetTemplate=std::set>
+         template <typename...> class map_template=std::set,
+         template <typename...> class SetTemplate=ska::flat_hash_set>
 class DCI;
 
 
 template<typename ValueType,
          typename IdType, typename FType,
+         template <typename...> class map_template,
          template <typename...> class SetTemplate>
 class DCI {
     /*
@@ -102,7 +107,8 @@ class DCI {
      https://arxiv.org/abs/1512.00442
     */
     using ProjI = ProjID<FType, IdType>;
-    using map_type = sorted::vector<ProjI>;
+    using map_type = map_template<ProjI>;
+    //using map_type = sorted::vector<ProjI>;
     using set_type = SetTemplate<IdType>;
     using matrix_type = blaze::DynamicMatrix<FType>;
     using value_type = ValueType;
@@ -134,19 +140,19 @@ public:
     const auto &map() const {return map_;}
     auto &mat() {return mat_;}
     const auto &mat() const {return mat_;}
-    template<template<typename...> class NewSetTemplate=std::set>
+    template<template<typename...> class NewSetTemplate=sorted::vector>
     DCI<ValueType, IdType, FType, NewSetTemplate> cvt() const & {
         return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
     }
-    template<template<typename...> class NewSetTemplate=std::set>
+    template<template<typename...> class NewSetTemplate=sorted::vector>
     DCI<ValueType, IdType, FType, NewSetTemplate> cvt() const && {
         return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
     }
-    template<template<typename...> class NewSetTemplate=std::set>
+    template<template<typename...> class NewSetTemplate=sorted::vector>
     DCI<ValueType, IdType, FType, NewSetTemplate> cvt() && {
         return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
     }
-    template<template<typename...> class NewSetTemplate=std::set>
+    template<template<typename...> class NewSetTemplate=sorted::vector>
     DCI<ValueType, IdType, FType, NewSetTemplate> cvt() & {
         return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
     }
@@ -218,21 +224,29 @@ public:
     }
     void add_item(const ValueType &val) {
         auto tmp = mat_ * val;
-        auto ind = n_inserted_++;
-        for(size_t i = 0; i < mat_.rows(); ++i) {
-            map_[i].emplace(tmp[i], ind);
+        {
+            ProjI to_insert;
+            #pragma omp critical
+            to_insert.second = n_inserted_++;
+            for(size_t i = 0; i < mat_.rows(); ++i) {
+                auto &m = map_[i];
+                to_insert.first = tmp[i];
+                #pragma omp critical
+                map_[i].emplace(tmp[i], ind);
+            }
+            val_ptrs_.emplace_back(std::addressof(val));
         }
-        val_ptrs_.emplace_back(std::addressof(val));
 #if 0
         std::fprintf(stderr, "ind: %u. inserted: %u. valp sz: %zu\n", ind, unsigned(n_inserted_), val_ptrs_.size());
-#endif
         assert(val_ptrs_.size() == n_inserted_);
+#endif
     }
-    bool should_stop(size_t i, size_t candidateset_size, unsigned k) const {
+    bool should_stop(size_t i, size_t candidateset_size, unsigned k, FType o=5.) const {
         // Warning: this currenly
         const double rat = double(val_ptrs_.size()) / k;
-        const size_t ktilde = std::ceil(k * std::max(std::log(rat), std::pow(rat, 1 - std::log2(gamma_))));
-        return candidateset_size >= ktilde;
+        const size_t ktilde = std::ceil(k * std::log(rat));
+        //const size_t ktilde = std::ceil(k * std::max(std::log(rat), std::pow(rat, 1 - std::log2(gamma_))));
+        return candidateset_size >= ktilde * o;
     }
     static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
         if(bi.first != map.begin()) {

@@ -21,6 +21,23 @@
 #endif
 #include "./ifc.h"
 
+#ifdef _OPENMP
+#  ifndef OMP_PRAGMA
+#    define OMP_PRAGMA(...) _Pragma(__VA_ARGS__)
+#  endif
+#  ifndef OMP_ONLY
+#     define OMP_ONLY(...) __VA_ARGS__
+#  endif
+#else
+#  ifndef OMP_PRAGMA
+#    define OMP_PRAGMA(...)
+#  endif
+#  ifndef OMP_ONLY
+#    define OMP_ONLY(...)
+#  endif
+#endif
+
+
 #ifndef CONST_IF
 #if defined(__cpp_if_constexpr) && __cplusplus >= __cpp_if_constexpr
 #define CONST_IF(...) if constexpr(__VA_ARGS__)
