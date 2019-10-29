@@ -11,7 +11,6 @@ special functions and random number generators. Only required boost headers are 
     2. We recommend Structured Orthogonal Random Features, as it has the highest accuracy in our experiments and can also be hundreds of times faster while still having a small memory footprint.
 2. A type-generic SIMD interface (vec/vec.h), which abstracts operations to allow the compiler to use the widest vectors possible as needed, facilitating generically dispatching the fastest implementation possible on a machine.
 3. Utilities
-    1. Templated SIMD-based and unrolled AES-CTR, based on the implementation used in Lemire's testingRNG repository.
     2. PRNVector (PseudoRandom Number Vector) to provide access to random vectors using only constant memory requires instead of explicitly storing them by generating values as needed.
     3. Utilities for sampling and filling containers from distributions.
     4. Acquiring cache sizes from the OS.
@@ -22,29 +21,24 @@ special functions and random number generators. Only required boost headers are 
 5. Miscellaneous, related work
     1. Dynamic Continuous Indexing for real-valued data
         1. [Dynamic Continuous Indexing](https://arxiv.org/abs/1512.00442)
-        2. TODO: array-based binary trees for traversal
-        3. TODO: [Prioritized DCI](https://arxiv.org/abs/1703.00440)
+          1. Tested
+        2. [Prioritized DCI](https://arxiv.org/abs/1703.00440)
+          2. Draft form.
+
+### Build instructions
+
+`make` should compile a variety of tests.
+We assume you're using BLAS for your linear algebra; to avoid doing that, modify the Makefile and remove the `-DBLAZE*` flags.
+
+To specify a different blas header file, use the CBLASFILE variable when compiling:
+```bash
+make ojlt CBLASFILE=mkl_cblas.h
+# Or, use an environmental variable
+export CBLASFILE=mkl_cblas.h && \
+make ojlt
+```
+
         
-
-# TODO
-
-1. Add Kernels:
-    1. Laplacian [See Recht and Rahimi]
-    3. Cauchy [ibid.]
-    4. Angular [See arxiv 1703.00864]
-    5. Dot Product [See arxiv 1407.5599, table 1 for the rest]
-    6. Polynomial
-    7. Hellinger
-    8. Chi Squared
-    9. Intersection
-    10. Jenson-Shannon
-    11. Skewed-Chi Squared
-    12. Skewed-Intersection
-    13. Exponential Semigroup
-    14. Reciprocal Semigroup
-    15. Arc-Cosine
-2. See if accuracy found in [Generalization Properties of Learning with Random Features](https://arxiv.org/abs/1602.04474)
-   can be extended to the linearithmic runtime/linear space regime.
 
 ## Commentary
 

@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <unordered_set>
 #include "kspp/ks.h"
+#include "aesctr/wy.h"
 #include "blaze/Math.h"
 #include <zlib.h>
 #ifndef FHT_HEADER_ONLY

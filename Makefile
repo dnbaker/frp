@@ -21,7 +21,10 @@ OS:=$(shell uname)
 EXTRA=
 OPT:=$(OPT) $(FLAGS)
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA)
+CBLASFILE?=cblas.h
+BLAZEFLAGS= -DBLAZE_RANDOM_NUMBER_GENERATOR='::wy::WyHash<uint32_t, 8>' -DBLAZE_BLAS_MODE=1 \
+    -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION=1 -DBLAZE_BLAS_INCLUDE_FILE='"$(CBLASFILE)"'
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA) $(BLAZEFLAGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f -lstdc++fs -lsleef -llapack
 LD=-L. -Lfftw-3.3.7/lib -Lvec/sleef/build/lib
