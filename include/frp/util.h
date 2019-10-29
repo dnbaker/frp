@@ -9,12 +9,9 @@
 #include <memory>
 #include <tuple>
 #include <type_traits>
-#include <type_traits>
 #include <unordered_set>
 #include "kspp/ks.h"
 #include "blaze/Math.h"
-#include "boost/random/normal_distribution.hpp"
-#include "boost/random.hpp"
 #include <zlib.h>
 #ifndef FHT_HEADER_ONLY
 #  define FHT_HEADER_ONLY
