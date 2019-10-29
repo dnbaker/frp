@@ -110,18 +110,20 @@ void usage() {
 
 int main(int argc, char *argv[]) {
     int c, nd = 400, npoints = 100000, k = 10, l = 15, m = 5;
-    while((c = getopt(argc, argv, "d:n:k:l:m:h")) >= 0) {
+    double gamma = 1.;
+    while((c = getopt(argc, argv, "g:d:n:k:l:m:h")) >= 0) {
          switch(c) {
              case 'd': nd = std::atoi(optarg); break;
              case 'n': npoints = std::atoi(optarg); break;
              case 'k': k = std::atoi(optarg); break;
              case 'l': l = std::atoi(optarg); break;
              case 'm': m = std::atoi(optarg); break;
+             case 'g': gamma = std::atof(optarg); break;
              case 'h': case '?': usage();
          }
     }
     std::fprintf(stderr, "nd: %d. np: %d. n: %d\n", nd, npoints, k);
-    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true);
+    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true, gamma);
 #if 0
     {
         // make sure it works with < nd
@@ -168,18 +170,21 @@ int main(int argc, char *argv[]) {
     //auto nnmat = distmat2nn(x, std::max(n, nd - 15));
     std::priority_queue<frp::dci::ProjID<FLOAT_TYPE, int>> pqs;
     std::fprintf(stderr, "Beginning exact calculation\n");
+    FLOAT_TYPE maxv = 0;
+    //for(const auto v: topn)
+    //    maxv = std::max(v.first, maxv);
+    auto max_inexact = topn.back().first;
+    std::fprintf(stderr, "mi: %f. mv: %f\n", max_inexact, maxv);
+    std::fprintf(stderr, "max: %f\n", max_inexact);
+    //if(max_inexact < maxv) max_inexact = maxv;
     #pragma omp parallel for schedule(static, 32)
     for(int i = 0; i < npoints; ++i) {
         const auto v = norm(ls[0] - ls[i]);
-        if(pqs.empty() || v < pqs.top().f()) {
+        if(v < max_inexact) {
             const auto tmp = frp::dci::ProjID<FLOAT_TYPE, int>(v, i);
             #pragma omp critical
             {
                 pqs.push(tmp);
-                if(pqs.size() > unsigned(k)) {
-                    //std::fprintf(stderr, "Last thing: %f\n", pqs.top().f());
-                    pqs.pop();
-                }
             }
         }
     }

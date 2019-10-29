@@ -117,7 +117,7 @@ class DCI {
     std::vector<map_type> map_;
     std::vector<const value_type*> val_ptrs_;
 public:
-    const size_t m_, l_, d_;
+    const unsigned m_, l_, d_;
 private:
     size_t n_inserted_;
     double eps_;
@@ -236,12 +236,16 @@ public:
         assert(val_ptrs_.size() == n_inserted_);
 #endif
     }
-    bool should_stop(size_t i, size_t candidateset_size, unsigned k, FType o=10.) const {
+    bool should_stop(size_t i, size_t candidateset_size, unsigned k) const {
         // Warning: this currenly
         const double rat = double(val_ptrs_.size()) / k;
-        const size_t ktilde = std::ceil(k * std::log(rat));
+        auto exp = 1. - std::log2(gamma_);
+        const size_t ktilde = k * std::max(
+            std::ceil(std::log(rat)),
+            gamma_ == 1. ? rat: std::pow(rat, exp)
+        );
         //const size_t ktilde = std::ceil(k * std::max(std::log(rat), std::pow(rat, 1 - std::log2(gamma_))));
-        return candidateset_size >= ktilde * o;
+        return candidateset_size >= std::min(ktilde, val_ptrs_.size());
     }
     static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
         if(bi.first != map.begin()) {
@@ -261,6 +265,77 @@ public:
             return &*it;
         }
         return nullptr;
+    }
+    using ProjIM = std::pair<ProjI, uint32_t>;
+    std::vector<ProjI> prioritized_query(const ValueType &val, unsigned k, unsigned k1) const {
+        if(k <= val_ptrs_.size())
+            return query(val, k);
+        if(k1 < 2) throw std::runtime_error("Expected k1 > 1");
+        using PQT = std::priority_queue<ProjIM, std::vector<ProjIM>, std::greater<ProjIM>>;
+        // Get a pair of iterators
+        std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
+        std::vector<PQT> pqs(l_);
+        std::vector<set_type> candidates(l_);
+        blaze::DynamicVector<FType> dists = mat_ * val;
+        blaze::DynamicMatrix<uint32_t> countsvec(l_, size());
+        std::vector<ProjI> ret;
+
+        // Initialize queues
+        OMP_PRAGMA("omp parallel for")
+        for(unsigned i = 0; i < l_; ++i) {
+            // Parallelize over l, avoid conflicts because there are only l 
+            auto &pq = pqs[i];
+            for(size_t j = 0; j < m_; ++j) {
+                auto index = ind(j, i);
+                map_type &pos = map_[i];
+                const bin_tree_iterator it = perform_lbound(pos, dists[index]);
+                auto cp = it;
+                ProjI to_insert;
+                const double dl = std::abs(dists[i] - it->first);
+                if(likely(cp != pos.end())) {
+                    const double dr = std::abs(dists[i] - ++cp->first);
+                    to_insert = dl < dr ? ProjIM{{dl, it--->second}, j}: ProjIM{{dr, cp++->second}, j};
+                } else to_insert = {dl, it--->second, j};
+                bounds[i] = std::make_pair(it, cp);
+                pq.push(to_insert);
+            }
+        }
+        for(uint32_t k1i = 1; k1i < k1; ++k1i) {
+            for(uint32_t l = 0; l < l_; ++l) {
+                auto &canset = candidates[l];
+                if(canset.size() >= k) continue;
+                auto C = row(countsvec, l);
+                auto &pq = pqs[l];
+                auto top = pq.top(); pq.pop();
+                auto j = top.second;
+                auto index = ind(j, l);
+                auto pair = next_best(map_[index], bounds[index], dists[index]);
+                if(unlikely(!pair)) throw std::runtime_error("Failure in navigating tree");
+                pq.push(ProjIM(ProjI(*pair), j));
+                if(++C[top.first.second] == m_) {
+                    canset.insert(top.first.second);
+                }
+            }
+        }
+        auto it = candidates.begin();
+        set_type u = std::move(*it++);
+        while(it != candidates.end()) {
+            u.insert(it->begin(), it->end());
+            ++it;
+        }
+        std::vector<ProjI> vs(k);
+        std::priority_queue<ProjI> pq;
+        for(auto it = u.begin(); it != u.end(); ++it) {
+            FType tmp = blaze::norm(*val_ptrs_[*it] - val);
+            if(pq.size() < k)
+                pq.push(ProjI(tmp, *it));
+            else if(tmp < pq.top().first) {
+                pq.pop();
+                pq.push(ProjI(tmp, *it));
+            }
+        }
+        for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
+        return ret;
     }
     std::vector<ProjI> query(const ValueType &val, unsigned k) const {
         bool klt = k <= val_ptrs_.size();
@@ -289,13 +364,16 @@ public:
         set_type candidates;
         // Get a pair of iterators
         blaze::DynamicVector<FType> dists = mat_ * val;
+        OMP_PRAGMA("omp parallel for")
         for(size_t i = 0; i < l_ * m_; ++i) {
             const map_type &pos = map_[i];
             static_assert(std::is_same<bin_tree_iterator, typename map_type::const_iterator>::value, "must be");
             static_assert(std::is_same<typename std::remove_const<bin_tree_iterator>::type, std::decay_t<decltype(pos.begin())>>::value, "ZOMG");
             //TD<std::decay_t<decltype(pos.begin())>> td;
             const bin_tree_iterator it = perform_lbound(pos, dists[i]);
-            bounds[i] = std::make_pair(it, it);
+            auto cp = it;
+            if(cp != pos.end()) ++cp;
+            bounds[i] = std::make_pair(it, cp);
         }
 
 
@@ -316,7 +394,6 @@ public:
                     auto index = ind(j, l);
                     auto pair = next_best(map_[index], bounds[index], dists[index]);
                     if(!pair) throw std::runtime_error("Failure in navigating tree");
-                    //OMP_PRAGMA("pragma critical")
                     if(++C[pair->second] == m_) {
                         candidates.insert(pair->second);
                     }
@@ -327,22 +404,9 @@ public:
         }
         auto &u = candidates;
         std::fprintf(stderr, "Candidates size: %zu\n", u.size());
-#if 0
-        auto sit = candidatesvec.begin();
-        set_type u = std::move(*sit++);
-        while(sit != candidatesvec.end())
-            u.insert(sit->begin(), sit->end()), ++sit;
-#endif
-        dists.resize(u.size());
         std::priority_queue<ProjI> pq;
-#if !NDEBUG
-        FType minabsv = std::numeric_limits<FType>::max();
-#endif
         for(auto it = u.begin(); it != u.end(); ++it) {
             FType tmp = blaze::norm(*val_ptrs_[*it] - val);
-#if !NDEBUG
-            minabsv = std::min(minabsv, tmp);
-#endif
             if(pq.size() < k)
                 pq.push(ProjI(tmp, *it));
             else if(tmp < pq.top().first) {
@@ -351,7 +415,6 @@ public:
             }
         }
         for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
-        assert(minabsv <= vs[0].f());
         return vs;
     }
     size_t size() const {return n_inserted_;}
