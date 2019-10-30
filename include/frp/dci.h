@@ -279,8 +279,8 @@ public:
         }
         return nullptr;
     }
-    using ProjIM = std::pair<ProjI, uint32_t>;
     std::vector<ProjI> prioritized_query(const ValueType &val, unsigned k, unsigned k1) const {
+        using ProjIM = std::pair<ProjI, IdType>; // To track 'm', as well, as that's necessary for prioritized query.
         if(k <= val_ptrs_.size())
             return query(val, k);
         if(k1 < 2) throw std::runtime_error("Expected k1 > 1");
@@ -300,15 +300,15 @@ public:
             auto &pq = pqs[i];
             for(size_t j = 0; j < m_; ++j) {
                 auto index = ind(j, i);
-                map_type &pos = map_[i];
-                const bin_tree_iterator it = perform_lbound(pos, dists[index]);
+                const map_type &pos = map_[i];
+                bin_tree_iterator it = perform_lbound(pos, dists[index]);
                 auto cp = it;
-                ProjI to_insert;
+                ProjIM to_insert;
                 const double dl = std::abs(dists[i] - it->first);
                 if(likely(cp != pos.end())) {
-                    const double dr = std::abs(dists[i] - ++cp->first);
-                    to_insert = dl < dr ? ProjIM{{dl, it--->second}, j}: ProjIM{{dr, cp++->second}, j};
-                } else to_insert = {dl, it--->second, j};
+                    const double dr = std::abs(dists[i] - (++cp)->first);
+                    to_insert = dl < dr ? ProjIM{ProjI{dl, it--->second}, j}: ProjIM{ProjI{dr, cp++->second}, j};
+                } else to_insert = {ProjI{dl, it--->second}, j};
                 bounds[i] = std::make_pair(it, cp);
                 pq.push(to_insert);
             }
@@ -331,10 +331,9 @@ public:
             }
         }
         auto it = candidates.begin();
-        set_type u = std::move(*it++);
-        while(it != candidates.end()) {
+        set_type u = std::move(*it);
+        while(++it != candidates.end()) {
             u.insert(it->begin(), it->end());
-            ++it;
         }
         std::vector<ProjI> vs(k);
         std::priority_queue<ProjI> pq;

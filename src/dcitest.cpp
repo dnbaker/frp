@@ -164,6 +164,9 @@ int main(int argc, char *argv[]) {
     std::reverse(topn.begin(), topn.end());
     assert(std::is_sorted(topn.begin(), topn.end()));
     auto dcid2 = dci.template cvt<>();
+    auto topnpq = dci.prioritized_query(ls[0], k, k);
+    for(const auto tn: topnpq)
+        std::fprintf(stderr, "id: %d, dist %f\n", tn.id(), tn.f());
     std::fprintf(stderr, "Doing exact, feel free to skip\n");
     //auto [x, y] = nn_data(dci);
     //std::fprintf(stderr, "nn\n");
