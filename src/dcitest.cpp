@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
     } while(++tnbeg != topn.end());
     std::reverse(topn.begin(), topn.end());
     assert(std::is_sorted(topn.begin(), topn.end()));
-    auto dcid2 = dci.template cvt<>();
+    auto dcid2 = dci.cvt();
     auto topnpq = dci.prioritized_query(ls[0], k, k);
     for(const auto tn: topnpq)
         std::fprintf(stderr, "id: %d, dist %f\n", tn.id(), tn.f());

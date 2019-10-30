@@ -43,3 +43,15 @@ make ojlt
 ## Commentary
 
 The initial design of this library was to implement methods from [https://arxiv.org/abs/1703.00864](https://arxiv.org/abs/1703.00864). The core transformss on which it is built are fast fast-hadamard transform accelerated structured matrix vector products. This has applications in memory-efficient, accelerated Johnson-Lindenstrauss Transforms, gaussian kernel approximation for linearizing datasets and FastFood/Adaptive Random Spinners.
+
+## DCI/Prioritized DCI usage
+
+Notes:
+
+During construction, it may be advantageous to use a std::set to maintain sorted indexes (logarithmic update time), whereas at query time, it's faster to use a contiguous array.
+We provide the cvt function, which copies the index, but converts the sorted index type from what it used to be (usually a red-black tree) into the destination type,
+by default an always-sorted array.
+
+We suggest doing this for the purposes of faster construction and faster queries.
+
+Additionally, we do not store any points, just references to them.

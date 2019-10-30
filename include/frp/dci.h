@@ -224,10 +224,9 @@ public:
                 throw;
             }
         } else { // TODO: consider a triple spinner for generating these random matrix vector multiplies
-            for(size_t i = 0; i < mat_.rows(); ++i) {
-                auto r = blaze::row(mat_, i);
-                r *= 1./ norm(r);
-            }
+            OMP_PRAGMA("omp parallel for")
+            for(size_t i = 0; i < mat_.rows(); ++i)
+                normalize(row(mat_, i));
         }
     }
     template<typename I>
