@@ -92,14 +92,16 @@ struct stop_param_generator {
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
          template <typename...> class map_template=std::set,
-         template <typename...> class SetTemplate=ska::flat_hash_set>
+         template <typename...> class SetTemplate=ska::flat_hash_set,
+         typename CMatType=std::uint16_t>
 class DCI;
 
 
 template<typename ValueType,
          typename IdType, typename FType,
          template <typename...> class map_template,
-         template <typename...> class SetTemplate>
+         template <typename...> class SetTemplate,
+         typename CMatType>
 class DCI {
     /*
      To use this: Hold values in their own container. (This is non-owning.)
@@ -177,37 +179,48 @@ public:
             map_.emplace_back(p.begin(), p.end());
     }
     DCI(size_t m, size_t l, size_t d, double eps=1e-5,
-        bool orthonormalize=false, float param=1., bool dd=false):
+        bool orthonormalize=true, float param=1., bool dd=false):
         m_(m), l_(l), d_(d), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps), gamma_(param), data_dependent_(dd), orthonormalize_(orthonormalize)
     {
-        blaze::randomize(mat_);
         std::fprintf(stderr, "Made mat of %zu/%zu with m, l, d as %zu, %zu, %zu\n", mat_.rows(), mat_.columns(), m, l, d);
-        orthonormalize_ = false;
         if(orthonormalize_) {
             try {
                 matrix_type r, q;
-                blaze::qr(mat_, q, r);
-                std::fprintf(stderr, "q size: %zu/%zu\n", q.rows(), q.columns());
-                std::fprintf(stderr, "r size: %zu/%zu\n", r.rows(), r.columns());
-                std::fprintf(stderr, "mat_ size: %zu/%zu\n", mat_.rows(), mat_.columns());
-                std::cout << "q: \n\n" << q << '\n';
-                std::cout << "r: \n\n" << r << '\n';
-                assert(dot(column(q, 0), column(q, 1)) < 1e-6);
-                assert(mat_.columns() == q.columns());
-                assert(mat_.rows() == q.rows());
-#if 0
-                std::cerr << "q: " << q;
-                std::cerr << "r: " << r;
-                auto nonz = [](auto &x) {double ret = 0.; for(size_t i = 0; i < x.rows(); ++i) {for(size_t j = 0; j < x.columns(); ++j) {ret += x(i, j) != 0.;}} return ret;};
-                std::cerr << nonz(q) << " q " << nonz(r) << '\n';
-#endif
-                swap(mat_, q);
+                if(mat_.rows() >= mat_.columns()) {
+                    // Randomize
+                    OMP_PRAGMA("omp parallel for")
+                    for(size_t i = 0; i < mat_.rows(); ++i) {
+                        blaze::RNG gen(i + m ^ l);
+                        std::normal_distribution dist;
+                        for(auto &v: row(mat_, i))
+                            v = dist(gen);
+                    }
+                    // QR
+                    blaze::qr(mat_, q, r);
+                    assert(mat_.columns() == q.columns());
+                    assert(mat_.rows() == q.rows());
+                    swap(mat_, q);
+                } else {
+                    // Generate random matrix for (C, C) and then just take the first R rows
+                    const auto mc = mat_.columns(), mr = mat_.rows();
+                    matrix_type tmp(mc, mc);
+                    OMP_PRAGMA("omp parallel for")
+                    for(size_t i = 0; i < tmp.rows(); ++i) {
+                        blaze::RNG gen(i + m ^ l);
+                        std::normal_distribution dist;
+                        for(auto &v: row(tmp, i))
+                            v = dist(gen);
+                    }
+                    blaze::qr(tmp, q, r);
+                    mat_ = submatrix(q, 0, 0, mat_.rows(), mat_.columns());
+                }
+                //OMP_PRAGMA("omp parallel for")
                 for(size_t i = 0; i < mat_.rows(); ++i) {
                     auto r = blaze::row(mat_, i);
                     r *= 1./ norm(r);
                 }
             } catch(const std::exception &ex) { // Orthonormalize
-                std::fprintf(stderr, "failure: %s\n", ex.what());
+                std::fprintf(stderr, "failure in orthonormalization: %s\n", ex.what());
                 throw;
             }
         } else { // TODO: consider a triple spinner for generating these random matrix vector multiplies
@@ -277,7 +290,7 @@ public:
         std::vector<PQT> pqs(l_);
         std::vector<set_type> candidates(l_);
         blaze::DynamicVector<FType> dists = mat_ * val;
-        blaze::DynamicMatrix<uint32_t> countsvec(l_, size());
+        blaze::DynamicMatrix<CMatType> countsvec(l_, size(), 0);
         std::vector<ProjI> ret;
 
         // Initialize queues
@@ -379,7 +392,7 @@ public:
 
         // TODO: consider sparse representation. I don't expect dense to be best.
         // Allocate counts
-        blaze::DynamicMatrix<uint32_t> countsvec(l_, size());
+        blaze::DynamicMatrix<CMatType> countsvec(l_, size(), 0);
 
         // Iterate through ith closest along each projection direction.
         // TODO: parallelize
@@ -397,13 +410,17 @@ public:
                     if(++C[pair->second] == m_) {
                         candidates.insert(pair->second);
                     }
+                    assert(C[pair->second] ||
+                            !std::fprintf(stderr, "Note: we may have overflowed CMatType limit, as this should not be zero.")
+                    ); // Ensure that we haven't overflowed
                 }
             }
-            if(i == size() - 1) std::fprintf(stderr, "ran through all iterations\n");
             if(should_stop(i, candidates.size(), k)) break;
         }
         auto &u = candidates;
+#if !NDEBUG
         std::fprintf(stderr, "Candidates size: %zu\n", u.size());
+#endif
         std::priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
             FType tmp = blaze::norm(*val_ptrs_[*it] - val);

@@ -19,11 +19,13 @@ OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE
 OS:=$(shell uname)
 
 EXTRA=
+BLAS_LINKING_FLAGS?=
 OPT:=$(OPT) $(FLAGS)
 XXFLAGS=-fno-rtti
 CBLASFILE?=cblas.h
 BLAZEFLAGS= -DBLAZE_RANDOM_NUMBER_GENERATOR='::wy::WyHash<uint32_t, 8>' -DBLAZE_BLAS_MODE=1 \
-    -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION=1 -DBLAZE_BLAS_INCLUDE_FILE='"$(CBLASFILE)"'
+    -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION=1 -DBLAZE_BLAS_INCLUDE_FILE='"$(CBLASFILE)"' \
+     $(BLAS_LINKING_FLAGS)
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DRADEM_LUT $(EXTRA) $(BLAZEFLAGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f -lstdc++fs -lsleef -llapack
