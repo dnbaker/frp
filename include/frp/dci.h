@@ -115,6 +115,7 @@ class DCI {
     using matrix_type = blaze::DynamicMatrix<FType>;
     using value_type = ValueType;
     using bin_tree_iterator = typename map_type::const_iterator;
+    using float_type = std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>;
     matrix_type mat_;
     std::vector<map_type> map_;
     std::vector<const value_type*> val_ptrs_;
@@ -228,6 +229,26 @@ public:
             for(size_t i = 0; i < mat_.rows(); ++i)
                 normalize(row(mat_, i));
         }
+    }
+    template<bool SO>
+    void insert(const blaze::DynamicMatrix<float_type, SO> &o) {
+        val_ptrs_.reserve(val_ptrs_.size() + o.rows());
+        for(size_t i = 0; i < o.rows();++i) {
+            throw std::runtime_error("This doesn't work as-is. We'd need to update the indexing step to take spans");
+            auto r = row(o, i);
+            val_ptrs_.emplace_back(reinterpret_cast<ValueType *>(&r));
+        }
+        auto tmp = mat_ * o;
+        assert(tmp.rows() == mat_.rows()); // This is true because maths
+        OMP_PRAGMA("omp parallel for")
+        for(size_t i = 0; i < mat_.rows(); ++i) {
+            auto &map = map_[i];
+            auto r = row(tmp, i);
+            for(size_t offset = 0; offset < o.rows(); ++offset) {
+                map.emplace(ProjI(r[i], offset + n_inserted_));
+            }
+        }
+        n_inserted_ += o.rows();
     }
     template<typename I>
     void insert(I i1, I i2) {

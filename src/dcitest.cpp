@@ -137,15 +137,24 @@ int main(int argc, char *argv[]) {
     std::normal_distribution<FLOAT_TYPE> gen(2.5, std::sqrt(2.5));
     gen.reset();
     omp_set_num_threads(std::thread::hardware_concurrency());
+    blaze::DynamicMatrix<FLOAT_TYPE> mat_to_insert(nd, 100);
     for(ssize_t i = 0; i < npoints; ++i) {
         ls.emplace_back(nd);
         for(auto &x: ls.back())
             x = gen(mt);
     }
+    for(size_t i = 0; i < nd; ++i)
+        for(auto &e: row(mat_to_insert, i))
+            e = gen(mt);
     std::fprintf(stderr, "Generated\n");
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i)
         dci.add_item(ls[i]);
+    try {
+    dci.insert(mat_to_insert);
+    } catch(const std::exception &e) {
+        std::fprintf(stderr, "failed to insert from matrix, but carry on [msg: %s]\n", e.what());
+    }
     std::fprintf(stderr, "Added\n");
     //std::cerr << nnmat << '\n';
     auto topn = dci.query(ls[0], k);
