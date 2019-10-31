@@ -69,19 +69,22 @@ struct ProjID: public std::pair<FType, SizeType> {
     bool operator>=(FType x) const {return f() >= x;}
 };
 
-template<typename IType, typename Set>
-INLINE std::pair<IType, IType> get_iterator_pair(const Set &set, IType it, double pv) {
+template<typename IType, typename Set, typename VT>
+std::pair<IType, IType> get_iterator_pair(const Set &set, IType it, VT pv) {
     bool ibeg = it == set.begin(), iend = it == set.end();
     auto lit = it, rit = it;
     if(!ibeg) --lit;
     else lit = set.end();
     if(!iend) ++rit;
+
     if(rit == set.end()) {
-        return {lit, rit};
-    }
-    if(ibeg) {
-        std::swap(lit, it);
         return {lit, it};
+    }
+    if(lit == set.end()) {
+        return {it, rit};
+    }
+    if(std::abs(*lit - pv) > std::abs(*rit - pv)) {
+        return {it, rit};
     }
     return {lit, it};
 }
@@ -327,7 +330,7 @@ public:
         // Initialize queues
         OMP_PRAGMA("omp parallel for")
         for(unsigned i = 0; i < l_; ++i) {
-            // Parallelize over l, avoid conflicts because there are only l 
+            // Parallelize over l, avoid conflicts because there are only l
             auto &pq = pqs[i];
             for(size_t j = 0; j < m_; ++j) {
                 auto index = ind(j, i);
