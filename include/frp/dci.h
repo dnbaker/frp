@@ -254,6 +254,36 @@ public:
         //const size_t ktilde = std::ceil(k * std::max(std::log(rat), std::pow(rat, 1 - std::log2(gamma_))));
         return candidateset_size >= std::min(ktilde, val_ptrs_.size());
     }
+    static const ProjI *next_best(const map_type &s,
+            std::pair<bin_tree_iterator, bin_tree_iterator> &its, FType v) {
+        if(its.first != s.end()) {
+            const bool beg = its.first == s.begin();
+            if(its.second != s.end()) {
+                bool usefirst = std::abs(its.first->first - v) < std::abs(its.second->first - v);
+                bin_tree_iterator it;
+                if(usefirst) {
+                    it = its.first;
+                    if(!beg) --its.first;
+                    else its.first = s.end();
+                } else {
+                    it = its.second++;
+                }
+                return &*it;
+            }
+            auto it = its.first;
+            if(beg) {
+                its.first = s.end();
+            } else {
+                --its.first;
+            }
+            return &*it;
+        } else if(its.second != s.end()) {
+            auto it = its.second++;
+            return &*it;
+        }
+        return nullptr;
+    }
+#if 0
     static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
         std::fprintf(stderr, "TODO: write a unit test to ensure that we visit this in order\n");
         if(bi.first != map.end()) {
@@ -279,6 +309,7 @@ public:
         }
         return nullptr;
     }
+#endif
     std::vector<ProjI> prioritized_query(const ValueType &val, unsigned k, unsigned k1) const {
         using ProjIM = std::pair<ProjI, IdType>; // To track 'm', as well, as that's necessary for prioritized query.
         if(k <= val_ptrs_.size())
