@@ -69,6 +69,23 @@ struct ProjID: public std::pair<FType, SizeType> {
     bool operator>=(FType x) const {return f() >= x;}
 };
 
+template<typename IType, typename Set>
+INLINE std::pair<IType, IType> get_iterator_pair(const Set &set, IType it, double pv) {
+    bool ibeg = it == set.begin(), iend = it == set.end();
+    auto lit = it, rit = it;
+    if(!ibeg) --lit;
+    else lit = set.end();
+    if(!iend) ++rit;
+    if(rit == set.end()) {
+        return {lit, rit};
+    }
+    if(ibeg) {
+        std::swap(lit, it);
+        return {lit, it};
+    }
+    return {lit, it};
+}
+
 template<typename T>
 double cossim(const T &x, const T &y) {
     auto sim = dot(x, y);
@@ -238,14 +255,23 @@ public:
         return candidateset_size >= std::min(ktilde, val_ptrs_.size());
     }
     static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
-        if(bi.first != map.begin()) {
+        std::fprintf(stderr, "TODO: write a unit test to ensure that we visit this in order\n");
+        if(bi.first != map.end()) {
+            const bool beg = bi.first == map.begin();
             if(bi.second != map.end()) {
                 //std::fprintf(stderr, "dist1: %f. dist2: %f.\n", std::abs(bi.first->first - val), std::abs(bi.second->first - val));
                 auto it = std::abs(bi.first->first - val) > std::abs(bi.second->first - val)
-                    ? bi.first-- : bi.second++;
+                    ? bi.first : bi.second++;
+                if(beg)
+                    bi.first == map.end();
+                else --bi.first;
                 return &*it;
             }
-            auto it = bi.first--;
+            auto it = bi.first;
+            if(beg)
+                bi.first == map.end();
+            else
+                --bi.first;
             return &*it;
         } else if(bi.second != map.end()) {
             auto it = bi.second++;
@@ -275,16 +301,16 @@ public:
             for(size_t j = 0; j < m_; ++j) {
                 auto index = ind(j, i);
                 const map_type &pos = map_[i];
+                const auto pv = projections[index];
                 bin_tree_iterator it = perform_lbound(pos, projections[index]);
-                auto cp = it;
-                ProjIM to_insert;
-                const double dl = std::abs(projections[i] - it->first);
-                if(likely(cp != pos.end())) {
-                    const double dr = std::abs(projections[i] - (++cp)->first);
-                    to_insert = dl < dr ? ProjIM{ProjI{dl, it--->second}, j}: ProjIM{ProjI{dr, cp++->second}, j};
-                } else to_insert = {ProjI{dl, it--->second}, j};
-                bounds[i] = std::make_pair(it, cp);
-                pq.push(to_insert);
+                bounds[i] = get_iterator_pair(pos, it, pv);
+                auto getv = [pv,e=pos.end()](auto x) {return x != e ? std::abs(x->first - pv): std::numeric_limits<double>::max();};
+                auto lv = getv(bounds[i].first), rv = getv(bounds[i].second);
+                if(lv < rv) {
+                    pq.push(ProjIM(ProjI(lv, bounds[i].first->second), j));
+                } else {
+                    pq.push(ProjIM(ProjI(rv, bounds[i].second->second), j));
+                }
             }
         }
         for(uint32_t k1i = 1; k1i < k1; ++k1i) {
@@ -358,10 +384,8 @@ public:
             static_assert(std::is_same<bin_tree_iterator, typename map_type::const_iterator>::value, "must be");
             static_assert(std::is_same<typename std::remove_const<bin_tree_iterator>::type, std::decay_t<decltype(pos.begin())>>::value, "ZOMG");
             //TD<std::decay_t<decltype(pos.begin())>> td;
-            const bin_tree_iterator it = perform_lbound(pos, projections[i]);
-            auto cp = it;
-            if(cp != pos.end()) ++cp;
-            bounds[i] = std::make_pair(it, cp);
+            const auto pv = projections[i];
+            bounds[i] = get_iterator_pair(pos, perform_lbound(pos, pv), pv);
         }
 
 
