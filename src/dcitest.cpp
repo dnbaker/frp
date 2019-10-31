@@ -231,7 +231,10 @@ int main(int argc, char *argv[]) {
     while(pqs.size()) {
         auto p = pqs.top();
         exact_topn.push_back(p);
-        std::fprintf(stderr, "exact %zu: %f, %d\n", pqs.size(), p.f(), p.id());
         pqs.pop();
     }
+    std::sort(exact_topn.begin(), exact_topn.end());
+    std::fprintf(stderr, "size: %zu.\n", exact_topn.size());
+    for(const auto v: exact_topn)
+        std::fprintf(stderr, "%f:%d\n", v.first, v.second);
 }

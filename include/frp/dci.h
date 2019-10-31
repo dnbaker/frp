@@ -76,17 +76,17 @@ std::pair<IType, IType> get_iterator_pair(const Set &set, IType it, VT pv) {
     if(!ibeg) --lit;
     else lit = set.end();
     if(!iend) ++rit;
-
+    std::pair<IType, IType> ret;
     if(rit == set.end()) {
-        return {lit, it};
+        ret = {lit, it};
     }
-    if(lit == set.end()) {
-        return {it, rit};
+    else if(lit == set.end()) {
+        ret = {it, rit};
     }
-    if(std::abs(*lit - pv) > std::abs(*rit - pv)) {
-        return {it, rit};
-    }
-    return {lit, it};
+    else if(std::abs(lit->first - pv) > std::abs(rit->first - pv)) {
+        ret = {it, rit};
+    } else ret = {lit, it};
+    return ret;
 }
 
 template<typename T>
@@ -353,9 +353,13 @@ public:
                 if(canset.size() >= k) continue;
                 auto C = row(countsvec, l);
                 auto &pq = pqs[l];
-                auto top = pq.top(); pq.pop();
+
+                // Get top
+                auto top = pq.top();
+                pq.pop();
                 auto j = top.second;
                 auto index = ind(j, l);
+                // Get next best
                 auto pair = next_best(map_[index], bounds[index], projections[index]);
                 if(unlikely(!pair)) throw std::runtime_error("Failure in navigating tree");
                 pq.push(ProjIM(ProjI(*pair), j));
