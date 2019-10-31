@@ -22,11 +22,14 @@ void sample_fill(Container &con, uint64_t seed, DistArgs &&... args) {
 
 template<typename FloatType, bool SO, template<typename> typename Distribution, typename RNG=aes::AesCtr<uint64_t>, typename... DistArgs>
 void sample_fill(blaze::DynamicMatrix<FloatType, SO> &con, uint64_t seed, DistArgs &&... args) {
-    RNG gen(seed);
-    Distribution<FloatType> dist(std::forward<DistArgs>(args)...);
-    for(size_t i(0); i < con.rows(); ++i)
+    #pragma omp parallel for
+    for(size_t i(0); i < con.rows(); ++i) {
+        RNG gen(seed);
+        gen.seed(gen() + i);
+        thread_local Distribution<FloatType> dist(std::forward<DistArgs>(args)...);
         for(size_t j(0); j < con.columns(); ++j)
             con(i, j) = dist(gen);
+    }
 }
 
 

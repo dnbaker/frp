@@ -200,7 +200,7 @@ struct MatrixLSHasher: public LSHasher<FType, ::blaze::DynamicMatrix, SO> {
         }
     }
     MatrixLSHasher(size_t nr, size_t nc, bool orthonormalize, uint64_t seed=0):
-        super(generate_randproj_matrix<FType, SO>(nr, nc, orthonormalize, seed)) {}
+        super(std::move(generate_randproj_matrix<FType, SO>(nr, nc, orthonormalize, seed))) {}
     auto &multiply(const blaze::DynamicVector<FType, SO> &c, blaze::DynamicVector<FType, SO> &ret) const {
         ret = this->container_ * c;
         return ret;

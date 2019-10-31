@@ -312,7 +312,8 @@ public:
         std::vector<ProjI> vs(k);
         std::priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
-            FType tmp = blaze::norm(*val_ptrs_[*it] - val);
+            auto p = val_ptrs_[*it];
+            FType tmp = blaze::norm(*p - val);
             if(pq.size() < k)
                 pq.push(ProjI(tmp, *it));
             else if(tmp < pq.top().first) {
@@ -331,7 +332,7 @@ public:
             blaze::DynamicVector<FType> dists(k);
             OMP_PRAGMA("omp parallel for")
             for(size_t i = 0; i < k; ++i)
-                dists[i] = norm(val - *(val_ptrs_[i]));
+                dists[i] = norm(val - this->operator[](i));
             std::priority_queue<ProjI, std::vector<ProjI>> pq;
             for(size_t i = 0; i < dists.size(); ++i) {
                 const FType tmp = dists[i];
@@ -397,7 +398,7 @@ public:
 #endif
         std::priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
-            FType tmp = blaze::norm(*val_ptrs_[*it] - val);
+            FType tmp = blaze::norm(this->operator[](*it) - val);
             if(pq.size() < k)
                 pq.push(ProjI(tmp, *it));
             else if(tmp < pq.top().first) {
@@ -416,8 +417,8 @@ public:
         return std::make_pair(uint32_t(index / m_), uint32_t(index % m_));
     }
     std::pair<size_t, size_t> offset2ind(size_t offset) const {return std::pair<size_t, size_t>(offset % m_, offset / m_);}
-    const value_type *operator[](size_t index) const {return val_ptrs_[index];}
-    value_type *operator[](size_t index) {return val_ptrs_[index];}
+    const value_type &operator[](size_t index) const {return *val_ptrs_[index];}
+    value_type &operator[](size_t index) {return *val_ptrs_[index];}
     struct iterator: public std::vector<const ValueType *>::iterator {
         using super = typename std::vector<const ValueType *>::iterator;
         template<typename...Args>

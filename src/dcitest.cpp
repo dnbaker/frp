@@ -1,4 +1,5 @@
 #include "include/frp/dci.h"
+#include <fstream>
 #include <iostream>
 #include <thread>
 #include "omp.h"
@@ -100,8 +101,12 @@ auto distmat2nn(const T1 &mat, size_t k) {
 
 
 void usage() {
-    std::fprintf(stderr, "Usage: dcitest <flags>\n-d: dimension [400]\n-n: number of points [100000]"
+    std::fprintf(stderr, "Usage: dcitest <flags>\n-d: dimension [400]\n"
+                         "-n: number of points [100000]\n"
                          "-l: Number of levels [15]\n"
+                         "-g: Gamma for unprioritized [1.]\n"
+                         "-2: k2 (number of candidates per level) [k]\n"
+                         "-i: read tab-delimited data from file at [path]. Default behavior: generate synthetic gaussian noise\n"
                          "-m: Number of sublevels per level [5]\n"
                          "-k: Number of neighbors to retrieve [5]\n"
                          "-h: Usage (this menu)\n");
@@ -109,20 +114,24 @@ void usage() {
 }
 
 int main(int argc, char *argv[]) {
-    int c, nd = 400, npoints = 100000, k = 10, l = 15, m = 5;
+    int c, nd = 400, npoints = 100000, k = 10, l = 15, m = 5, k2 = -1;
     double gamma = 1.;
-    while((c = getopt(argc, argv, "g:d:n:k:l:m:h")) >= 0) {
+    const char *inpath = nullptr;
+    while((c = getopt(argc, argv, "i:2:g:d:n:k:l:m:h")) >= 0) {
          switch(c) {
              case 'd': nd = std::atoi(optarg); break;
              case 'n': npoints = std::atoi(optarg); break;
              case 'k': k = std::atoi(optarg); break;
+             case '2': k2 = std::atoi(optarg); break;
              case 'l': l = std::atoi(optarg); break;
+             case 'i': inpath = optarg; break;
              case 'm': m = std::atoi(optarg); break;
              case 'g': gamma = std::atof(optarg); break;
              case 'h': case '?': usage();
          }
     }
     std::fprintf(stderr, "nd: %d. np: %d. n: %d\n", nd, npoints, k);
+    if(k2 < 0) k2 = k;
     DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true, gamma);
 #if 0
     {
@@ -133,24 +142,41 @@ int main(int argc, char *argv[]) {
 #endif
     std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<FLOAT_TYPE>> ls;
-    wy::WyHash<uint64_t, 8> mt;
-    std::normal_distribution<FLOAT_TYPE> gen(2.5, std::sqrt(2.5));
-    gen.reset();
-    omp_set_num_threads(std::thread::hardware_concurrency());
-    blaze::DynamicMatrix<FLOAT_TYPE> mat_to_insert(nd, 100);
-    for(ssize_t i = 0; i < npoints; ++i) {
-        ls.emplace_back(nd);
-        for(auto &x: ls.back())
-            x = gen(mt);
+    ls.reserve(1000);
+    if(inpath) {
+        std::ios_base::sync_with_stdio(false);
+        std::ifstream bufreader(inpath);
+        std::vector<uint32_t> offsets;
+        for(std::string buf; std::getline(bufreader, buf);) {
+            if(buf.empty() || std::all_of(buf.begin(), buf.end(), [](auto x) {return std::isspace(x);}))
+                continue;
+            ks::split(buf.data(), 0, buf.size(), offsets);
+            blaze::DynamicVector<FLOAT_TYPE> tmp(offsets.size());
+            OMP_PRAGMA("omp parallel for schedule(static, 16)")
+            for(size_t i = 0; i < tmp.size(); ++i)
+                tmp[i] = std::atof(buf.data() + offsets[i]);
+            ls.emplace_back(std::move(tmp));
+        }
+    } else {
+        wy::WyHash<uint64_t, 8> mt(nd * npoints + k * k2 + std::pow(nd, gamma));
+        std::normal_distribution<FLOAT_TYPE> gen(2.5, std::sqrt(2.5));
+        gen.reset();
+        omp_set_num_threads(std::thread::hardware_concurrency());
+        for(ssize_t i = 0; i < npoints; ++i) {
+            ls.emplace_back(nd);
+            for(auto &x: ls.back())
+                x = gen(mt);
+        }
     }
-    for(int i = 0; i < nd; ++i)
-        for(auto &e: row(mat_to_insert, i))
-            e = gen(mt);
     std::fprintf(stderr, "Generated\n");
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i)
         dci.add_item(ls[i]);
 #if 0
+    blaze::DynamicMatrix<FLOAT_TYPE> mat_to_insert(nd, 100);
+    for(int i = 0; i < nd; ++i)
+        for(auto &e: row(mat_to_insert, i))
+            e = gen(mt);
     try {
     dci.insert(mat_to_insert);
     } catch(const std::exception &e) {
@@ -174,7 +200,7 @@ int main(int argc, char *argv[]) {
     std::reverse(topn.begin(), topn.end());
     assert(std::is_sorted(topn.begin(), topn.end()));
     auto dcid2 = dci.cvt();
-    auto topnpq = dci.prioritized_query(ls[0], k, k);
+    auto topnpq = dci.prioritized_query(ls[0], k, k2);
     for(const auto tn: topnpq)
         std::fprintf(stderr, "id: %d, dist %f\n", tn.id(), tn.f());
     std::fprintf(stderr, "Doing exact, feel free to skip\n");
