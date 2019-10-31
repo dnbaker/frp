@@ -114,7 +114,7 @@ void usage() {
 }
 
 int main(int argc, char *argv[]) {
-    int c, nd = 400, npoints = 100000, k = 10, l = 15, m = 5, k2 = -1;
+    int c, nd = 400, npoints = 100000, k = 10, l = 15, m = 5, k2 = -1, threads = -1;
     double gamma = 1.;
     const char *inpath = nullptr;
     while((c = getopt(argc, argv, "i:2:g:d:n:k:l:m:h")) >= 0) {
@@ -127,12 +127,12 @@ int main(int argc, char *argv[]) {
              case 'i': inpath = optarg; break;
              case 'm': m = std::atoi(optarg); break;
              case 'g': gamma = std::atof(optarg); break;
+             case 'p': threads = std::atoi(optarg); break;
              case 'h': case '?': usage();
          }
     }
     std::fprintf(stderr, "nd: %d. np: %d. n: %d\n", nd, npoints, k);
     if(k2 < 0) k2 = k;
-    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true, gamma);
 #if 0
     {
         // make sure it works with < nd
@@ -140,9 +140,9 @@ int main(int argc, char *argv[]) {
         DCI<blaze::DynamicVector<FLOAT_TYPE>> tmp(4, 3, nd, 1e-5, true);
     }
 #endif
-    std::cerr << "made dci\n";
     std::vector<blaze::DynamicVector<FLOAT_TYPE>> ls;
     ls.reserve(1000);
+    omp_set_num_threads(threads <= 0 ? int(std::thread::hardware_concurrency()): threads);
     if(inpath) {
         std::ios_base::sync_with_stdio(false);
         std::ifstream bufreader(inpath);
@@ -155,20 +155,26 @@ int main(int argc, char *argv[]) {
             OMP_PRAGMA("omp parallel for schedule(static, 16)")
             for(size_t i = 0; i < tmp.size(); ++i)
                 tmp[i] = std::atof(buf.data() + offsets[i]);
+#if !NDEBUG
+            if(ls.size())
+                assert(ls.back().size() == tmp.size());
+#endif
             ls.emplace_back(std::move(tmp));
         }
     } else {
         wy::WyHash<uint64_t, 8> mt(nd * npoints + k * k2 + std::pow(nd, gamma));
         std::normal_distribution<FLOAT_TYPE> gen(2.5, std::sqrt(2.5));
         gen.reset();
-        omp_set_num_threads(std::thread::hardware_concurrency());
         for(ssize_t i = 0; i < npoints; ++i) {
             ls.emplace_back(nd);
             for(auto &x: ls.back())
                 x = gen(mt);
         }
     }
-    std::fprintf(stderr, "Generated\n");
+    nd = ls[0].size();
+    std::fprintf(stderr, "Generated data\n");
+    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true, gamma);
+    std::cerr << "made dci\n";
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i)
         dci.add_item(ls[i]);
