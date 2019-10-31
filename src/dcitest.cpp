@@ -143,20 +143,21 @@ int main(int argc, char *argv[]) {
         for(auto &x: ls.back())
             x = gen(mt);
     }
-    for(size_t i = 0; i < nd; ++i)
+    for(int i = 0; i < nd; ++i)
         for(auto &e: row(mat_to_insert, i))
             e = gen(mt);
     std::fprintf(stderr, "Generated\n");
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i)
         dci.add_item(ls[i]);
+#if 0
     try {
     dci.insert(mat_to_insert);
     } catch(const std::exception &e) {
         std::fprintf(stderr, "failed to insert from matrix, but carry on [msg: %s]\n", e.what());
     }
+#endif
     std::fprintf(stderr, "Added\n");
-    //std::cerr << nnmat << '\n';
     auto topn = dci.query(ls[0], k);
     std::fprintf(stderr, "topn, where n is %zu: \n\n", topn.size());
     std::reverse(topn.begin(), topn.end());

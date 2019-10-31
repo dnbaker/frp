@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include "./ifc.h"
 #include "./util.h"
+#include "lsh.h"
 #include "sdq.h"
 #include <deque>
 #include "blaze/Math.h"
@@ -93,6 +94,8 @@ template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
          template <typename...> class map_template=std::set,
          template <typename...> class SetTemplate=ska::flat_hash_set,
+         bool SO=blaze::rowMajor,
+         typename Projector=MatrixLSHasher<FType, SO>,
          typename CMatType=std::uint16_t>
 class DCI;
 
@@ -101,6 +104,8 @@ template<typename ValueType,
          typename IdType, typename FType,
          template <typename...> class map_template,
          template <typename...> class SetTemplate,
+         bool SO,
+         typename Projector,
          typename CMatType>
 class DCI {
     /*
@@ -112,11 +117,11 @@ class DCI {
     using map_type = map_template<ProjI>;
     //using map_type = sorted::vector<ProjI>;
     using set_type = SetTemplate<IdType>;
-    using matrix_type = blaze::DynamicMatrix<FType>;
+    using matrix_type = blaze::DynamicMatrix<FType, SO>;
     using value_type = ValueType;
     using bin_tree_iterator = typename map_type::const_iterator;
     using float_type = std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>;
-    matrix_type mat_;
+    Projector proj_;
     std::vector<map_type> map_;
     std::vector<const value_type*> val_ptrs_;
 public:
@@ -141,8 +146,8 @@ public:
     auto n_inserted() const {return n_inserted_;}
     auto &map() {return map_;}
     const auto &map() const {return map_;}
-    auto &mat() {return mat_;}
-    const auto &mat() const {return mat_;}
+    auto &proj() {return proj_;}
+    const auto &proj() const {return proj_;}
     template<template<typename...> class NewSetTemplate=sorted::vector>
     DCI<ValueType, IdType, FType, NewSetTemplate> cvt() const & {
         return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
@@ -162,7 +167,7 @@ public:
     template<template <typename...> class OldSetTemplate>
     DCI(DCI<ValueType, IdType, FType, OldSetTemplate> &&o):
         val_ptrs_(std::move(o.vps())),
-        m_(o.m_), l_(o.l_), d_(o.d_), mat_(std::move(o.mat())), n_inserted_(o.n_inserted()),
+        m_(o.m_), l_(o.l_), d_(o.d_), proj_(std::move(o.proj())), n_inserted_(o.n_inserted()),
         eps_(o.eps()), gamma_(o.gamma()), data_dependent_(o.data_dependent()), orthonormalize_(o.orthonormalize())
     {
         map().reserve(o.map().size());
@@ -172,7 +177,7 @@ public:
     template<template <typename...> class OldSetTemplate>
     DCI(const DCI<ValueType, IdType, FType, OldSetTemplate> &o):
         val_ptrs_(o.vps()),
-        m_(o.m_), l_(o.l_), d_(o.d_), mat_(o.mat()), n_inserted_(o.n_inserted()),
+        m_(o.m_), l_(o.l_), d_(o.d_), proj_(o.proj()), n_inserted_(o.n_inserted()),
         eps_(o.eps()), gamma_(o.gamma()), data_dependent_(o.data_dependent()), orthonormalize_(o.orthonormalize())
     {
         map().reserve(o.map().size());
@@ -180,65 +185,20 @@ public:
             map_.emplace_back(p.begin(), p.end());
     }
     DCI(size_t m, size_t l, size_t d, double eps=1e-5,
-        bool orthonormalize=true, float param=1., bool dd=false):
-        m_(m), l_(l), d_(d), mat_(m * l, d), map_(m * l), n_inserted_(0), eps_(eps), gamma_(param), data_dependent_(dd), orthonormalize_(orthonormalize)
+        bool orthonormalize=true, float param=1., bool dd=false, uint64_t seed=1337):
+        m_(m), l_(l), d_(d), proj_(m * l, d, orthonormalize, seed), map_(m * l), n_inserted_(0), eps_(eps), gamma_(param), data_dependent_(dd), orthonormalize_(orthonormalize)
     {
-        std::fprintf(stderr, "Made mat of %zu/%zu with m, l, d as %zu, %zu, %zu\n", mat_.rows(), mat_.columns(), m, l, d);
-        if(orthonormalize_) {
-            try {
-                matrix_type r, q;
-                if(mat_.rows() >= mat_.columns()) {
-                    // Randomize
-                    OMP_PRAGMA("omp parallel for")
-                    for(size_t i = 0; i < mat_.rows(); ++i) {
-                        blaze::RNG gen(i + m ^ l);
-                        std::normal_distribution dist;
-                        for(auto &v: row(mat_, i))
-                            v = dist(gen);
-                    }
-                    // QR
-                    blaze::qr(mat_, q, r);
-                    assert(mat_.columns() == q.columns());
-                    assert(mat_.rows() == q.rows());
-                    swap(mat_, q);
-                } else {
-                    // Generate random matrix for (C, C) and then just take the first R rows
-                    const auto mc = mat_.columns(), mr = mat_.rows();
-                    matrix_type tmp(mc, mc);
-                    OMP_PRAGMA("omp parallel for")
-                    for(size_t i = 0; i < tmp.rows(); ++i) {
-                        blaze::RNG gen(i + m ^ l);
-                        std::normal_distribution dist;
-                        for(auto &v: row(tmp, i))
-                            v = dist(gen);
-                    }
-                    blaze::qr(tmp, q, r);
-                    mat_ = submatrix(q, 0, 0, mat_.rows(), mat_.columns());
-                }
-                //OMP_PRAGMA("omp parallel for")
-                for(size_t i = 0; i < mat_.rows(); ++i) {
-                    auto r = blaze::row(mat_, i);
-                    r *= 1./ norm(r);
-                }
-            } catch(const std::exception &ex) { // Orthonormalize
-                std::fprintf(stderr, "failure in orthonormalization: %s\n", ex.what());
-                throw;
-            }
-        } else { // TODO: consider a triple spinner for generating these random matrix vector multiplies
-            OMP_PRAGMA("omp parallel for")
-            for(size_t i = 0; i < mat_.rows(); ++i)
-                normalize(row(mat_, i));
-        }
     }
-    template<bool SO>
-    void insert(const blaze::DynamicMatrix<float_type, SO> &o) {
+#if 0
+    template<bool OSO>
+    void insert(const blaze::DynamicMatrix<float_type, OSO> &o) {
         val_ptrs_.reserve(val_ptrs_.size() + o.rows());
         for(size_t i = 0; i < o.rows();++i) {
             throw std::runtime_error("This doesn't work as-is. We'd need to update the indexing step to take spans");
             auto r = row(o, i);
             val_ptrs_.emplace_back(reinterpret_cast<ValueType *>(&r));
         }
-        auto tmp = mat_ * o;
+        auto tmp = proj_.project(o);
         assert(tmp.rows() == mat_.rows()); // This is true because maths
         OMP_PRAGMA("omp parallel for")
         for(size_t i = 0; i < mat_.rows(); ++i) {
@@ -250,24 +210,21 @@ public:
         }
         n_inserted_ += o.rows();
     }
+#endif
     template<typename I>
     void insert(I i1, I i2) {
         while(i1 != i2)
             add_item(*i1++);
     }
     void add_item(const ValueType &val) {
-        auto tmp = mat_ * val;
+        auto tmp = proj_.project(val);
         ProjI to_insert;
         const auto id = n_inserted_++;
         val_ptrs_.emplace_back(std::addressof(val));
         #pragma omp parallel for
-        for(size_t i = 0; i < mat_.rows(); ++i) {
+        for(size_t i = 0; i < m_ * l_; ++i) {
             map_[i].emplace(ProjI(tmp[i], id));
         }
-#if 0
-        std::fprintf(stderr, "ind: %u. inserted: %u. valp sz: %zu\n", ind, unsigned(n_inserted_), val_ptrs_.size());
-        assert(val_ptrs_.size() == n_inserted_);
-#endif
     }
     bool should_stop(size_t i, size_t candidateset_size, unsigned k) const {
         // Warning: this currenly
@@ -286,9 +243,6 @@ public:
                 //std::fprintf(stderr, "dist1: %f. dist2: %f.\n", std::abs(bi.first->first - val), std::abs(bi.second->first - val));
                 auto it = std::abs(bi.first->first - val) > std::abs(bi.second->first - val)
                     ? bi.first-- : bi.second++;
-                if(bi.second != map.end() && bi.first != map.begin())
-                {
-                }
                 return &*it;
             }
             auto it = bi.first--;
@@ -309,7 +263,7 @@ public:
         std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
         std::vector<PQT> pqs(l_);
         std::vector<set_type> candidates(l_);
-        blaze::DynamicVector<FType> dists = mat_ * val;
+        auto projections = proj_.project(val);
         blaze::DynamicMatrix<CMatType> countsvec(l_, size(), 0);
         std::vector<ProjI> ret;
 
@@ -321,12 +275,12 @@ public:
             for(size_t j = 0; j < m_; ++j) {
                 auto index = ind(j, i);
                 const map_type &pos = map_[i];
-                bin_tree_iterator it = perform_lbound(pos, dists[index]);
+                bin_tree_iterator it = perform_lbound(pos, projections[index]);
                 auto cp = it;
                 ProjIM to_insert;
-                const double dl = std::abs(dists[i] - it->first);
+                const double dl = std::abs(projections[i] - it->first);
                 if(likely(cp != pos.end())) {
-                    const double dr = std::abs(dists[i] - (++cp)->first);
+                    const double dr = std::abs(projections[i] - (++cp)->first);
                     to_insert = dl < dr ? ProjIM{ProjI{dl, it--->second}, j}: ProjIM{ProjI{dr, cp++->second}, j};
                 } else to_insert = {ProjI{dl, it--->second}, j};
                 bounds[i] = std::make_pair(it, cp);
@@ -342,7 +296,7 @@ public:
                 auto top = pq.top(); pq.pop();
                 auto j = top.second;
                 auto index = ind(j, l);
-                auto pair = next_best(map_[index], bounds[index], dists[index]);
+                auto pair = next_best(map_[index], bounds[index], projections[index]);
                 if(unlikely(!pair)) throw std::runtime_error("Failure in navigating tree");
                 pq.push(ProjIM(ProjI(*pair), j));
                 if(++C[top.first.second] == m_) {
@@ -375,8 +329,9 @@ public:
         if(!klt) {
             k = val_ptrs_.size();
             blaze::DynamicVector<FType> dists(k);
+            OMP_PRAGMA("omp parallel for")
             for(size_t i = 0; i < k; ++i)
-                dists[i] = norm(val - trans(row(mat_, i)));
+                dists[i] = norm(val - *(val_ptrs_[i]));
             std::priority_queue<ProjI, std::vector<ProjI>> pq;
             for(size_t i = 0; i < dists.size(); ++i) {
                 const FType tmp = dists[i];
@@ -387,7 +342,7 @@ public:
                     pq.push(ProjI(tmp, i));
                 }
             }
-            for(int i = k; i--;pq.pop()) vs[i] = pq.top();
+            for(int i = k; i--; pq.pop()) vs[i] = pq.top();
             return vs;
         }
 
@@ -395,14 +350,14 @@ public:
         std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
         set_type candidates;
         // Get a pair of iterators
-        blaze::DynamicVector<FType> dists = mat_ * val;
+        blaze::DynamicVector<FType> projections = proj_.project(val);
         OMP_PRAGMA("omp parallel for")
         for(size_t i = 0; i < l_ * m_; ++i) {
             const map_type &pos = map_[i];
             static_assert(std::is_same<bin_tree_iterator, typename map_type::const_iterator>::value, "must be");
             static_assert(std::is_same<typename std::remove_const<bin_tree_iterator>::type, std::decay_t<decltype(pos.begin())>>::value, "ZOMG");
             //TD<std::decay_t<decltype(pos.begin())>> td;
-            const bin_tree_iterator it = perform_lbound(pos, dists[i]);
+            const bin_tree_iterator it = perform_lbound(pos, projections[i]);
             auto cp = it;
             if(cp != pos.end()) ++cp;
             bounds[i] = std::make_pair(it, cp);
@@ -424,7 +379,7 @@ public:
                  */
                 for(size_t j = 0; j < m_; ++j) {
                     auto index = ind(j, l);
-                    auto pair = next_best(map_[index], bounds[index], dists[index]);
+                    auto pair = next_best(map_[index], bounds[index], projections[index]);
                     if(!pair) throw std::runtime_error("Failure in navigating tree");
                     if(++C[pair->second] == m_) {
                         candidates.insert(pair->second);

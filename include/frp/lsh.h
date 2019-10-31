@@ -87,6 +87,63 @@ template<> struct F2VType<double, 64> {
     //using VType = typename F2VType<FType, sizeof(__m256)>::type;
 #endif
 
+template<typename FType, bool SO=blaze::rowMajor>
+blaze::DynamicMatrix<FType, SO> generate_randproj_matrix(size_t nr, size_t ncol,
+                                                bool orthonormalize=true, uint64_t seed=0) {
+    using matrix_type = blaze::DynamicMatrix<FType, SO>;
+    matrix_type ret(nr, ncol);
+    seed = ((seed ^ nr) * ncol) * seed;
+    if(orthonormalize) {
+        try {
+            matrix_type r, q;
+            if(ret.rows() >= ret.columns()) {
+                // Randomize
+                OMP_PRAGMA("omp parallel for")
+                for(size_t i = 0; i < ret.rows(); ++i) {
+                    blaze::RNG gen(seed + i * seed + i);
+                    std::normal_distribution dist;
+                    for(auto &v: row(ret, i))
+                        v = dist(gen);
+                }
+                // QR
+                blaze::qr(ret, q, r);
+                assert(ret.columns() == q.columns());
+                assert(ret.rows() == q.rows());
+                swap(ret, q);
+            } else {
+                // Generate random matrix for (C, C) and then just take the first R rows
+                const auto mc = ret.columns(), mr = ret.rows();
+                matrix_type tmp(mc, mc);
+                OMP_PRAGMA("omp parallel for")
+                for(size_t i = 0; i < tmp.rows(); ++i) {
+                    blaze::RNG gen(seed + i * seed + i);
+                    std::normal_distribution dist;
+                    for(auto &v: row(tmp, i))
+                        v = dist(gen);
+                }
+                blaze::qr(tmp, q, r);
+                ret = submatrix(q, 0, 0, ret.rows(), ret.columns());
+            }
+            OMP_PRAGMA("omp parallel for")
+            for(size_t i = 0; i < ret.rows(); ++i)
+                normalize(row(ret, i));
+        } catch(const std::exception &ex) { // Orthonormalize
+            std::fprintf(stderr, "failure in orthonormalization: %s\n", ex.what());
+            throw;
+        }
+    } else {
+        OMP_PRAGMA("omp parallel for")
+        for(size_t i = 0; i < nr; ++i) {
+            blaze::RNG gen(seed + i);
+            std::normal_distribution dist;
+            for(auto &v: row(ret, i))
+                v = dist(gen);
+            normalize(row(ret, i));
+        }
+    }
+    return ret;
+}
+
 
 
 template<typename FType=float, template<typename, bool> class Container=::blaze::DynamicVector, bool SO=blaze::rowMajor>
@@ -132,6 +189,7 @@ struct MatrixLSHasher: public LSHasher<FType, ::blaze::DynamicMatrix, SO> {
     using super = LSHasher<FType, ::blaze::DynamicMatrix, SO>;
     template<typename...CArgs>
     MatrixLSHasher(CArgs &&...args): super(std::forward<CArgs>(args)...) {
+        std::fprintf(stderr, "Note: using not-preferred constructor");
         OMP_PRAGMA("omp parallel for")
         for(size_t i = 0; i < this->container_.rows(); ++i) {
             std::normal_distribution<FType> dist;
@@ -141,19 +199,23 @@ struct MatrixLSHasher: public LSHasher<FType, ::blaze::DynamicMatrix, SO> {
                 e = dist(mt);
         }
     }
+    MatrixLSHasher(size_t nr, size_t nc, bool orthonormalize, uint64_t seed=0):
+        super(generate_randproj_matrix<FType, SO>(nr, nc, orthonormalize, seed)) {}
+    auto &multiply(const blaze::DynamicVector<FType, SO> &c, blaze::DynamicVector<FType, SO> &ret) const {
+        ret = this->container_ * c;
+        return ret;
+    }
+    auto multiply(const blaze::DynamicVector<FType, SO> &c) const {
+        blaze::DynamicVector<FType, SO> vec = this->container_ * c;
+        return vec;
+    }
+    template<typename...Args>
+    decltype(auto) project(Args &&...args) const {return multiply(std::forward<Args>(args)...);}
     uint64_t hash(const blaze::DynamicVector<FType, SO> &c) const {
         std::cout << this->container_ << '\n';
-        std::fprintf(stderr, "size: %zu, %zu. input; %zu\n", this->container_.rows(), this->container_.columns(), c.size());
-        blaze::DynamicVector<FType, SO> vec = this->container_ * c;
+        blaze::DynamicVector<FType, SO> vec = multiply(c);
         return cmp2hash(vec);
     }
-#if 0
-    uint64_t hash(const blaze::DynamicVector<FType, !SO> &c) const {
-        std::fprintf(stderr, "lolzballs !SO size: %zu, %zu. input; %zu\n", this->container_.rows(), this->container_.columns(), c.size());
-        blaze::DynamicVector<FType, SO> vec = this->container_ * trans(c);
-        return cmp2hash(vec);
-    }
-#endif
     template<bool OSO> uint64_t operator()(const blaze::DynamicVector<FType, OSO> &c) const {
         return this->hash(c);
     }
