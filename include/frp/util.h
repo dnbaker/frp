@@ -48,6 +48,14 @@
 #define FLOAT_TYPE double
 #endif
 
+#ifndef ATTR_CONST
+#  if defined(__GNUC__) || defined(__clang__)
+#    define ATTR_CONST __attribute__((const))
+#  else
+#    define ATTR_CONST
+#  endif
+#endif
+
 #ifdef __GNUC__
 #  ifndef likely
 #    define likely(x) __builtin_expect((x),1)

@@ -17,10 +17,14 @@ template<> auto cmp_zero<float> (__m512d v) {
 }
 #elif __AVX__
 template<typename F, typename V> uint32_t cmp_zero(V v);
-template<> uint32_t cmp_zero<float, __m256> (__m256 v) {
+template<> 
+ATTR_CONST
+uint32_t cmp_zero<float, __m256> (__m256 v) {
     return _mm256_movemask_ps(_mm256_cmp_ps(v, _mm256_setzero_ps(), _CMP_GT_OQ));
 }
-template<> uint32_t cmp_zero<double, __m256d> (__m256d v) {
+template<>
+ATTR_CONST
+uint32_t cmp_zero<double, __m256d> (__m256d v) {
     return _mm256_movemask_pd(_mm256_cmp_pd(v, _mm256_setzero_pd(), _CMP_GT_OQ));
 }
 #else
@@ -112,7 +116,7 @@ blaze::DynamicMatrix<FType, SO> generate_randproj_matrix(size_t nr, size_t ncol,
                 swap(ret, q);
             } else {
                 // Generate random matrix for (C, C) and then just take the first R rows
-                const auto mc = ret.columns(), mr = ret.rows();
+                const auto mc = ret.columns();
                 matrix_type tmp(mc, mc);
                 OMP_PRAGMA("omp parallel for")
                 for(size_t i = 0; i < tmp.rows(); ++i) {

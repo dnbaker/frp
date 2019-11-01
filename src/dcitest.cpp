@@ -117,10 +117,10 @@ int main(int argc, char *argv[]) {
     int c, nd = 400, npoints = 100000, k = 10, l = 15, m = 5, k2 = -1, threads = -1;
     double gamma = 1.;
     const char *inpath = nullptr;
-    while((c = getopt(argc, argv, "i:2:g:d:n:k:l:m:h")) >= 0) {
+    while((c = getopt(argc, argv, "p:i:2:g:d:n:k:l:m:h")) >= 0) {
          switch(c) {
              case 'd': nd = std::atoi(optarg); break;
-             case 'n': npoints = std::atoi(optarg); break;
+                     case 'n': npoints = std::atoi(optarg); break;
              case 'k': k = std::atoi(optarg); break;
              case '2': k2 = std::atoi(optarg); break;
              case 'l': l = std::atoi(optarg); break;
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
              case 'h': case '?': usage();
          }
     }
-    std::fprintf(stderr, "nd: %d. np: %d. n: %d\n", nd, npoints, k);
+    std::fprintf(stderr, "nd: %d. np: %d. n: %d. k2: %d. Gamma: %f\n", nd, npoints, k, k2, gamma);
     if(k2 < 0) k2 = k;
 #if 0
     {
@@ -172,7 +172,10 @@ int main(int argc, char *argv[]) {
         }
     }
     nd = ls[0].size();
-    std::fprintf(stderr, "Generated data\n");
+    npoints = ls.size();
+    std::fprintf(stderr, "Generated data. nd: %d.np: %d\n", nd, npoints);
+    for(const auto &v: ls)
+        assert(unsigned(nd) == v.size());
     DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true, gamma);
     std::cerr << "made dci\n";
     //OMP_PRAGMA("omp parallel for")
@@ -223,7 +226,7 @@ int main(int argc, char *argv[]) {
     std::fprintf(stderr, "max: %f\n", max_inexact);
     //if(max_inexact < maxv) max_inexact = maxv;
     #pragma omp parallel for schedule(static, 32)
-    for(int i = 0; i < npoints; ++i) {
+    for(unsigned i = 0; i < ls.size(); ++i) {
         const auto v = norm(ls[0] - ls[i]);
         if(v < max_inexact) {
             const auto tmp = frp::dci::ProjID<FLOAT_TYPE, int>(v, i);

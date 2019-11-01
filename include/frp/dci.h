@@ -40,12 +40,12 @@ template<typename T>
 struct has_lower_bound_mf: public std::integral_constant<bool, has_lower_bound_mf_helper<T>::value> {};
 
 template<typename T, typename ItemType>
-INLINE auto perform_lbound(const T &x, ItemType item, std::false_type ft) {
+INLINE auto perform_lbound(const T &x, ItemType item, std::false_type) {
     return std::lower_bound(std::begin(x), std::end(x), item);
 }
 
 template<typename T, typename ItemType>
-INLINE auto perform_lbound(const T &x, ItemType item, std::true_type tt) {
+INLINE auto perform_lbound(const T &x, ItemType item, std::true_type) {
     return x.lower_bound(item);
 }
 template<typename T, typename ItemType>
@@ -112,7 +112,7 @@ struct stop_param_generator {
 #endif
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
-         template <typename...> class map_template=std::set,
+         template <typename...> class MapTemplate=std::set,
          template <typename...> class SetTemplate=ska::flat_hash_set,
          bool SO=blaze::rowMajor,
          typename Projector=MatrixLSHasher<FType, SO>,
@@ -122,31 +122,33 @@ class DCI;
 
 template<typename ValueType,
          typename IdType, typename FType,
-         template <typename...> class map_template,
+         template <typename...> class MapTemplate,
          template <typename...> class SetTemplate,
          bool SO,
          typename Projector,
          typename CMatType>
 class DCI {
+    using this_type = DCI<ValueType, IdType, FType, MapTemplate, SetTemplate, SO, Projector, CMatType>;
+    using const_this_type = const DCI<ValueType, IdType, FType, MapTemplate, SetTemplate, SO, Projector, CMatType>;
     /*
      To use this: Hold values in their own container. (This is non-owning.)
      Provide a distance metric/dot function which performs dot through ADL.
      https://arxiv.org/abs/1512.00442
     */
     using ProjI = ProjID<FType, IdType>;
-    using map_type = map_template<ProjI>;
+    using map_type = MapTemplate<ProjI>;
     //using map_type = sorted::vector<ProjI>;
     using set_type = SetTemplate<IdType>;
     using matrix_type = blaze::DynamicMatrix<FType, SO>;
     using value_type = ValueType;
     using bin_tree_iterator = typename map_type::const_iterator;
     using float_type = std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>;
-    Projector proj_;
     std::vector<map_type> map_;
     std::vector<const value_type*> val_ptrs_;
 public:
     const unsigned m_, l_, d_;
 private:
+    Projector proj_;
     size_t n_inserted_;
     double eps_;
     double gamma_ = 1.;
@@ -169,36 +171,40 @@ public:
     auto &proj() {return proj_;}
     const auto &proj() const {return proj_;}
     template<template<typename...> class NewSetTemplate=sorted::vector>
-    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() const & {
-        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    auto cvt() const & {
+        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(*this);
     }
     template<template<typename...> class NewSetTemplate=sorted::vector>
-    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() const && {
-        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    auto cvt() const && {
+        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(std::move(const_cast<this_type &&>(*this)));
     }
     template<template<typename...> class NewSetTemplate=sorted::vector>
-    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() && {
-        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    auto cvt() && {
+        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(std::move(*this));
     }
     template<template<typename...> class NewSetTemplate=sorted::vector>
-    DCI<ValueType, IdType, FType, NewSetTemplate> cvt() & {
-        return DCI<ValueType, IdType, FType, NewSetTemplate>(*this);
+    auto cvt() & {
+        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(*this);
     }
     template<template <typename...> class OldSetTemplate>
-    DCI(DCI<ValueType, IdType, FType, OldSetTemplate> &&o):
+    DCI(DCI<ValueType, IdType, FType, MapTemplate, OldSetTemplate, SO, Projector, CMatType> &&o):
         val_ptrs_(std::move(o.vps())),
         m_(o.m_), l_(o.l_), d_(o.d_), proj_(std::move(o.proj())), n_inserted_(o.n_inserted()),
-        eps_(o.eps()), gamma_(o.gamma()), data_dependent_(o.data_dependent()), orthonormalize_(o.orthonormalize())
+        eps_(o.eps()), gamma_(o.gamma()),
+        orthonormalize_(o.orthonormalize()),
+        data_dependent_(o.data_dependent())
     {
         map().reserve(o.map().size());
         for(const auto &p: o.map())
             map_.emplace_back(p.begin(), p.end());
     }
     template<template <typename...> class OldSetTemplate>
-    DCI(const DCI<ValueType, IdType, FType, OldSetTemplate> &o):
+    DCI(const DCI<ValueType, IdType, FType, MapTemplate, OldSetTemplate, SO, Projector, CMatType> &o):
         val_ptrs_(o.vps()),
         m_(o.m_), l_(o.l_), d_(o.d_), proj_(o.proj()), n_inserted_(o.n_inserted()),
-        eps_(o.eps()), gamma_(o.gamma()), data_dependent_(o.data_dependent()), orthonormalize_(o.orthonormalize())
+        eps_(o.eps()), gamma_(o.gamma()),
+        orthonormalize_(o.orthonormalize()),
+        data_dependent_(o.data_dependent())
     {
         map().reserve(o.map().size());
         for(const auto &p: o.map())
@@ -206,7 +212,12 @@ public:
     }
     DCI(size_t m, size_t l, size_t d, double eps=1e-5,
         bool orthonormalize=true, float param=1., bool dd=false, uint64_t seed=1337):
-        m_(m), l_(l), d_(d), proj_(m * l, d, orthonormalize, seed), map_(m * l), n_inserted_(0), eps_(eps), gamma_(param), data_dependent_(dd), orthonormalize_(orthonormalize)
+        map_(m * l),
+        m_(m), l_(l), d_(d),
+        proj_(m * l, d, orthonormalize, seed),
+        n_inserted_(0), eps_(eps), gamma_(param),
+        orthonormalize_(orthonormalize),
+        data_dependent_(dd)
     {
     }
 #if 0
@@ -246,7 +257,7 @@ public:
             map_[i].emplace(ProjI(tmp[i], id));
         }
     }
-    bool should_stop(size_t i, size_t candidateset_size, unsigned k) const {
+    bool should_stop(size_t candidateset_size, unsigned k) const {
         // Warning: this currenly
         const double rat = double(val_ptrs_.size()) / k;
         auto exp = 1. - std::log2(gamma_);
@@ -318,6 +329,7 @@ public:
         if(k <= val_ptrs_.size())
             return query(val, k);
         if(k1 < 2) throw std::runtime_error("Expected k1 > 1");
+        std::fprintf(stderr, "k: %u. k1: %u\n", k, k1);
         using PQT = std::priority_queue<ProjIM, std::vector<ProjIM>, std::greater<ProjIM>>;
         // Get a pair of iterators
         std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
@@ -354,7 +366,7 @@ public:
                 auto C = row(countsvec, l);
                 auto &pq = pqs[l];
 
-                // Get top
+                // Top of the pops
                 auto top = pq.top();
                 pq.pop();
                 auto j = top.second;
@@ -452,7 +464,7 @@ public:
                     ); // Ensure that we haven't overflowed
                 }
             }
-            if(should_stop(i, candidates.size(), k)) break;
+            if(should_stop(candidates.size(), k)) break;
         }
         auto &u = candidates;
 #if !NDEBUG
