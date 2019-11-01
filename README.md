@@ -55,3 +55,5 @@ by default an always-sorted array.
 We suggest doing this for the purposes of faster construction and faster queries.
 
 Additionally, we do not store any points, just references to them.
+
+When using a non-default container which supports lower_bound functionality, one needs to both use `std::less<void>` for a comparator and overload `has_lower_bound_mf` struct.

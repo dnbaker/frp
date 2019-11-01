@@ -18,6 +18,12 @@
 #include <vector>
 #include "flat_hash_map/flat_hash_map.hpp"
 
+namespace lb {
+template<typename T>
+struct has_lower_bound_mf: std::false_type {};
+template<typename T>
+struct has_lower_bound_mf<std::set<T>>: std::true_type {};
+}
 namespace frp {
 
 namespace dci {
@@ -26,18 +32,8 @@ template<typename FloatType, bool SO, typename T>
 auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
     return blaze::dot(r, x);
 }
+using namespace lb;
 
-
-template<typename T>
-struct has_lower_bound_mf_helper
-{
-    template<typename U, size_t (U::*)() const> struct SFINAE {};
-    template<typename U> static char test_fn(SFINAE<U, &U::lower_bound>*);
-    template<typename U> static int test_fn(...);
-    static constexpr bool value = sizeof(test_fn<T>(nullptr)) == sizeof(char);
-};
-template<typename T>
-struct has_lower_bound_mf: public std::integral_constant<bool, has_lower_bound_mf_helper<T>::value> {};
 
 template<typename T, typename ItemType>
 INLINE auto perform_lbound(const T &x, ItemType item, std::false_type) {
@@ -53,6 +49,8 @@ INLINE auto perform_lbound(const T &x, ItemType item) {
     return perform_lbound(x, item, has_lower_bound_mf<T>());
 }
 
+static_assert(has_lower_bound_mf<std::set<int>>::value, "std::set must have lb mf");
+
 template<typename FType, typename SizeType>
 struct ProjID: public std::pair<FType, SizeType> {
     static_assert(std::is_integral<SizeType>::value, "must be integral");
@@ -60,6 +58,7 @@ struct ProjID: public std::pair<FType, SizeType> {
     template<typename...Args>
     ProjID(Args &&...args): std::pair<FType, SizeType>(std::forward<Args>(args)...) {}
     ProjID() {}
+    //ProjID(FType x): std::pair<FType, SizeType>(x, 0) {}
     FType f() const {return this->first;}
     FType fabs() const {return std::abs(this->first);}
     SizeType id() const {return this->second;}
@@ -68,6 +67,23 @@ struct ProjID: public std::pair<FType, SizeType> {
     bool operator>(FType x) const {return f() > x;}
     bool operator>=(FType x) const {return f() >= x;}
 };
+
+template<typename FT, typename ST>
+INLINE bool operator<(FT x, ProjID<FT, ST> y) {
+    return x < y.f();
+}
+template<typename FT, typename ST>
+INLINE bool operator<=(FT x, ProjID<FT, ST> y) {
+    return x <= y.f();
+}
+template<typename FT, typename ST>
+INLINE bool operator>=(FT x, ProjID<FT, ST> y) {
+    return x >= y.f();
+}
+template<typename FT, typename ST>
+INLINE bool operator>(FT x, ProjID<FT, ST> y) {
+    return x > y.f();
+}
 
 template<typename IType, typename Set, typename VT>
 std::pair<IType, IType> get_iterator_pair(const Set &set, IType it, VT pv) {
@@ -96,23 +112,15 @@ double cossim(const T &x, const T &y) {
     return sim / std::sqrt(xs + ys);
 }
 
-
-#if 0
-struct stop_param_generator {
-    double v_;
-    bool t_;
-    stop_param_generator(double v, bool t): v_(v), t_(t) {
-        if(!t) v_ = 1. - std::log2(v);
-    }
-    double get() const {
-        if(t) {
-        }
-    }
+template<typename VT, typename Allocator=std::allocator<VT>>
+struct vless_set: public std::set<VT, std::less<>, Allocator> {
+    template<typename...Args>
+    vless_set(Args &&...args): std::set<VT, std::less<>, Allocator>(std::forward<Args>(args)...) {};
 };
-#endif
+
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
-         template <typename...> class MapTemplate=std::set,
+         template <typename...> class MapTemplate=vless_set,
          template <typename...> class SetTemplate=ska::flat_hash_set,
          bool SO=blaze::rowMajor,
          typename Projector=MatrixLSHasher<FType, SO>,

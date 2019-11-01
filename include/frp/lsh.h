@@ -7,28 +7,29 @@
 namespace frp {
 using SIMDSpace = vec::SIMDTypes<uint64_t>;
 using VType = typename SIMDSpace::VType;
+template<typename F, typename V> ATTR_CONST INLINE auto cmp_zero(V v);
 #if _FEATURE_AVX512F
-template<typename F, typename V> auto cmp_zero(V v);
-template<> uint32_t cmp_zero<float> (__m512 v) {
+template<> ATTR_CONST INLINE auto
+cmp_zero<float> (__m512 v) {
     return _mm512_cmp_ps_mask(v, _mm512_setzero_ps(), _CMP_GT_OQ);
 }
-template<> auto cmp_zero<float> (__m512d v) {
+template<> ATTR_CONST INLINE auto
+cmp_zero<float> (__m512d v) {
     return _mm512_cmp_pd_mask(v, _mm512_setzero_pd(), _CMP_GT_OQ);
 }
 #elif __AVX__
-template<typename F, typename V> uint32_t cmp_zero(V v);
 template<> 
-ATTR_CONST
-uint32_t cmp_zero<float, __m256> (__m256 v) {
+ATTR_CONST INLINE
+auto cmp_zero<float, __m256> (__m256 v) {
     return _mm256_movemask_ps(_mm256_cmp_ps(v, _mm256_setzero_ps(), _CMP_GT_OQ));
 }
 template<>
-ATTR_CONST
-uint32_t cmp_zero<double, __m256d> (__m256d v) {
+ATTR_CONST INLINE
+auto cmp_zero<double, __m256d> (__m256d v) {
     return _mm256_movemask_pd(_mm256_cmp_pd(v, _mm256_setzero_pd(), _CMP_GT_OQ));
 }
 #else
-#error("")
+#pragma message("not vectorizing signed projection hashing")
 #endif
 
 template<typename FType, bool SO>
@@ -167,7 +168,7 @@ struct LSHasher {
 
 
 template<typename FType, bool OSO>
-static uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
+static INLINE uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
     assert(c.size() <= 64);
     uint64_t ret = 0;
 #if HAS_AVX_512
@@ -184,27 +185,27 @@ static uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
         for(; i < c.size() / COUNT;ret = (ret << COUNT) | cmp_zero<FType, typename LV::type>(LV::load((&c[i++ * COUNT]))));
         i *= COUNT;
     }
+#else
+    for(;i + 8 <= c.size();i += 8) {
+        ret = (ret << 8) |
+              ((c[i] > 0.) << 7) | ((c[i + 1] > 0.) << 6) |
+              ((c[i + 2] > 0.) << 5) | ((c[i + 3] > 0.) << 4) |
+              ((c[i + 4] > 0.) << 3) | ((c[i + 5] > 0.) << 2) |
+              ((c[i + 6] > 0.) << 1) | (c[i + 7] > 0.);
+    }
 #endif
     for(; i < c.size(); ret = (ret << 1) | (c[i++] > 0.));
     return ret;
 }
+
 template<typename FType=float, bool SO=blaze::rowMajor>
-struct MatrixLSHasher: public LSHasher<FType, ::blaze::DynamicMatrix, SO> {
-    using super = LSHasher<FType, ::blaze::DynamicMatrix, SO>;
-    template<typename...CArgs>
-    MatrixLSHasher(CArgs &&...args): super(std::forward<CArgs>(args)...) {
-        std::fprintf(stderr, "Note: using not-preferred constructor");
-        OMP_PRAGMA("omp parallel for")
-        for(size_t i = 0; i < this->container_.rows(); ++i) {
-            std::normal_distribution<FType> dist;
-            std::mt19937_64 mt(i);
-            auto r = row(this->container_, i);
-            for(auto &e: r)
-                e = dist(mt);
-        }
-    }
-    MatrixLSHasher(size_t nr, size_t nc, bool orthonormalize, uint64_t seed=0):
-        super(std::move(generate_randproj_matrix<FType, SO>(nr, nc, orthonormalize, seed))) {}
+struct MatrixLSHasher {
+    using CType = ::blaze::DynamicMatrix<FType, SO>;
+    using this_type       =       MatrixLSHasher<FType, SO>;
+    using const_this_type = const MatrixLSHasher<FType, SO>;
+    CType container_;
+    MatrixLSHasher(size_t nr, size_t nc, bool orthonormalize=true, uint64_t seed=0):
+        container_(std::move(generate_randproj_matrix<FType, SO>(nr, nc, orthonormalize, seed))) {}
     auto &multiply(const blaze::DynamicVector<FType, SO> &c, blaze::DynamicVector<FType, SO> &ret) const {
         ret = this->container_ * c;
         return ret;
@@ -213,14 +214,20 @@ struct MatrixLSHasher: public LSHasher<FType, ::blaze::DynamicMatrix, SO> {
         blaze::DynamicVector<FType, SO> vec = this->container_ * c;
         return vec;
     }
+    auto multiply(const blaze::DynamicVector<FType, !SO> &c) const {
+        blaze::DynamicVector<FType, SO> vec = this->container_ * trans(c);
+        return vec;
+    }
     template<typename...Args>
     decltype(auto) project(Args &&...args) const {return multiply(std::forward<Args>(args)...);}
-    uint64_t hash(const blaze::DynamicVector<FType, SO> &c) const {
+    template<bool OSO>
+    uint64_t hash(const blaze::DynamicVector<FType, OSO> &c) const {
         std::cout << this->container_ << '\n';
         blaze::DynamicVector<FType, SO> vec = multiply(c);
         return cmp2hash(vec);
     }
-    template<bool OSO> uint64_t operator()(const blaze::DynamicVector<FType, OSO> &c) const {
+    template<bool OSO>
+    uint64_t operator()(const blaze::DynamicVector<FType, OSO> &c) const {
         return this->hash(c);
     }
 };
