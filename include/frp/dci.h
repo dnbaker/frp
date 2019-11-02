@@ -112,15 +112,9 @@ double cossim(const T &x, const T &y) {
     return sim / std::sqrt(xs + ys);
 }
 
-template<typename VT, typename Allocator=std::allocator<VT>>
-struct vless_set: public std::set<VT, std::less<>, Allocator> {
-    template<typename...Args>
-    vless_set(Args &&...args): std::set<VT, std::less<>, Allocator>(std::forward<Args>(args)...) {};
-};
-
 template<typename ValueType,
          typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
-         template <typename...> class MapTemplate=vless_set,
+         template <typename...> class SortedContainerTemplate=std::set,
          template <typename...> class SetTemplate=ska::flat_hash_set,
          bool SO=blaze::rowMajor,
          typename Projector=MatrixLSHasher<FType, SO>,
@@ -130,22 +124,21 @@ class DCI;
 
 template<typename ValueType,
          typename IdType, typename FType,
-         template <typename...> class MapTemplate,
+         template <typename...> class SortedContainerTemplate,
          template <typename...> class SetTemplate,
          bool SO,
          typename Projector,
          typename CMatType>
 class DCI {
-    using this_type = DCI<ValueType, IdType, FType, MapTemplate, SetTemplate, SO, Projector, CMatType>;
-    using const_this_type = const DCI<ValueType, IdType, FType, MapTemplate, SetTemplate, SO, Projector, CMatType>;
+    using this_type = DCI<ValueType, IdType, FType, SortedContainerTemplate, SetTemplate, SO, Projector, CMatType>;
+    using const_this_type = const DCI<ValueType, IdType, FType, SortedContainerTemplate, SetTemplate, SO, Projector, CMatType>;
     /*
      To use this: Hold values in their own container. (This is non-owning.)
      Provide a distance metric/dot function which performs dot through ADL.
      https://arxiv.org/abs/1512.00442
     */
     using ProjI = ProjID<FType, IdType>;
-    using map_type = MapTemplate<ProjI>;
-    //using map_type = sorted::vector<ProjI>;
+    using map_type = SortedContainerTemplate<ProjI, std::less<>>;
     using set_type = SetTemplate<IdType>;
     using matrix_type = blaze::DynamicMatrix<FType, SO>;
     using value_type = ValueType;
@@ -178,24 +171,24 @@ public:
     const auto &map() const {return map_;}
     auto &proj() {return proj_;}
     const auto &proj() const {return proj_;}
-    template<template<typename...> class NewSetTemplate=sorted::vector>
+    template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() const & {
-        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(*this);
+        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(*this);
     }
-    template<template<typename...> class NewSetTemplate=sorted::vector>
+    template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() const && {
-        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(std::move(const_cast<this_type &&>(*this)));
+        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(std::move(const_cast<this_type &&>(*this)));
     }
-    template<template<typename...> class NewSetTemplate=sorted::vector>
+    template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() && {
-        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(std::move(*this));
+        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(std::move(*this));
     }
-    template<template<typename...> class NewSetTemplate=sorted::vector>
+    template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() & {
-        return DCI<ValueType, IdType, FType, MapTemplate, NewSetTemplate, SO, Projector, CMatType>(*this);
+        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(*this);
     }
-    template<template <typename...> class OldSetTemplate>
-    DCI(DCI<ValueType, IdType, FType, MapTemplate, OldSetTemplate, SO, Projector, CMatType> &&o):
+    template<template <typename...> class NewSortedContainerTemplate>
+    DCI(DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType> &&o):
         val_ptrs_(std::move(o.vps())),
         m_(o.m_), l_(o.l_), d_(o.d_), proj_(std::move(o.proj())), n_inserted_(o.n_inserted()),
         eps_(o.eps()), gamma_(o.gamma()),
@@ -206,8 +199,8 @@ public:
         for(const auto &p: o.map())
             map_.emplace_back(p.begin(), p.end());
     }
-    template<template <typename...> class OldSetTemplate>
-    DCI(const DCI<ValueType, IdType, FType, MapTemplate, OldSetTemplate, SO, Projector, CMatType> &o):
+    template<template <typename...> class NewSortedContainerTemplate>
+    DCI(const DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType> &o):
         val_ptrs_(o.vps()),
         m_(o.m_), l_(o.l_), d_(o.d_), proj_(o.proj()), n_inserted_(o.n_inserted()),
         eps_(o.eps()), gamma_(o.gamma()),

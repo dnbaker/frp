@@ -10,16 +10,17 @@
 namespace sorted {
 
 // Sorted deque
-template<template<typename, typename> class Container, typename T, typename All>
+template<template<typename, typename> class Container, typename T, typename All, typename Cmp=std::less<>>
 class container {
     Container<T, All> data_;
+    Cmp cmp_;
 public:
     template<typename...Args>
     container(Args &&...args): data_(std::forward<Args>(args)...) {
-        sort(data_.begin(), data_.end());
+        sort(data_.begin(), data_.end(), cmp_);
     }
     auto find(const T &x) const {
-        return std::lower_bound(data_.begin(), data_.end(), x);
+        return std::lower_bound(data_.begin(), data_.end(), x, cmp_);
     }
     auto &con() {return data_;}
     auto &con() const {return data_;}
@@ -28,7 +29,7 @@ public:
         T x(std::forward<Args>(args)...);
         auto it = find(x);
         data_.insert(it, std::move(x));
-        assert(std::is_sorted(data_.begin(), data_.end()));
+        assert(std::is_sorted(data_.begin(), data_.end(), cmp_));
     }
     T &operator[](size_t i) {return data_[i];}
     const T &operator[](size_t i) const {return data_[i];}
@@ -49,10 +50,10 @@ public:
     using const_reference = typename Container<T, All>::const_reference;
 };
 
-template<typename T, typename All=std::allocator<T>>
-using vector = container<std::vector, T, All>;
-template<typename T, typename All=std::allocator<T>>
-using deque = container<std::deque, T, All>;
+template<typename T, typename Cmp=std::less<>, typename All=std::allocator<T>>
+using vector = container<std::vector, T, All, Cmp>;
+template<typename T, typename Cmp=std::less<>, typename All=std::allocator<T>>
+using deque = container<std::deque, T, All, Cmp>;
 
 } // frp
 #endif
