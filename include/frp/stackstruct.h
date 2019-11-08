@@ -236,6 +236,7 @@ public:
     void destroy() {
         if(plan_) {
             fft::FFTTypes<FloatType>::destroy_fn(plan_);
+            plan_ = nullptr;
         }
     }
     void set_kind(fftw_r2r_kind kind) { kind_  = kind;}
@@ -327,6 +328,7 @@ public:
     void destroy() {
         if(plan_) {
             fft::FFTTypes<FloatType>::destroy_fn(plan_);
+            plan_ = nullptr;
         }
     }
     void set_flags(int newflags) { flags_ = newflags;}

@@ -21,9 +21,14 @@
 namespace lb {
 template<typename T>
 struct has_lower_bound_mf: std::false_type {};
+
 template<typename T>
 struct has_lower_bound_mf<std::set<T>>: std::true_type {};
-}
+
+template<template<typename...> class Container, typename T, typename All, typename Cmp, typename...Args>
+struct has_lower_bound_mf<sorted::container<Container, T, All, Cmp, Args...>>: std::true_type {};
+} // lb
+
 namespace frp {
 
 namespace dci {
@@ -121,6 +126,11 @@ template<typename ValueType,
          typename CMatType=std::uint16_t>
 class DCI;
 
+enum class MetricSpace {
+    Euclidean,
+    CosineDistance
+};
+
 
 template<typename ValueType,
          typename IdType, typename FType,
@@ -144,8 +154,14 @@ class DCI {
     using value_type = ValueType;
     using bin_tree_iterator = typename map_type::const_iterator;
     using float_type = std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>;
+    static constexpr MetricSpace distance_metric = MetricSpace::Euclidean;
+    static constexpr bool is_cos = distance_metric == MetricSpace::CosineDistance;
+
+    // Members
+
     std::vector<map_type> map_;
     std::vector<const value_type*> val_ptrs_;
+
 public:
     const unsigned m_, l_, d_;
 private:
@@ -155,6 +171,8 @@ private:
     double gamma_ = 1.;
     int orthonormalize_:1;
     int data_dependent_:1;
+
+
 public:
     size_t total() const {return m_ * l_;}
     void set_data_dependence(bool val) {
@@ -196,8 +214,9 @@ public:
         data_dependent_(o.data_dependent())
     {
         map().reserve(o.map().size());
-        for(const auto &p: o.map())
+        for(const auto &p: o.map()) {
             map_.emplace_back(p.begin(), p.end());
+        }
     }
     template<template <typename...> class NewSortedContainerTemplate>
     DCI(const DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType> &o):
@@ -248,7 +267,21 @@ public:
         while(i1 != i2)
             add_item(*i1++);
     }
-    void add_item(const ValueType &val) {
+    bool add_item(ValueType &val) {
+        auto vn = norm(val);
+        CONST_IF(is_cos) {
+            if(std::abs(vn - 1.) > 1e-6)
+                val /= vn;
+        }
+        return add_item(static_cast<const ValueType &>(val));
+    }
+    bool add_item(const ValueType &val) {
+        CONST_IF(is_cos) {
+            const double n = norm(val);
+            if(std::abs(n - 1.) > 1e-5) {
+                throw std::runtime_error("Rescale to a norm of 1. Your norm: " + std::to_string(n));
+            }
+        }
         auto tmp = proj_.project(val);
         ProjI to_insert;
         const auto id = n_inserted_++;
@@ -259,7 +292,7 @@ public:
         }
     }
     bool should_stop(size_t candidateset_size, unsigned k) const {
-        // Warning: this currenly
+        // Warning: this currently
         const double rat = double(val_ptrs_.size()) / k;
         auto exp = 1. - std::log2(gamma_);
         const size_t ktilde = k * std::max(

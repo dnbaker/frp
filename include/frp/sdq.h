@@ -10,23 +10,27 @@
 namespace sorted {
 
 // Sorted deque
-template<template<typename, typename> class Container, typename T, typename All, typename Cmp=std::less<>>
+template<template<typename...> class Container, typename T, typename All, typename Cmp=std::less<>, typename...Args>
 class container {
-    Container<T, All> data_;
+    Container<T, All, Args...> data_;
     Cmp cmp_;
 public:
-    template<typename...Args>
-    container(Args &&...args): data_(std::forward<Args>(args)...) {
+    template<typename...CArgs>
+    container(CArgs &&...args): data_(std::forward<CArgs>(args)...) {
         sort(data_.begin(), data_.end(), cmp_);
+    }
+    template<typename U>
+    auto lower_bound(const U &item) const {
+        return std::lower_bound(data_.begin(), data_.end(), item, cmp_);
     }
     auto find(const T &x) const {
         return std::lower_bound(data_.begin(), data_.end(), x, cmp_);
     }
     auto &con() {return data_;}
     auto &con() const {return data_;}
-    template<typename...Args>
-    auto emplace(Args &&...args) {
-        T x(std::forward<Args>(args)...);
+    template<typename...EArgs>
+    auto emplace(EArgs &&...args) {
+        T x(std::forward<EArgs>(args)...);
         auto it = find(x);
         data_.insert(it, std::move(x));
         assert(std::is_sorted(data_.begin(), data_.end(), cmp_));
