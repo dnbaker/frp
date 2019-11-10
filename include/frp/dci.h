@@ -131,6 +131,47 @@ enum class MetricSpace {
     CosineDistance
 };
 
+template<typename FT>
+struct Spanner {
+    FT *p_;
+    size_t n_;
+    Spanner(FT *p, size_t n): p_(p), n_(n) {}
+    Spanner(std::pair<FT*, size_t> p): p_(p.first), n_(p.second) {}
+    template<typename T>
+    Spanner(T &item) {
+        if(item[1] - item[0] != 1) throw "up";
+        if(!std::is_same<std::decay_t<decltype(item[0])>, FT>::value) throw "down";
+        p_ = &item[0];
+        n_ = item.size();
+    }
+    auto data() {return p_;}
+    auto data() const {return p_;}
+    auto begin() {return p_;}
+    auto end() {return p_ + n_;}
+    auto begin() const {return p_;}
+    auto end() const {return p_ + n_;}
+};
+template<typename FT>
+struct ConstSpanner {
+    const FT *p_;
+    size_t n_;
+    ConstSpanner(const FT *p, size_t n): p_(p), n_(n) {}
+    ConstSpanner(std::pair<const FT*, size_t> p): p_(p.first), n_(p.second) {}
+    template<typename T>
+    ConstSpanner(const T &item) {
+        if(item[1] - item[0] != 1) throw "up";
+        if(!std::is_same<std::decay_t<decltype(item[0])>, FT>::value) throw "down";
+        p_ = &item[0];
+        n_ = item.size();
+    }
+    auto data() {return p_;}
+    auto data() const {return p_;}
+    auto begin() {return p_;}
+    auto end() {return p_ + n_;}
+    auto begin() const {return p_;}
+    auto end() const {return p_ + n_;}
+};
+
 
 template<typename ValueType,
          typename IdType, typename FType,
@@ -243,22 +284,6 @@ public:
 #if 0
     template<bool OSO>
     void insert(const blaze::DynamicMatrix<float_type, OSO> &o) {
-        val_ptrs_.reserve(val_ptrs_.size() + o.rows());
-        for(size_t i = 0; i < o.rows();++i) {
-            throw std::runtime_error("This doesn't work as-is. We'd need to update the indexing step to take spans");
-            auto r = row(o, i);
-            val_ptrs_.emplace_back(reinterpret_cast<ValueType *>(&r));
-        }
-        auto tmp = proj_.project(o);
-        assert(tmp.rows() == mat_.rows()); // This is true because maths
-        OMP_PRAGMA("omp parallel for")
-        for(size_t i = 0; i < mat_.rows(); ++i) {
-            auto &map = map_[i];
-            auto r = row(tmp, i);
-            for(size_t offset = 0; offset < o.rows(); ++offset) {
-                map.emplace(ProjI(r[i], offset + n_inserted_));
-            }
-        }
         n_inserted_ += o.rows();
     }
 #endif
@@ -290,7 +315,6 @@ public:
         for(size_t i = 0; i < m_ * l_; ++i) {
             map_[i].emplace(ProjI(tmp[i], id));
         }
-        
     }
     bool should_stop(size_t candidateset_size, unsigned k) const {
         // Warning: this currently
@@ -528,6 +552,10 @@ public:
     const auto & vps() const && {return val_ptrs_;}
     auto &vps()  & {return val_ptrs_;}
     const auto & vps() const & {return val_ptrs_;}
+    // TODO: version which stores its own spans,
+    //       which maens that when the items moving the spans change, it's
+    //       not a problem
+    //       I think this is direclty doable with blaze::CustomVector.
 };
 
 } // dci
