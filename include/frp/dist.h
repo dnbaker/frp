@@ -7,7 +7,6 @@
 #include "boost/random.hpp"
 
 namespace frp {
-using std::forward;
 
 // Fill a matrix with distributions. Contains utilities for filling
 // vectors with C++ std distributions as well as Rademacher.
@@ -60,6 +59,21 @@ public:
     void reset() {}
 };
 
+enum DistributionType {
+    NORMAL,
+    UNIT_NORMAL,
+    CAUCHY,
+    CHI_SQUARED,
+    LOGNORMAL,
+    EXTREME_VALUE_DISTRIBUTION,
+    WEIBULL,
+    UNIFORM_REAL_DISTRIBUTION,
+    NEGATIVE_BINOMIAL,
+    EXPONENTIAL,
+    EVD=EXTREME_VALUE_DISTRIBUTION,
+    NB=NEGATIVE_BINOMIAL,   
+    EXP=EXPONENTIAL
+};
 DEFINE_DIST_FILL(boost::normal_distribution, gaussian)
 DEFINE_DIST_FILL(unit_normal, unit_gaussian)
 DEFINE_DIST_FILL(boost::cauchy_distribution, cauchy)
@@ -68,7 +82,9 @@ DEFINE_DIST_FILL(boost::lognormal_distribution, lognormal)
 DEFINE_DIST_FILL(boost::random::extreme_value_distribution, extreme_value)
 DEFINE_DIST_FILL(boost::random::weibull_distribution, weibull)
 DEFINE_DIST_FILL(boost::random::uniform_real_distribution, uniform)
+DEFINE_DIST_FILL(std::negative_binomial_distribution, uniform)
+DEFINE_DIST_FILL(std::exponential_distribution, exp)
 
-}
+} // frp
 
 #endif // #ifndef _GFRP_DIST_H__

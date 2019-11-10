@@ -92,9 +92,12 @@ template<> struct F2VType<double, 64> {
     //using VType = typename F2VType<FType, sizeof(__m256)>::type;
 #endif
 
-template<typename FType, bool SO=blaze::rowMajor>
-blaze::DynamicMatrix<FType, SO> generate_randproj_matrix(size_t nr, size_t ncol,
-                                                bool orthonormalize=true, uint64_t seed=0) {
+template<typename FType, bool SO=blaze::rowMajor, typename DistributionType=std::normal_distribution<FType>, typename...DistArgs>
+blaze::DynamicMatrix<FType, SO>
+generate_randproj_matrix(size_t nr, size_t ncol,
+                         bool orthonormalize=true, uint64_t seed=0,
+                         DistArgs &&...args)
+{
     using matrix_type = blaze::DynamicMatrix<FType, SO>;
     matrix_type ret(nr, ncol);
     seed = ((seed ^ nr) * ncol) * seed;
@@ -106,7 +109,7 @@ blaze::DynamicMatrix<FType, SO> generate_randproj_matrix(size_t nr, size_t ncol,
                 OMP_PRAGMA("omp parallel for")
                 for(size_t i = 0; i < ret.rows(); ++i) {
                     blaze::RNG gen(seed + i * seed + i);
-                    std::normal_distribution dist;
+                    DistributionType dist(std::forward<DistArgs>(args)...);
                     for(auto &v: row(ret, i))
                         v = dist(gen);
                 }
@@ -122,7 +125,7 @@ blaze::DynamicMatrix<FType, SO> generate_randproj_matrix(size_t nr, size_t ncol,
                 OMP_PRAGMA("omp parallel for")
                 for(size_t i = 0; i < tmp.rows(); ++i) {
                     blaze::RNG gen(seed + i * seed + i);
-                    std::normal_distribution dist;
+                    DistributionType dist(std::forward<DistArgs>(args)...);
                     for(auto &v: row(tmp, i))
                         v = dist(gen);
                 }
@@ -198,14 +201,16 @@ static INLINE uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
     return ret;
 }
 
-template<typename FType=float, bool SO=blaze::rowMajor>
+template<typename FType=float, bool SO=blaze::rowMajor, typename DistributionType=std::normal_distribution<FType>>
 struct MatrixLSHasher {
     using CType = ::blaze::DynamicMatrix<FType, SO>;
     using this_type       =       MatrixLSHasher<FType, SO>;
     using const_this_type = const MatrixLSHasher<FType, SO>;
     CType container_;
-    MatrixLSHasher(size_t nr, size_t nc, bool orthonormalize=true, uint64_t seed=0):
-        container_(std::move(generate_randproj_matrix<FType, SO>(nr, nc, orthonormalize, seed))) {}
+    template<typename...DistArgs>
+    MatrixLSHasher(size_t nr, size_t nc, bool orthonormalize=true, uint64_t seed=0,
+                   DistArgs &&...args):
+        container_(std::move(generate_randproj_matrix<FType, SO, DistributionType>(nr, nc, orthonormalize, seed, std::forward<DistArgs>(args)...))) {}
     auto &multiply(const blaze::DynamicVector<FType, SO> &c, blaze::DynamicVector<FType, SO> &ret) const {
         ret = this->container_ * c;
         return ret;
@@ -222,7 +227,9 @@ struct MatrixLSHasher {
     decltype(auto) project(Args &&...args) const {return multiply(std::forward<Args>(args)...);}
     template<bool OSO>
     uint64_t hash(const blaze::DynamicVector<FType, OSO> &c) const {
+#if VERBOSE_AF
         std::cout << this->container_ << '\n';
+#endif
         blaze::DynamicVector<FType, SO> vec = multiply(c);
         return cmp2hash(vec);
     }
