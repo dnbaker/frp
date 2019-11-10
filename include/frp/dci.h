@@ -332,33 +332,6 @@ public:
         }
         return nullptr;
     }
-#if 0
-    static const ProjI *next_best(const map_type &map, std::pair<bin_tree_iterator, bin_tree_iterator> &bi, FType val) {
-        std::fprintf(stderr, "TODO: write a unit test to ensure that we visit this in order\n");
-        if(bi.first != map.end()) {
-            const bool beg = bi.first == map.begin();
-            if(bi.second != map.end()) {
-                //std::fprintf(stderr, "dist1: %f. dist2: %f.\n", std::abs(bi.first->first - val), std::abs(bi.second->first - val));
-                auto it = std::abs(bi.first->first - val) > std::abs(bi.second->first - val)
-                    ? bi.first : bi.second++;
-                if(beg)
-                    bi.first == map.end();
-                else --bi.first;
-                return &*it;
-            }
-            auto it = bi.first;
-            if(beg)
-                bi.first == map.end();
-            else
-                --bi.first;
-            return &*it;
-        } else if(bi.second != map.end()) {
-            auto it = bi.second++;
-            return &*it;
-        }
-        return nullptr;
-    }
-#endif
     std::vector<ProjI> prioritized_query(const ValueType &val, unsigned k, unsigned k1) const {
         using ProjIM = std::pair<ProjI, IdType>; // To track 'm', as well, as that's necessary for prioritized query.
         if(k <= val_ptrs_.size())
