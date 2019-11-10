@@ -267,7 +267,6 @@ public:
         while(i1 != i2)
             add_item(*i1++);
     }
-#if 0
     void add_item(ValueType &val) {
         auto vn = norm(val);
         CONST_IF(is_cos) {
@@ -276,7 +275,6 @@ public:
         }
         add_item(static_cast<const ValueType &>(val));
     }
-#endif
     void add_item(const ValueType &val) {
         CONST_IF(is_cos) {
             const double n = norm(val);
