@@ -41,6 +41,8 @@ BOOST_DIRS=math config random utility assert static_assert \
     range iterator io predef concept_check detail lexical_cast \
     numeric_conversion functional array container move thread smart_ptr
 
+SAN=-fsanitize=address -fsanitize=undefined
+
 BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 
 
@@ -84,7 +86,7 @@ pcatest: src/pcatest.cpp $(OBJS)
 dcitest: src/dcitest.cpp $(OBJS) $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack
 dcitestf: src/dcitest.cpp $(OBJS) $(HEADERS)
-	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack $(SAN)
 
 %f: src/%.cpp $(OBJS) fftw3.h
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
