@@ -267,15 +267,17 @@ public:
         while(i1 != i2)
             add_item(*i1++);
     }
-    bool add_item(ValueType &val) {
+#if 0
+    void add_item(ValueType &val) {
         auto vn = norm(val);
         CONST_IF(is_cos) {
             if(std::abs(vn - 1.) > 1e-6)
                 val /= vn;
         }
-        return add_item(static_cast<const ValueType &>(val));
+        add_item(static_cast<const ValueType &>(val));
     }
-    bool add_item(const ValueType &val) {
+#endif
+    void add_item(const ValueType &val) {
         CONST_IF(is_cos) {
             const double n = norm(val);
             if(std::abs(n - 1.) > 1e-5) {
@@ -290,6 +292,7 @@ public:
         for(size_t i = 0; i < m_ * l_; ++i) {
             map_[i].emplace(ProjI(tmp[i], id));
         }
+        
     }
     bool should_stop(size_t candidateset_size, unsigned k) const {
         // Warning: this currently
