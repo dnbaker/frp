@@ -184,7 +184,7 @@ template<typename ValueType,
          typename CMatType>
 class DCI {
     using this_type = DCI<ValueType, IdType, FType, SortedContainerTemplate, SetTemplate, SO, Projector, CMatType>;
-    using const_this_type = const DCI<ValueType, IdType, FType, SortedContainerTemplate, SetTemplate, SO, Projector, CMatType>;
+    using const_this_type = const this_type;
     /*
      To use this: Hold values in their own container. (This is non-owning.)
      Provide a distance metric/dot function which performs dot through ADL.
@@ -214,6 +214,9 @@ private:
     double gamma_ = 1.;
     int orthonormalize_:1;
     int data_dependent_:1;
+#ifdef TIME_ADDITIONS
+    uint64_t clock = 0;
+#endif
 
 
 public:
@@ -303,6 +306,9 @@ public:
         add_item(static_cast<const ValueType &>(val));
     }
     void add_item(const ValueType &val) {
+#ifdef TIME_ADDITIONS
+        auto t = std::chrono::high_resolution_clock::now();
+#endif
         CONST_IF(is_cos) {
             const double n = norm(val);
             if(std::abs(n - 1.) > 1e-5) {
@@ -317,6 +323,10 @@ public:
         for(size_t i = 0; i < m_ * l_; ++i) {
             map_[i].emplace(ProjI(tmp[i], id));
         }
+#ifdef TIME_ADDITIONS
+        auto t2 = std::chrono::high_resolution_clock::now();
+        clock += (t2 - t).count();
+#endif
     }
     bool should_stop(size_t candidateset_size, unsigned k) const {
         // Warning: this currently
@@ -554,6 +564,11 @@ public:
     const auto & vps() const && {return val_ptrs_;}
     auto &vps()  & {return val_ptrs_;}
     const auto & vps() const & {return val_ptrs_;}
+#ifdef TIME_ADDITIONS
+    ~DCI() {
+        std::fprintf(stderr, "total time spent adding: %zu/%p\n", size_t(clock), (void *)this);
+    }
+#endif
     // TODO: version which stores its own spans,
     //       which maens that when the items moving the spans change, it's
     //       not a problem

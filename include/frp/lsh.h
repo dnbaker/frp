@@ -246,23 +246,36 @@ template<typename FType=float, bool SO=blaze::rowMajor, typename DistributionTyp
 struct FHTLSHasher {
     using this_type       =       FHTLSHasher<FType, SO>;
     using const_this_type = const FHTLSHasher<FType, SO>;
-    blaze::DynamicVector<FType, SO> d_; // diagonal matrix
-    jl::OrthogonalJLTransform jlt_;
+    std::vector<blaze::DynamicVector<FType, SO>> d_; // diagonal matrix
+                                                     // use Matrix for case that we need more projections than we have dimensions
+    std::vector<jl::OrthogonalJLTransform> jlt_;
     size_t nc_, nr_;
-    // nr = out, nc = in
     template<typename...DistArgs>
     FHTLSHasher(size_t nr, size_t nc, uint64_t seed=0, unsigned nblocks=3,
-                DistArgs &&...args): jlt_(nc, nr, seed + (nc * nr), nblocks), d_(roundup(nc), 0), nc_(nc), nr_(nr) {
+                DistArgs &&...args): nc_(nc), nr_(nr) {
+        unsigned njlts = (nr + nc - 1) / nc;
+        jlt_.reserve(njlts);
+        if(nr > nc) {
+            std::mt19937_64 mt(seed + nc * nr);
+            throw std::runtime_error("Not implemented: projections > dimensionality. TODO: this");
+        } else {
+            jlt_.emplace_back(nc, nr, seed + (nc * nr), nblocks);
+            d_.emplace_back(roundup(nc), 0);
+        }
         blaze::RNG gen(seed);
         DistributionType dist(std::forward<DistArgs>(args)...);
-        for(size_t i = 0; i < nc; ++i)
-            d_[i] = dist(gen);
+        for(auto &d: d_) 
+            for(size_t i = 0; i < nc; ++i)
+                d[i] = dist(gen);
     }
     auto &multiply(const blaze::DynamicVector<FType, SO> &c, blaze::DynamicVector<FType, SO> &ret) const {
-        if(ret.size() != d_.size()) ret.resize(d_.size());
-        subvector(ret, 0, nc_) = trans(c) * subvector(d_, 0, nc_);
-        subvector(ret, nc_, d_.size() - nc_) = 0;
-        jlt_.transform_inplace(ret);
+        // This will change when we support more projections than input dimensions
+        auto &d = d_[0];
+        auto &jl = jlt_[0];
+        if(ret.size() != d.size()) ret.resize(d.size());
+        subvector(ret, 0, nc_) = trans(c) * subvector(d, 0, nc_);
+        subvector(ret, nc_, d.size() - nc_) = 0;
+        jl.transform_inplace(ret);
         return ret;
     }
     auto multiply(const blaze::DynamicVector<FType, SO> &c) const {
@@ -271,10 +284,13 @@ struct FHTLSHasher {
         return vec;
     }
     auto multiply(const blaze::DynamicVector<FType, !SO> &c) const {
-        blaze::DynamicVector<FType, SO> vec(d_.size());
-        subvector(vec, 0, nc_) = trans(c) * subvector(d_, 0, nc_);
-        subvector(vec, nc_, d_.size() - nc_) = 0;
-        jlt_.transform_inplace(vec);
+        // This will change when we support more projections than input dimensions
+        auto &d = d_[0];
+        auto &jl = jlt_[0];
+        blaze::DynamicVector<FType, SO> vec(d.size());
+        subvector(vec, 0, nc_) = trans(c) * subvector(d, 0, nc_);
+        subvector(vec, nc_, d.size() - nc_) = 0;
+        jl.transform_inplace(vec);
         return vec;
     }
     template<typename...Args>
