@@ -90,34 +90,81 @@ class PRNRademacher {
     size_t      n_;
     uint64_t seed_;
 public:
+    using size_type = std::size_t;
     PRNRademacher(size_t n=0, uint64_t seed=0): n_(n), seed_(seed) {}
     auto size() const {return n_;}
     void resize(size_t newsize) {n_ = newsize;}
+    void seed(uint64_t seed) {seed_ = seed;}
 
     template<typename Container>
     void apply(Container &c) const {
-        aes::AesCtr<uint64_t> gen(seed_); // Intentional shadow.
+        wy::WyHash<uint64_t> gen(seed_);
         uint64_t val(gen());
         using ArithType = std::decay_t<decltype(c[0])>;
-        const ArithType lut[2] = {static_cast<ArithType>(1), static_cast<ArithType>(-1)};
         for(size_t i(0), e(c.size()); i < e; ++i) {
             if(unlikely((i & ((CHAR_BIT * sizeof(uint64_t)) - 1)) == 0))
                 val = gen();
-            c[i] *= lut[val & 1]; val >>= 1;
+            c[i] *= val & 1 ? -1.: 1.;
+            val >>= 1;
         }
     }
 
     template<typename ArithType>
     void apply(ArithType *c, size_t nitems=0) {
-        aes::AesCtr<uint64_t> gen(seed_);
+        wy::WyHash<uint64_t> gen(seed_);
         uint64_t val;
         if(nitems == 0) nitems = n_;
-        const ArithType lut[2] = {static_cast<ArithType>(1), static_cast<ArithType>(-1)};
         for(size_t i(0); i < nitems; ++i) {
             if(unlikely((i & ((CHAR_BIT * sizeof(uint64_t)) - 1)) == 0))
                 val = gen();
-            c[i] *= lut[val & 1]; val >>= 1;
+            c[i] *= val & 1 ? -1.: 1.;
+            val >>= 1;
         }
+    }
+};
+
+template<typename FT>
+class CachedRademacher {
+protected:
+    size_t n_;
+    uint64_t seed_;
+    blaze::DynamicVector<FT> vec_;
+public:
+    using size_type = std::size_t;
+    CachedRademacher(size_t n, uint64_t seed=0): n_(n), seed_(seed), vec_(n) {
+        this->seed(seed);
+    }
+    void resize(size_t newsz) {
+        if(newsz < n_) {
+            vec_.resize(n_);
+            n_ = newsz;
+            return;
+        }
+        if(newsz > n_) {
+            vec_.resize(newsz);
+            n_ = newsz;
+            seed(seed_);
+        }
+    }
+    void seed(uint64_t seed) {
+        wy::WyHash<uint64_t> gen(seed);
+        unsigned t = 64;
+        auto v = gen();
+        for(size_t i = 0, e = n_; i < e; ++i) {
+            vec_[i] = v & 1 ? -1.: 1.;
+            if(t-- == 0) {
+                v = gen();
+                t = 64;
+            }
+        }
+    }
+    auto size() const {return n_;}
+    template<typename Container>
+    void apply(Container &c) const {
+        //if constexpr(blaze::TransposeFlag_v<Container> == blaze::TransposeFlag_v<decltype(vec)>)
+            c *= vec_;
+        //else
+        //    c *= trans(vec_);
     }
 };
 
@@ -188,7 +235,7 @@ public:
     void reserve(size_t newsize) {
         data_.reserve(newsize >> SHIFT);
     }
-    int bool_idx(size_type idx) const {return !(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
+    INLINE int bool_idx(size_type idx) const {return !(data_[(idx >> SHIFT)] & (static_cast<T>(1) << (idx & BITMASK)));}
 
     FloatType operator[](size_type idx) const {return bool_idx(idx) ? FloatType(-1.): FloatType(1.);}
     template<typename InVector, typename OutVector>

@@ -333,7 +333,12 @@ public:
     }
 };
 
-using HadamardRademacherSDBlock = HRBlock<CompactRademacher>;
+template<typename FT>
+using HadamardRademacherSDBlockT = HRBlock<CachedRademacher<FT>>;
+
+//using HadamardRademacherSDBlock = HRBlock<CachedRademacher<float>>;
+//using HadamardRademacherSDBlock = HRBlock<CompactRademacher>;
+using HadamardRademacherSDBlock = HRBlock<PRNRademacher>;
 
 
 template<typename SizeType=uint32_t, typename RNG=aes::AesCtr<SizeType>>

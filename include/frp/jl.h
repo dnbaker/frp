@@ -41,9 +41,10 @@ public:
     auto size() const {return matrix_.rows() * matrix_.columns();}
 };
 
+template<typename FT=float>
 class OrthogonalJLTransform {
     size_t from_, to_;
-    std::vector<HadamardRademacherSDBlock> blocks_;
+    std::vector<HadamardRademacherSDBlockT<FT>> blocks_;
     std::vector<uint64_t> seeds_;
 public:
     using size_type = uint64_t;
@@ -202,7 +203,7 @@ public:
     // Optionally add a (potentially scaled?) Guassian multiplication layer.
 };
 
-using OJLTransform = OrthogonalJLTransform;
+using OJLTransform = OrthogonalJLTransform<>;
 using OJLT = OJLTransform;
 using FJLT = FastJLTransform;
 
