@@ -1,7 +1,7 @@
 #ifndef FRP_LSH_H__
 #define FRP_LSH_H__
 #include "vec/vec.h"
-#include "frp/util.h"
+#include "frp/jl.h"
 
 
 namespace frp {
@@ -134,7 +134,7 @@ generate_randproj_matrix(size_t nr, size_t ncol,
             }
             OMP_PRAGMA("omp parallel for")
             for(size_t i = 0; i < ret.rows(); ++i)
-                normalize(row(ret, i));
+                blaze::normalize(row(ret, i));
         } catch(const std::exception &ex) { // Orthonormalize
             std::fprintf(stderr, "failure in orthonormalization: %s\n", ex.what());
             throw;
@@ -171,9 +171,12 @@ struct LSHasher {
 
 
 template<typename FType, bool OSO>
-static INLINE uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
-    assert(c.size() <= 64);
+static INLINE uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c, size_t n=0) {
+    assert(n <= 64);
     uint64_t ret = 0;
+    if(n == 0) {
+        n = n;
+    }
 #if HAS_AVX_512
     static constexpr size_t COUNT = sizeof(__m512d) / sizeof(FType);
 #elif __AVX__
@@ -185,11 +188,11 @@ static INLINE uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
 #if HAS_AVX_512 || defined(__AVX__)
     CONST_IF(COUNT) {
         using LV = F2VType<FType, sizeof(VType)>;
-        for(; i < c.size() / COUNT;ret = (ret << COUNT) | cmp_zero<FType, typename LV::type>(LV::load((&c[i++ * COUNT]))));
+        for(; i < n / COUNT;ret = (ret << COUNT) | cmp_zero<FType, typename LV::type>(LV::load((&c[i++ * COUNT]))));
         i *= COUNT;
     }
 #else
-    for(;i + 8 <= c.size();i += 8) {
+    for(;i + 8 <= n; i += 8) {
         ret = (ret << 8) |
               ((c[i] > 0.) << 7) | ((c[i + 1] > 0.) << 6) |
               ((c[i + 2] > 0.) << 5) | ((c[i + 3] > 0.) << 4) |
@@ -197,7 +200,7 @@ static INLINE uint64_t cmp2hash(const blaze::DynamicVector<FType, OSO> &c) {
               ((c[i + 6] > 0.) << 1) | (c[i + 7] > 0.);
     }
 #endif
-    for(; i < c.size(); ret = (ret << 1) | (c[i++] > 0.));
+    for(; i < n; ret = (ret << 1) | (c[i++] > 0.));
     return ret;
 }
 
@@ -232,6 +235,57 @@ struct MatrixLSHasher {
 #endif
         blaze::DynamicVector<FType, SO> vec = multiply(c);
         return cmp2hash(vec);
+    }
+    template<bool OSO>
+    uint64_t operator()(const blaze::DynamicVector<FType, OSO> &c) const {
+        return this->hash(c);
+    }
+};
+
+template<typename FType=float, bool SO=blaze::rowMajor, typename DistributionType=std::normal_distribution<FType>>
+struct FHTLSHasher {
+    using this_type       =       FHTLSHasher<FType, SO>;
+    using const_this_type = const FHTLSHasher<FType, SO>;
+    blaze::DynamicVector<FType, SO> d_; // diagonal matrix
+    jl::OrthogonalJLTransform jlt_;
+    size_t nc_, nr_;
+    // nr = out, nc = in
+    template<typename...DistArgs>
+    FHTLSHasher(size_t nr, size_t nc, uint64_t seed=0, unsigned nblocks=3,
+                DistArgs &&...args): jlt_(nc, nr, seed + (nc * nr), nblocks), d_(roundup(nc), 0), nc_(nc), nr_(nr) {
+        blaze::RNG gen(seed);
+        DistributionType dist(std::forward<DistArgs>(args)...);
+        for(size_t i = 0; i < nc; ++i)
+            d_[i] = dist(gen);
+    }
+    auto &multiply(const blaze::DynamicVector<FType, SO> &c, blaze::DynamicVector<FType, SO> &ret) const {
+        if(ret.size() != d_.size()) ret.resize(d_.size());
+        subvector(ret, 0, nc_) = trans(c) * subvector(d_, 0, nc_);
+        subvector(ret, nc_, d_.size() - nc_) = 0;
+        jlt_.transform_inplace(ret);
+        return ret;
+    }
+    auto multiply(const blaze::DynamicVector<FType, SO> &c) const {
+        blaze::DynamicVector<FType, SO> vec(d_.size());
+        multiply(c, vec);
+        return vec;
+    }
+    auto multiply(const blaze::DynamicVector<FType, !SO> &c) const {
+        blaze::DynamicVector<FType, SO> vec(d_.size());
+        subvector(vec, 0, nc_) = trans(c) * subvector(d_, 0, nc_);
+        subvector(vec, nc_, d_.size() - nc_) = 0;
+        jlt_.transform_inplace(vec);
+        return vec;
+    }
+    template<typename...Args>
+    decltype(auto) project(Args &&...args) const {return multiply(std::forward<Args>(args)...);}
+    template<bool OSO>
+    uint64_t hash(const blaze::DynamicVector<FType, OSO> &c) const {
+#if VERBOSE_AF
+        std::cout << this->container_ << '\n';
+#endif
+        blaze::DynamicVector<FType, SO> vec = multiply(c);
+        return cmp2hash(vec, nr_);
     }
     template<bool OSO>
     uint64_t operator()(const blaze::DynamicVector<FType, OSO> &c) const {

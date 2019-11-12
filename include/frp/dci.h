@@ -126,6 +126,8 @@ template<typename ValueType,
          typename CMatType=std::uint16_t>
 class DCI;
 
+// TODO: DCI without storing values, only store hashes
+
 enum class MetricSpace {
     Euclidean,
     CosineDistance

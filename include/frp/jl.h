@@ -28,8 +28,8 @@ public:
         matrix_ *= 1. / std::sqrt(static_cast<double>(m_));
     }
     void fill(uint64_t seed, bool orthogonalize=true) {
-        aes::AesCtr<uint64_t> rng(seed);
-        boost::random::normal_distribution<FloatType> dist;
+        std::mt19937_64 rng(seed);
+        std::normal_distribution<FloatType> dist;
         fill(rng, dist, orthogonalize);
     }
     template<typename InVec, typename OutVec>
@@ -50,7 +50,7 @@ public:
 
     OrthogonalJLTransform(size_t from, size_t to, uint64_t seed, size_t nblocks=3): from_(roundup(from)), to_(to)
     {
-        aes::AesCtr<uint64_t> gen(seed);
+        std::mt19937_64 gen(seed);
         while(seeds_.size() < nblocks) seeds_.push_back(gen());
         for(const auto seed: seeds_) blocks_.emplace_back(from, seed);
     }
@@ -66,7 +66,7 @@ public:
     size_t to_size()   const {return to_;}
     void reseed(size_type newseed) {
         seeds_.clear();
-        aes::AesCtr<uint64_t> gen(newseed);
+        std::mt19937_64 gen(newseed);
         while(seeds_.size() < nblocks()) seeds_.push_back(gen());
     }
     void resize_from(size_type newfrom) {

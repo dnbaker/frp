@@ -22,7 +22,7 @@ void sample_fill(Container &con, uint64_t seed, DistArgs &&... args) {
 template<typename FloatType, bool SO, template<typename> typename Distribution, typename RNG=aes::AesCtr<uint64_t>, typename... DistArgs>
 void sample_fill(blaze::DynamicMatrix<FloatType, SO> &con, uint64_t seed, DistArgs &&... args) {
     #pragma omp parallel for
-    for(size_t i(0); i < con.rows(); ++i) {
+    for(size_t i = 0; i < con.rows(); ++i) {
         RNG gen(seed);
         gen.seed(gen() + i);
         thread_local Distribution<FloatType> dist(std::forward<DistArgs>(args)...);
@@ -82,7 +82,7 @@ DEFINE_DIST_FILL(boost::lognormal_distribution, lognormal)
 DEFINE_DIST_FILL(boost::random::extreme_value_distribution, extreme_value)
 DEFINE_DIST_FILL(boost::random::weibull_distribution, weibull)
 DEFINE_DIST_FILL(boost::random::uniform_real_distribution, uniform)
-DEFINE_DIST_FILL(std::negative_binomial_distribution, uniform)
+DEFINE_DIST_FILL(std::negative_binomial_distribution, nb)
 DEFINE_DIST_FILL(std::exponential_distribution, exp)
 
 } // frp

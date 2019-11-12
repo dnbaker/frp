@@ -176,11 +176,15 @@ int main(int argc, char *argv[]) {
     std::fprintf(stderr, "Generated data. nd: %d.np: %d\n", nd, npoints);
     for(const auto &v: ls)
         assert(unsigned(nd) == v.size());
+    DCI<blaze::DynamicVector<FLOAT_TYPE>, uint32_t, FLOAT_TYPE, sorted::vector, ska::flat_hash_set, blaze::rowMajor, FHTLSHasher<FLOAT_TYPE, blaze::rowMajor>, std::uint16_t> fhtdci(
+        m, l, nd, 1e-5, true, gamma);
     DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true, gamma);
     std::cerr << "made dci\n";
     //OMP_PRAGMA("omp parallel for")
-    for(size_t i = 0; i < ls.size(); ++i)
+    for(size_t i = 0; i < ls.size(); ++i) {
         dci.add_item(ls[i]);
+        //fhtdci.add_item(ls[i]);
+    }
 #if 0
     blaze::DynamicMatrix<FLOAT_TYPE> mat_to_insert(nd, 100);
     for(int i = 0; i < nd; ++i)
