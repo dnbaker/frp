@@ -100,7 +100,6 @@ public:
     void apply(Container &c) const {
         wy::WyHash<uint64_t> gen(seed_);
         uint64_t val(gen());
-        using ArithType = std::decay_t<decltype(c[0])>;
         for(size_t i(0), e(c.size()); i < e; ++i) {
             if(unlikely((i & ((CHAR_BIT * sizeof(uint64_t)) - 1)) == 0))
                 val = gen();

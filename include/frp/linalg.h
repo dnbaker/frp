@@ -9,6 +9,8 @@
 #undef NO_BLAZE
 #endif
 #include "vec/vec.h"
+#include "vec/stats.h"
+#include "vec/welford_sd.h"
 #include "x86intrin.h"
 
 #ifndef VECTOR_WIDTH
@@ -488,7 +490,8 @@ auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
     });
     std::fprintf(stderr, "Sorted eigenvalues\n");
     if(ncomp > 0) {
-        std::sort(&vec[0], &vec[ncomp]);
+        std::fprintf(stderr, "not tested: %lf\n");
+        //std::sort(&vec[0], &vec[ncomp]);
         T subset(mat.columns(), ncomp);
         std::fprintf(stderr, "Got subset\n");
         for(int i = 0; i < ncomp; ++i)
@@ -500,6 +503,40 @@ auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
         return std::make_pair(eigenvectors, eigv);
     }
 }
+
+template<typename FT, bool SO=blaze::rowMajor>
+struct PCAAggregator {
+    blaze::SymmetricMatrix<blaze::DynamicMatrix<FT, SO>> mat_;
+    stats::OnlineVectorSD<blaze::DynamicVector<FT, SO>> mean_estimator_;
+    size_t n_;
+    std::unique_ptr<blaze::DynamicMatrix<FT, SO>> eigvec_;
+    std::unique_ptr<blaze::DynamicVector<FT, SO>> eigval_;
+    static constexpr bool is_sparse = blaze::IsSparseMatrix_v<decltype(mat_)>;
+
+    PCAAggregator(size_t from, size_t to=0 /* ncomp */): mat_(from) {
+        if constexpr(is_sparse) {
+            mat_.reserve(from);
+        }
+    }
+    template<typename T>
+    void add(const T &x) {
+        if constexpr(blaze::TransposeFlag<decltype(mat_)>::value == blaze::TransposeFlag<T>::value) {
+            mean_estimator_.add(x);
+            mat_ += trans(x) * x;
+        } else {
+            mean_estimator_.add(trans(x));
+            mat_ += x * trans(x);
+        }
+        ++n_;
+    }
+    void finalize() {
+        eigvec_.reset(new blaze::DynamicMatrix<FT, SO>(mat_.rows(), mat_.columns()));
+        eigval_.reset(new blaze::DynamicVector<FT, SO>(mat_.rows(), mat_.columns()));
+        auto &vecs = *eigvec_;
+        auto &vals = *eigval_;
+        throw std::runtime_error("Not implemented.");
+    }
+};
 
 }} // namespace frp::linalg
 
