@@ -18,6 +18,16 @@
 #include <vector>
 #include "flat_hash_map/flat_hash_map.hpp"
 
+#ifndef RESTRICT
+#  if __CUDACC__ || __GNUC__ || __clang__
+#    define RESTRICT __restrict__
+#  elif _MSC_VER
+#    define RESTRICT __restrict
+#  else
+#    define RESTRICT
+#  endif
+#endif
+
 namespace lb {
 template<typename T>
 struct has_lower_bound_mf: std::false_type {};
@@ -56,21 +66,21 @@ INLINE auto perform_lbound(const T &x, ItemType item) {
 
 static_assert(has_lower_bound_mf<std::set<int>>::value, "std::set must have lb mf");
 
-template<typename FType, typename SizeType>
-struct ProjID: public std::pair<FType, SizeType> {
+template<typename float_type, typename SizeType>
+struct ProjID: public std::pair<float_type, SizeType> {
     static_assert(std::is_integral<SizeType>::value, "must be integral");
-    static_assert(std::is_floating_point<FType>::value, "must be floating point");
+    static_assert(std::is_floating_point<float_type>::value, "must be floating point");
     template<typename...Args>
-    ProjID(Args &&...args): std::pair<FType, SizeType>(std::forward<Args>(args)...) {}
+    ProjID(Args &&...args): std::pair<float_type, SizeType>(std::forward<Args>(args)...) {}
     ProjID() {}
-    //ProjID(FType x): std::pair<FType, SizeType>(x, 0) {}
-    FType f() const {return this->first;}
-    FType fabs() const {return std::abs(this->first);}
+    //ProjID(float_type x): std::pair<float_type, SizeType>(x, 0) {}
+    float_type f() const {return this->first;}
+    float_type fabs() const {return std::abs(this->first);}
     SizeType id() const {return this->second;}
-    bool operator<(FType x) const {return f() < x;}
-    bool operator<=(FType x) const {return f() <= x;}
-    bool operator>(FType x) const {return f() > x;}
-    bool operator>=(FType x) const {return f() >= x;}
+    bool operator<(float_type x) const {return f() < x;}
+    bool operator<=(float_type x) const {return f() <= x;}
+    bool operator>(float_type x) const {return f() > x;}
+    bool operator>=(float_type x) const {return f() >= x;}
 };
 
 template<typename FT, typename ST>
@@ -117,8 +127,8 @@ double cossim(const T &x, const T &y) {
     return sim / std::sqrt(xs + ys);
 }
 
-template<typename ValueType,
-         typename IdType=std::uint32_t, typename FType=std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>,
+template<typename FType,
+         typename IdType=std::uint32_t,
          template <typename...> class SortedContainerTemplate=std::set,
          template <typename...> class SetTemplate=ska::flat_hash_set,
          bool SO=blaze::rowMajor,
@@ -175,35 +185,35 @@ struct ConstSpanner {
 };
 
 
-template<typename ValueType,
-         typename IdType, typename FType,
+template<typename ArithType,
+         typename IdType,
          template <typename...> class SortedContainerTemplate,
          template <typename...> class SetTemplate,
          bool SO,
          typename Projector,
          typename CMatType>
 class DCI {
-    using this_type = DCI<ValueType, IdType, FType, SortedContainerTemplate, SetTemplate, SO, Projector, CMatType>;
+    using this_type = DCI<ArithType, IdType, SortedContainerTemplate, SetTemplate, SO, Projector, CMatType>;
     using const_this_type = const this_type;
     /*
      To use this: Hold values in their own container. (This is non-owning.)
      Provide a distance metric/dot function which performs dot through ADL.
      https://arxiv.org/abs/1512.00442
     */
-    using ProjI = ProjID<FType, IdType>;
+    using float_type = ArithType;
+    using ProjI = ProjID<float_type, IdType>;
     using map_type = SortedContainerTemplate<ProjI, std::less<>>;
     using set_type = SetTemplate<IdType>;
-    using matrix_type = blaze::DynamicMatrix<FType, SO>;
-    using value_type = ValueType;
+    using matrix_type = blaze::DynamicMatrix<float_type, SO>;
+    using value_type = const ArithType * /*RESTRICT*/;
     using bin_tree_iterator = typename map_type::const_iterator;
-    using float_type = std::decay_t<decltype(*std::begin(std::declval<ValueType>()))>;
     static constexpr MetricSpace distance_metric = MetricSpace::Euclidean;
     static constexpr bool is_cos = distance_metric == MetricSpace::CosineDistance;
 
     // Members
 
     std::vector<map_type> map_;
-    std::vector<const value_type*> val_ptrs_;
+    std::vector<value_type> val_ptrs_;
 
 public:
     const unsigned m_, l_, d_;
@@ -237,22 +247,22 @@ public:
     const auto &proj() const {return proj_;}
     template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() const & {
-        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(*this);
+        return DCI<float_type, IdType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(*this);
     }
     template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() const && {
-        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(std::move(const_cast<this_type &&>(*this)));
+        return DCI<float_type, IdType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(std::move(const_cast<this_type &&>(*this)));
     }
     template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() && {
-        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(std::move(*this));
+        return DCI<float_type, IdType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(std::move(*this));
     }
     template<template<typename...> class NewSortedContainerTemplate=sorted::vector>
     auto cvt() & {
-        return DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(*this);
+        return DCI<float_type, IdType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType>(*this);
     }
     template<template <typename...> class NewSortedContainerTemplate>
-    DCI(DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType> &&o):
+    DCI(DCI<float_type, IdType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType> &&o):
         val_ptrs_(std::move(o.vps())),
         m_(o.m_), l_(o.l_), d_(o.d_), proj_(std::move(o.proj())), n_inserted_(o.n_inserted()),
         eps_(o.eps()), gamma_(o.gamma()),
@@ -265,7 +275,7 @@ public:
         }
     }
     template<template <typename...> class NewSortedContainerTemplate>
-    DCI(const DCI<ValueType, IdType, FType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType> &o):
+    DCI(const DCI<float_type, IdType, NewSortedContainerTemplate, SetTemplate, SO, Projector, CMatType> &o):
         val_ptrs_(o.vps()),
         m_(o.m_), l_(o.l_), d_(o.d_), proj_(o.proj()), n_inserted_(o.n_inserted()),
         eps_(o.eps()), gamma_(o.gamma()),
@@ -297,28 +307,26 @@ public:
         while(i1 != i2)
             add_item(*i1++);
     }
-    void add_item(ValueType &val) {
+    template<typename T>
+    void add_item(T &val) {
         auto vn = norm(val);
         CONST_IF(is_cos) {
             if(std::abs(vn - 1.) > 1e-6)
                 val /= vn;
         }
-        add_item(static_cast<const ValueType &>(val));
+        add_item(static_cast<std::add_const_t<T> &>(val));
     }
-    void add_item(const ValueType &val) {
+    template<typename T>
+    void add_item(const T &val) {
+        if(&val[1] - &val[0] != 1) throw 1;
 #ifdef TIME_ADDITIONS
         auto t = std::chrono::high_resolution_clock::now();
 #endif
-        CONST_IF(is_cos) {
-            const double n = norm(val);
-            if(std::abs(n - 1.) > 1e-5) {
-                throw std::runtime_error("Rescale to a norm of 1. Your norm: " + std::to_string(n));
-            }
-        }
+        blaze::CustomVector<const float_type, blaze::aligned, blaze::unpadded> cv(&val[0], d_);
         auto tmp = proj_.project(val);
         ProjI to_insert;
         const auto id = n_inserted_++;
-        val_ptrs_.emplace_back(std::addressof(val));
+        val_ptrs_.emplace_back(static_cast<const float_type *RESTRICT>(&val[0]));
         #pragma omp parallel for
         for(size_t i = 0; i < m_ * l_; ++i) {
             map_[i].emplace(ProjI(tmp[i], id));
@@ -340,7 +348,7 @@ public:
         return candidateset_size >= std::min(ktilde, val_ptrs_.size());
     }
     static const ProjI *next_best(const map_type &s,
-            std::pair<bin_tree_iterator, bin_tree_iterator> &its, FType v) {
+            std::pair<bin_tree_iterator, bin_tree_iterator> &its, float_type v) {
         if(its.first != s.end()) {
             const bool beg = its.first == s.begin();
             if(its.second != s.end()) {
@@ -368,10 +376,11 @@ public:
         }
         return nullptr;
     }
-    std::vector<ProjI> prioritized_query(const ValueType &val, unsigned k, unsigned k1) const {
+    std::vector<ProjI> prioritized_query(const float_type *ptr, unsigned k, unsigned k1) const {
+        const blaze::CustomVector<const float_type, blaze::aligned, blaze::unpadded> val(ptr, d_);
         using ProjIM = std::pair<ProjI, IdType>; // To track 'm', as well, as that's necessary for prioritized query.
         if(k <= val_ptrs_.size())
-            return query(val, k);
+            return query(ptr, k);
         if(k1 < 2) throw std::runtime_error("Expected k1 > 1");
         std::fprintf(stderr, "k: %u. k1: %u\n", k, k1);
         using PQT = std::priority_queue<ProjIM, std::vector<ProjIM>, std::greater<ProjIM>>;
@@ -433,7 +442,7 @@ public:
         std::priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
             auto p = val_ptrs_[*it];
-            FType tmp = blaze::norm(*p - val);
+            float_type tmp = blaze::norm(*p - val);
             if(pq.size() < k)
                 pq.push(ProjI(tmp, *it));
             else if(tmp < pq.top().first) {
@@ -444,18 +453,31 @@ public:
         for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
         return ret;
     }
-    std::vector<ProjI> query(const ValueType &val, unsigned k) const {
+    auto vec_at_pos(size_t ind) const {
+        return blaze::CustomVector<const ArithType, blaze::aligned, blaze::unpadded>(
+            this->val_ptrs_[ind], d_);
+    }
+    template<typename FT, bool OSO>
+    auto prioritized_query(const blaze::DynamicVector<FT, OSO> &x, unsigned k, unsigned k1) const {
+        return prioritized_query(&x[0], k, k1);
+    }
+    template<typename FT, bool OSO>
+    auto query(const blaze::DynamicVector<FT, OSO> &x, unsigned k) const {
+        return query(&x[0], k);
+    }
+    std::vector<ProjI> query(const float_type *x, unsigned k) const {
+        blaze::CustomVector<const float_type, blaze::aligned, blaze::unpadded> val(x, d_);
         bool klt = k <= val_ptrs_.size();
         std::vector<ProjI> vs(klt ? k: unsigned(val_ptrs_.size()));
         if(!klt) {
             k = val_ptrs_.size();
-            blaze::DynamicVector<FType> dists(k);
+            blaze::DynamicVector<float_type> dists(k);
             OMP_PRAGMA("omp parallel for")
             for(size_t i = 0; i < k; ++i)
-                dists[i] = norm(val - this->operator[](i));
+                dists[i] = norm(val - vec_at_pos(i));
             std::priority_queue<ProjI, std::vector<ProjI>> pq;
             for(size_t i = 0; i < dists.size(); ++i) {
-                const FType tmp = dists[i];
+                const float_type tmp = dists[i];
                 if(pq.size() < k) {
                     pq.push(ProjI(tmp, i));
                 } else if(pq.size() == k && pq.top().fabs() > tmp) {
@@ -471,7 +493,7 @@ public:
         std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
         set_type candidates;
         // Get a pair of iterators
-        blaze::DynamicVector<FType> projections = proj_.project(val);
+        blaze::DynamicVector<float_type> projections = proj_.project(val);
         OMP_PRAGMA("omp parallel for")
         for(size_t i = 0; i < l_ * m_; ++i) {
             const map_type &pos = map_[i];
@@ -516,7 +538,7 @@ public:
 #endif
         std::priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
-            FType tmp = blaze::norm(this->operator[](*it) - val);
+            float_type tmp = blaze::norm(vec_at_pos(*it) - val);
             if(pq.size() < k)
                 pq.push(ProjI(tmp, *it));
             else if(tmp < pq.top().first) {
@@ -535,24 +557,26 @@ public:
         return std::make_pair(uint32_t(index / m_), uint32_t(index % m_));
     }
     std::pair<size_t, size_t> offset2ind(size_t offset) const {return std::pair<size_t, size_t>(offset % m_, offset / m_);}
-    const value_type &operator[](size_t index) const {return *val_ptrs_[index];}
-    value_type &operator[](size_t index) {return *val_ptrs_[index];}
-    struct iterator: public std::vector<const ValueType *>::iterator {
-        using super = typename std::vector<const ValueType *>::iterator;
+    const value_type operator[](size_t index) const {
+        return val_ptrs_[index];
+    }
+    value_type operator[](size_t index) {return val_ptrs_[index];}
+    struct iterator: public std::vector<value_type>::iterator {
+        using super = typename std::vector<value_type>::iterator;
         template<typename...Args>
         iterator(Args&&...args): super(std::forward<Args>(args)...) {}
-        ValueType *operator->() {
+        value_type *operator->() {
             return super::operator->();
         }
-        const ValueType *operator->() const {
+        const value_type *operator->() const {
             return super::operator->();
         }
     };
-    struct const_iterator: public std::vector<const ValueType *>::const_iterator {
-        using super = typename std::vector<const ValueType *>::const_iterator;
+    struct const_iterator: public std::vector<const value_type *>::const_iterator {
+        using super = typename std::vector<const value_type *>::const_iterator;
         template<typename...Args>
         const_iterator(Args&&...args): super(std::forward<Args>(args)...) {}
-        const ValueType *operator->() const {
+        const value_type *operator->() const {
             return super::operator->();
         }
     };
