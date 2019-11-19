@@ -490,7 +490,7 @@ auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
     });
     std::fprintf(stderr, "Sorted eigenvalues\n");
     if(ncomp > 0) {
-        std::fprintf(stderr, "not tested: %lf\n");
+        std::fprintf(stderr, "subsampling not tested: %u\n", ncomp);
         //std::sort(&vec[0], &vec[ncomp]);
         T subset(mat.columns(), ncomp);
         std::fprintf(stderr, "Got subset\n");
@@ -504,19 +504,25 @@ auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
     }
 }
 
-template<typename FT, bool SO=blaze::rowMajor>
+
+#define REQUIRE(cond, msg) do {if(!(cond)) {throw std::runtime_error(std::string("Failed requirement: " #cond) + msg);}} while(0)
+template<typename FT>
 struct PCAAggregator {
-    blaze::SymmetricMatrix<blaze::DynamicMatrix<FT, SO>> mat_;
+    static constexpr bool SO = blaze::rowMajor;
+    using SymMat = blaze::SymmetricMatrix<blaze::DynamicMatrix<FT, SO>>;
+    SymMat mat_;
     stats::OnlineVectorSD<blaze::DynamicVector<FT, SO>> mean_estimator_;
     size_t n_;
     std::unique_ptr<blaze::DynamicMatrix<FT, SO>> eigvec_;
     std::unique_ptr<blaze::DynamicVector<FT, SO>> eigval_;
+    size_t nvs_;
     static constexpr bool is_sparse = blaze::IsSparseMatrix_v<decltype(mat_)>;
 
-    PCAAggregator(size_t from, size_t to=0 /* ncomp */): mat_(from) {
-        if constexpr(is_sparse) {
-            mat_.reserve(from);
-        }
+    PCAAggregator(size_t from, size_t to=0 /* ncomp */):
+        mat_(from),
+        mean_estimator_(from),
+        nvs_(to ? to: size_t(-1))
+    {
     }
     template<typename T>
     void add(const T &x) {
@@ -529,12 +535,36 @@ struct PCAAggregator {
         }
         ++n_;
     }
+    template<typename T>
+    auto project(const T &x) const {
+        REQUIRE(ready(), "must be ready");
+        return eigvec_ * x;
+    }
+    bool ready() const {
+        return eigvec_.get() && eigval_.get();
+    }
     void finalize() {
         eigvec_.reset(new blaze::DynamicMatrix<FT, SO>(mat_.rows(), mat_.columns()));
         eigval_.reset(new blaze::DynamicVector<FT, SO>(mat_.rows(), mat_.columns()));
         auto &vecs = *eigvec_;
         auto &vals = *eigval_;
-        throw std::runtime_error("Not implemented.");
+        blaze::DynamicMatrix<FT, SO> mat =
+               (1. / (n_ > 1 ? n_ - 1: n_) * mat_) // XX^T / (n - 1)
+                -
+                mean_estimator_.mean() * trans(mean_estimator_.mean()); // muXmuXT
+        blaze::eigen(mat, vals, vecs);
+        blaze::DynamicVector<uint32_t> indices(vals.size());
+        std::iota(indices.begin(), indices.end(), 0u);
+        std::sort(indices.begin(), indices.end(), [&](auto x, auto y) {return vals[x] > vals[y];});
+        auto rrows = std::min(nvs_, mat.rows());
+        blaze::DynamicMatrix<FT, SO> ret(rrows, mat.columns());
+        blaze::DynamicVector<FT, SO> retvals(rrows);
+        for(auto i = 0u; i < rrows; ++i) {
+            retvals[i] = vals[indices[i]];
+            row(ret, i) = vecs[indices[i]];
+        }
+        std::swap(ret, vecs);
+        std::swap(retvals, vals);
     }
 };
 
