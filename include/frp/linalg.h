@@ -291,6 +291,7 @@ void mempluseq<double>(double *data, size_t nelem, double val) {
 }
 
 
+#if 0
 template<typename MatrixType, typename ValueType,
          typename=enable_if_t<is_arithmetic<ValueType>::value>>
 MatrixType &operator+=(MatrixType &in, ValueType val) {
@@ -334,6 +335,7 @@ template<typename MatrixType, typename ValueType,
 MatrixType &operator-=(MatrixType &in, ValueType val) {
     return in += -val;
 }
+#endif
 
 
 /*
@@ -526,12 +528,17 @@ struct PCAAggregator {
     }
     template<typename T>
     void add(const T &x) {
-        if constexpr(blaze::TransposeFlag<decltype(mat_)>::value == blaze::TransposeFlag<T>::value) {
+        std::fprintf(stderr, "mat size: (%zu, %zu). vector size: %zu\n", mat_.rows(), mat_.columns(), x.size());
+        if constexpr(blaze::TransposeFlag_v<T> == blaze::columnVector) {
             mean_estimator_.add(x);
-            mat_ += trans(x) * x;
+            std::fprintf(stderr, "About to multiply wt\n");
+            mat_ += x * trans(x);
+            std::fprintf(stderr, "did it\n");
         } else {
             mean_estimator_.add(trans(x));
-            mat_ += x * trans(x);
+            std::fprintf(stderr, "About to multiply with transpose\n");
+            mat_ += trans(x) * x;
+            std::fprintf(stderr, "did it\n");
         }
         ++n_;
     }

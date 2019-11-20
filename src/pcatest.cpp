@@ -12,13 +12,23 @@ using namespace linalg;
 int main(int argc, char *argv[]) {
     int nrows = argc == 1 ? 25: std::atoi(argv[1]), ncols = argc < 3 ? 5: std::atoi(argv[2]), ncomp = argc < 4 ? ncols: std::atoi(argv[3]);
     PCAAggregator<float> pcag(ncols);
+    blaze::DynamicVector<float> v(ncols, 1);
+    blaze::DynamicVector<float, blaze::rowVector> v2(ncols, 3);
+    assert(v2.size() == ncols);
+    assert(v.size() == ncols);
+    pcag.add(v);
+    pcag.add(v2);
+    std::fprintf(stderr, "Added to pca aggregator\n");
     blaze::DynamicMatrix<float> mat(nrows, ncols);
     std::mt19937_64 mt;
     std::uniform_real_distribution<float> gen;
     for(size_t i = 0; i < mat.rows(); ++i) for(size_t j = 0; j < mat.columns(); ++j)
         mat(i, j) = gen(mt);
+    std::fprintf(stderr, "Filled mat\n");
     auto c = naive_cov(mat);
+    std::cerr << "naive cov\n";
     auto c2 = naive_cov(mat, false);
+    std::cerr << "naive cov, falase\n";
     auto s = blaze::sum<blaze::columnwise>(mat);
     std::cout <<" mat \n" << mat << '\n';
     std::cout << "cov \n" << c << '\n';
