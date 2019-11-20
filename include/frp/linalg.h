@@ -3,6 +3,7 @@
 #define _USE_MATH_DEFINES
 #include <queue>
 #include <cstdint>
+#include <future>
 #include <limits>
 #include <type_traits>
 #ifdef NO_BLAZE
@@ -23,7 +24,7 @@
 #endif
 #endif // VECTOR_WIDTH
 
-namespace frp { namespace linalg {
+namespace frp { inline namespace linalg {
 using std::forward;
 
 template<class Container>
@@ -526,19 +527,37 @@ struct PCAAggregator {
         nvs_(to ? to: size_t(-1))
     {
     }
+    template<bool aligned, bool padded>
+    void add(const blaze::CustomMatrix<FT, aligned, padded, SO> &o) {
+        REQUIRE(o.columns() == mat_.columns(), "must have matching # columns");
+        assert((trans(o) * o).rows() == mat_.columns());
+        std::future<void> fut = std::async(std::launch::async, [&]() {
+            for(size_t i = 0; i < mat_.rows(); ++i)
+                this->add(row(o, i));
+        });
+        mat_ += declsym(trans(o) * o);
+        // TODO: map/reduce computation
+        fut.get();
+    }
+    void add(const blaze::DynamicMatrix<FT, SO> &o) {
+        REQUIRE(o.columns() == mat_.columns(), "must have matching # columns");
+        assert((trans(o) * o).rows() == mat_.columns());
+        std::future<void> fut = std::async(std::launch::async, [&]() {
+            for(size_t i = 0; i < mat_.rows(); ++i)
+                this->add(row(o, i));
+        });
+        mat_ += declsym(trans(o) * o);
+        // TODO: map/reduce computation
+        fut.get();
+    }
     template<typename T>
     void add(const T &x) {
-        std::fprintf(stderr, "mat size: (%zu, %zu). vector size: %zu\n", mat_.rows(), mat_.columns(), x.size());
         if constexpr(blaze::TransposeFlag_v<T> == blaze::columnVector) {
             mean_estimator_.add(x);
-            std::fprintf(stderr, "About to multiply wt\n");
             mat_ += x * trans(x);
-            std::fprintf(stderr, "did it\n");
         } else {
             mean_estimator_.add(trans(x));
-            std::fprintf(stderr, "About to multiply with transpose\n");
             mat_ += trans(x) * x;
-            std::fprintf(stderr, "did it\n");
         }
         ++n_;
     }
@@ -551,6 +570,7 @@ struct PCAAggregator {
         return eigvec_.get() && eigval_.get();
     }
     void finalize() {
+        if(!n_) throw std::runtime_error("Can't finalize nothing");
         eigvec_.reset(new blaze::DynamicMatrix<FT, SO>(mat_.rows(), mat_.columns()));
         eigval_.reset(new blaze::DynamicVector<FT, SO>(mat_.rows(), mat_.columns()));
         auto &vecs = *eigvec_;

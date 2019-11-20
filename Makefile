@@ -83,7 +83,7 @@ test/%.o: test/%.cpp $(OBJS)
 
 %: src/%.cpp $(OBJS) fftw3.h $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
-pcatest: src/pcatest.cpp $(OBJS)
+pcatest: src/pcatest.cpp $(OBJS) $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 dcitest: src/dcitest.cpp $(OBJS) $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack -DTIME_ADDITIONS #$(SAN)
