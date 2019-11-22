@@ -32,8 +32,8 @@ namespace lb {
 template<typename T>
 struct has_lower_bound_mf: std::false_type {};
 
-template<typename T>
-struct has_lower_bound_mf<std::set<T>>: std::true_type {};
+template<typename... Args>
+struct has_lower_bound_mf<std::set<Args...>>: std::true_type {};
 
 template<template<typename...> class Container, typename T, typename All, typename Cmp, typename...Args>
 struct has_lower_bound_mf<sorted::container<Container, T, All, Cmp, Args...>>: std::true_type {};
@@ -42,6 +42,20 @@ struct has_lower_bound_mf<sorted::container<Container, T, All, Cmp, Args...>>: s
 namespace frp {
 
 namespace dci {
+
+template<typename... Args>
+struct consumable_priority_queue: public std::priority_queue<Args...> {
+    using super = std::priority_queue<Args...>;
+    template<typename...CArgs>
+    consumable_priority_queue(CArgs &&...args): super(std::forward<CArgs>(args)...) {}
+    auto && release() {
+        return std::move(this->c);
+    }
+    auto && sorted_release() {
+        std::sort(this->c.begin(), this->c.end(), this->comp);
+        return std::move(this->c);
+    }
+};
 
 template<typename FloatType, bool SO, typename T>
 auto dot(const blaze::DynamicVector<FloatType, SO> &r, const T &x) {
@@ -193,6 +207,7 @@ template<typename ArithType,
          typename Projector,
          typename CMatType>
 class DCI {
+    static constexpr size_t ALIGNMENT = sizeof(vec::SIMDTypes<uint64_t>::Type);
     using this_type = DCI<ArithType, IdType, SortedContainerTemplate, SetTemplate, SO, Projector, CMatType>;
     using const_this_type = const this_type;
     /*
@@ -296,37 +311,37 @@ public:
         data_dependent_(dd)
     {
     }
-#if 0
-    template<bool OSO>
-    void insert(const blaze::DynamicMatrix<float_type, OSO> &o) {
-        n_inserted_ += o.rows();
-    }
-#endif
     template<typename I>
     void insert(I i1, I i2) {
         while(i1 != i2)
-            add_item(*i1++);
+            add(*i1++);
     }
     template<typename T>
-    void add_item(T &val) {
+    void add(T &val) {
         auto vn = norm(val);
         CONST_IF(is_cos) {
             if(std::abs(vn - 1.) > 1e-6)
                 val /= vn;
         }
-        add_item(static_cast<std::add_const_t<T> &>(val));
+        add(static_cast<std::add_const_t<T> &>(val));
     }
     template<typename T>
-    void add_item(const T &val) {
-        if(&val[1] - &val[0] != 1) throw 1;
+    void add(const T &val) {
+        if(&val[1] - &val[0] != 1) {
+            char buf[256];
+            std::sprintf(buf, "[%s]: Incorrect storage order", __PRETTY_FUNCTION__);
+            throw std::runtime_error(buf);
+        }
 #ifdef TIME_ADDITIONS
         auto t = std::chrono::high_resolution_clock::now();
 #endif
-        blaze::CustomVector<const float_type, blaze::aligned, blaze::unpadded> cv(&val[0], d_);
-        auto tmp = proj_.project(val);
+        auto p = &val[0];
+        blaze::DynamicVector<float_type> tmp = reinterpret_cast<uint64_t>(p) % ALIGNMENT
+            ? proj_.project(blaze::CustomVector<const float_type, blaze::unaligned, blaze::unpadded>(p, d_))
+            : proj_.project(blaze::CustomVector<const float_type, blaze::aligned, blaze::unpadded>(p, d_));
         ProjI to_insert;
         const auto id = n_inserted_++;
-        val_ptrs_.emplace_back(static_cast<const float_type *RESTRICT>(&val[0]));
+        val_ptrs_.emplace_back(static_cast<const float_type *RESTRICT>(p));
         #pragma omp parallel for
         for(size_t i = 0; i < m_ * l_; ++i) {
             map_[i].emplace(ProjI(tmp[i], id));
@@ -383,14 +398,13 @@ public:
             return query(ptr, k);
         if(k1 < 2) throw std::runtime_error("Expected k1 > 1");
         std::fprintf(stderr, "k: %u. k1: %u\n", k, k1);
-        using PQT = std::priority_queue<ProjIM, std::vector<ProjIM>, std::greater<ProjIM>>;
+        using PQT = consumable_priority_queue<ProjIM, std::vector<ProjIM>, std::greater<ProjIM>>;
         // Get a pair of iterators
         std::vector<std::pair<bin_tree_iterator, bin_tree_iterator>> bounds(l_ * m_);
         std::vector<PQT> pqs(l_);
         std::vector<set_type> candidates(l_);
         auto projections = proj_.project(val);
         blaze::DynamicMatrix<CMatType> countsvec(l_, size(), 0);
-        std::vector<ProjI> ret;
 
         // Initialize queues
         OMP_PRAGMA("omp parallel for")
@@ -438,8 +452,8 @@ public:
         while(++it != candidates.end()) {
             u.insert(it->begin(), it->end());
         }
-        std::vector<ProjI> vs(k);
-        std::priority_queue<ProjI> pq;
+        //std::vector<ProjI> vs(k);
+        consumable_priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
             auto p = val_ptrs_[*it];
             float_type tmp = blaze::norm(*p - val);
@@ -450,8 +464,7 @@ public:
                 pq.push(ProjI(tmp, *it));
             }
         }
-        for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
-        return ret;
+        return pq.sorted_release();
     }
     auto vec_at_pos(size_t ind) const {
         return blaze::CustomVector<const ArithType, blaze::aligned, blaze::unpadded>(
@@ -475,7 +488,7 @@ public:
             OMP_PRAGMA("omp parallel for")
             for(size_t i = 0; i < k; ++i)
                 dists[i] = norm(val - vec_at_pos(i));
-            std::priority_queue<ProjI, std::vector<ProjI>> pq;
+            consumable_priority_queue<ProjI, std::vector<ProjI>> pq;
             for(size_t i = 0; i < dists.size(); ++i) {
                 const float_type tmp = dists[i];
                 if(pq.size() < k) {
@@ -485,8 +498,7 @@ public:
                     pq.push(ProjI(tmp, i));
                 }
             }
-            for(int i = k; i--; pq.pop()) vs[i] = pq.top();
-            return vs;
+            return pq.sorted_release();
         }
 
         // First step: dot product the query with all reference positions
@@ -536,7 +548,7 @@ public:
 #if !NDEBUG
         std::fprintf(stderr, "Candidates size: %zu\n", u.size());
 #endif
-        std::priority_queue<ProjI> pq;
+        consumable_priority_queue<ProjI> pq;
         for(auto it = u.begin(); it != u.end(); ++it) {
             float_type tmp = blaze::norm(vec_at_pos(*it) - val);
             if(pq.size() < k)
@@ -546,8 +558,7 @@ public:
                 pq.push(ProjI(tmp, *it));
             }
         }
-        for(size_t i = k; i--; vs[i]= pq.top(), pq.pop());
-        return vs;
+        return vs = pq.sorted_release();
     }
     size_t size() const {return n_inserted_;}
     size_t ind(size_t m, size_t l) const {

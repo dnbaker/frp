@@ -182,8 +182,8 @@ int main(int argc, char *argv[]) {
     std::cerr << "made dci\n";
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i) {
-        dci.add_item(ls[i]);
-        fhtdci.add_item(ls[i]);
+        dci.add(ls[i]);
+        fhtdci.add(ls[i]);
     }
 #if 0
     blaze::DynamicMatrix<FLOAT_TYPE> mat_to_insert(nd, 100);
