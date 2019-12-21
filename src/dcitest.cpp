@@ -1,9 +1,9 @@
-#include "include/frp/dci.h"
 #include <fstream>
 #include <iostream>
 #include <thread>
 #include "omp.h"
 #include "aesctr/wy.h"
+#include "include/frp/dci.h"
 #include <getopt.h>
 
 using namespace frp;

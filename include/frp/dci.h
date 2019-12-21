@@ -5,17 +5,16 @@
 #endif
 #include <cstdint>
 #include <cstdlib>
-#include "./ifc.h"
-#include "./util.h"
+//#include "./ifc.h"
+//#include "./util.h"
+//#include "aesctr/wy.h"
 #include "lsh.h"
 #include "sdq.h"
-#include <deque>
-#include "blaze/Math.h"
 #include <map>
 #include <cmath>
 #include <set>
 #include <queue>
-#include <vector>
+#include "blaze/Math.h"
 #include "flat_hash_map/flat_hash_map.hpp"
 
 #ifndef RESTRICT
