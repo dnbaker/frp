@@ -510,6 +510,11 @@ auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
 }
 
 
+// TODO:
+//      Add transformations for reductions,
+//      including inner product LSH
+//      and spherical transforms.
+
 #define REQUIRE(cond, msg) do {if(!(cond)) {throw std::runtime_error(std::string("Failed requirement: " #cond) + msg);}} while(0)
 template<typename FT>
 struct PCAAggregator {
