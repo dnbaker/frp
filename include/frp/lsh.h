@@ -266,7 +266,7 @@ struct E2LSHasher {
         //std::fprintf(stderr, "b size: %zu\n", b_.size());
         //auto v = superhasher_.project(std::forward<Args>(args)...);
         //std::fprintf(stderr, "v size: %zu\n", v.size());
-        return floor(superhasher_.project(std::forward<Args>(args)...) + b_);
+        return round(superhasher_.project(std::forward<Args>(args)...) + b_);
     }
     template<typename...Args>
     uint64_t hash(Args &&...args) const {
