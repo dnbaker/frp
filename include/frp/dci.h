@@ -566,7 +566,7 @@ public:
     const auto & vps() const & {return val_ptrs_;}
 #ifdef TIME_ADDITIONS
     ~DCI() {
-        std::fprintf(stderr, "total time spent adding: %zu/%p\n", size_t(clock), (void *)this);
+        std::fprintf(stderr, "[%s] total time spent adding: %zu/%p\n", __PRETTY_FUNCTION__, size_t(clock), (void *)this);
     }
 #endif
     // TODO: version which stores its own spans,
