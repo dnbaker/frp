@@ -122,3 +122,6 @@
 [submodule "sketch"]
 	path = sketch
 	url = https://github.com/dnbaker/sketch
+[submodule "clhash"]
+	path = clhash
+	url = https://github.com/lemire/clhash

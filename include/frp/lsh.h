@@ -2,6 +2,7 @@
 #define FRP_LSH_H__
 #include "vec/vec.h"
 #include "frp/jl.h"
+#include "clhash/include/clhash.h"
 
 
 namespace frp {
@@ -252,7 +253,8 @@ struct E2LSHasher {
     MatrixLSHasher<FType, OSO> superhasher_;
     blaze::DynamicVector<FType> b_;
     double r_;
-    E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0): superhasher_(k, d, false, seed), r_(r), b_(k) {
+    clhasher clhasher_;
+    E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0): superhasher_(k, d, false, seed), r_(r), b_(k), clhasher_(seed * seed + seed) {
         superhasher_.container_ /= r;
         std::uniform_real_distribution<FType> gen(0, r_);
         std::mt19937_64 mt(seed ^ uint64_t(d * k * r));
@@ -265,6 +267,15 @@ struct E2LSHasher {
         //auto v = superhasher_.project(std::forward<Args>(args)...);
         //std::fprintf(stderr, "v size: %zu\n", v.size());
         return floor(superhasher_.project(std::forward<Args>(args)...) + b_);
+    }
+    template<typename...Args>
+    uint64_t hash(Args &&...args) const {
+        auto proj = this->project(std::forward<Args>(args)...);
+        return clhasher_(&b_[0], b_.size() * sizeof(FType));
+    }
+    template<typename...Args>
+    uint64_t operator()(Args &&...args) const {
+        return hash(std::forward<Args>(args)...);
     }
 };
 
