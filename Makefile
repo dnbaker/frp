@@ -31,9 +31,12 @@ CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lfftw3 -lfftw3l -lfftw3f -lstdc++fs -lsleef -llapack
 LD=-L. -Lfftw-3.3.7/lib -Lvec/sleef/build/lib
 
-OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
+OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) clhash/clhash.o
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
+
+clhash/clhash.o:
+	cd clhash && make && cd ..
 
 EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 BOOST_DIRS=math config random utility assert static_assert \
@@ -52,7 +55,7 @@ BOOST_INCS=$(patsubst %,-Iboost/%/include,$(BOOST_DIRS))
 INCLUDE=-I. -Iinclude -Ivec/blaze -Ithirdparty -Irandom/include/\
       -Ifftw-3.3.7/include -I vec/sleef/build/include/ $(BOOST_INCS) \
     -I/usr//local/Cellar/zlib/1.2.11/include -Ifastrange -Idistmat -Iaesctr \
-        -Iinclude/frp
+        -Iinclude/frp -Iclhash/include # asdfnfkjhqefkjhdafs
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
