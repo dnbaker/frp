@@ -477,7 +477,9 @@ auto cov(Args &&...args) {return naive_cov(std::forward<Args>(args)...);}
 
 template<typename T>
 auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
-    // TODO: a smarter one that doesn't require a full eigensolve, at least for a subset of eigenvectors
+    // TODO: Use STEGR from LAPACK (https://www.netlib.org/lapack/lug/node48.html)
+    //       for this if all are desired, or HEEVX if a subset are.
+    // 
     // TODO: consider whitening transforms for clean-ups.
     using FType = typename T::ElementType;
 

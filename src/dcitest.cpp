@@ -180,6 +180,8 @@ int main(int argc, char *argv[]) {
         m, l, nd, 1e-5, true, gamma);
     DCI<FLOAT_TYPE> dci(m, l, nd, 1e-5, true, gamma);
     std::cerr << "made dci\n";
+    E2LSHasher<> d2(nd, l * m, 2.);
+    d2.project(ls[0]);
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i) {
         dci.add(ls[i]);

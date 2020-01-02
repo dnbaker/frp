@@ -215,14 +215,19 @@ struct MatrixLSHasher {
                    DistArgs &&...args):
         container_(std::move(generate_randproj_matrix<FType, SO, DistributionType>(nr, nc, orthonormalize, seed, std::forward<DistArgs>(args)...))) {}
     auto &multiply(const blaze::DynamicVector<FType, SO> &c, blaze::DynamicVector<FType, SO> &ret) const {
+        //std::fprintf(stderr, "size of input: %zu. size of ret: %zu. Matrix sizes: %zu/%zu\n", c.size(), ret.size(), container_.rows(), container_.columns());
         ret = this->container_ * c;
+        //std::fprintf(stderr, "multiplied successfully\n");
         return ret;
     }
-    auto multiply(const blaze::DynamicVector<FType, SO> &c) const {
-        blaze::DynamicVector<FType, SO> vec = this->container_ * c;
+    blaze::DynamicVector<FType, SO> multiply(const blaze::DynamicVector<FType, SO> &c) const {
+        blaze::DynamicVector<FType, SO> vec;
+        //std::fprintf(stderr, "size of input: %zu. size of vec: %zu. Matrix sizes: %zu/%zu\n", c.size(), vec.size(), container_.rows(), container_.columns());
+        this->multiply(c, vec);
         return vec;
     }
     auto multiply(const blaze::DynamicVector<FType, !SO> &c) const {
+        //std::fprintf(stderr, "size of input: %zu. size of vec: %zu. Matrix sizes: %zu/%zu\n", c.size(), container_.rows(), container_.columns());
         blaze::DynamicVector<FType, SO> vec = this->container_ * trans(c);
         return vec;
     }
@@ -234,11 +239,32 @@ struct MatrixLSHasher {
         std::cout << this->container_ << '\n';
 #endif
         blaze::DynamicVector<FType, SO> vec = multiply(c);
-        return cmp2hash(vec);
+        return cmp2hash(vec); // This is the SRP hasher (signed random projection)
     }
     template<bool OSO>
     uint64_t operator()(const blaze::DynamicVector<FType, OSO> &c) const {
         return this->hash(c);
+    }
+};
+
+template<typename FType=float, bool OSO=blaze::rowMajor>
+struct E2LSHasher {
+    MatrixLSHasher<FType, OSO> superhasher_;
+    blaze::DynamicVector<FType> b_;
+    double r_;
+    E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0): superhasher_(k, d, false, seed), r_(r), b_(k) {
+        superhasher_.container_ /= r;
+        std::uniform_real_distribution<FType> gen(0, r_);
+        std::mt19937_64 mt(seed ^ uint64_t(d * k * r));
+        for(auto &v: b_)
+            v = gen(mt);
+    }
+    template<typename...Args>
+    decltype(auto) project(Args &&...args) const {
+        //std::fprintf(stderr, "b size: %zu\n", b_.size());
+        //auto v = superhasher_.project(std::forward<Args>(args)...);
+        //std::fprintf(stderr, "v size: %zu\n", v.size());
+        return floor(superhasher_.project(std::forward<Args>(args)...) + b_);
     }
 };
 
