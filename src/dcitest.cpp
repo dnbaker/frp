@@ -1,9 +1,9 @@
-#include "include/frp/dci.h"
 #include <fstream>
 #include <iostream>
 #include <thread>
 #include "omp.h"
 #include "aesctr/wy.h"
+#include "include/frp/dci.h"
 #include <getopt.h>
 
 using namespace frp;
@@ -176,14 +176,16 @@ int main(int argc, char *argv[]) {
     std::fprintf(stderr, "Generated data. nd: %d.np: %d\n", nd, npoints);
     for(const auto &v: ls)
         assert(unsigned(nd) == v.size());
-    DCI<blaze::DynamicVector<FLOAT_TYPE>, uint32_t, FLOAT_TYPE, std::set, ska::flat_hash_set, blaze::rowMajor, FHTLSHasher<FLOAT_TYPE, blaze::rowMajor>, std::uint16_t> fhtdci(
+    DCI<FLOAT_TYPE, uint32_t, std::set, ska::flat_hash_set, blaze::rowMajor, FHTLSHasher<FLOAT_TYPE, blaze::rowMajor>, std::uint16_t> fhtdci(
         m, l, nd, 1e-5, true, gamma);
-    DCI<blaze::DynamicVector<FLOAT_TYPE>> dci(m, l, nd, 1e-5, true, gamma);
+    DCI<FLOAT_TYPE> dci(m, l, nd, 1e-5, true, gamma);
     std::cerr << "made dci\n";
+    E2LSHasher<> d2(nd, l * m, 2.);
+    d2.project(ls[0]);
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i) {
-        dci.add_item(ls[i]);
-        fhtdci.add_item(ls[i]);
+        dci.add(ls[i]);
+        fhtdci.add(ls[i]);
     }
 #if 0
     blaze::DynamicMatrix<FLOAT_TYPE> mat_to_insert(nd, 100);

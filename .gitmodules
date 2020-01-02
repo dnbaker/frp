@@ -119,3 +119,6 @@
 [submodule "boost/multiprecision"]
 	path = boost/multiprecision
 	url = https://github.com/boostorg/multiprecision
+[submodule "sketch"]
+	path = sketch
+	url = https://github.com/dnbaker/sketch

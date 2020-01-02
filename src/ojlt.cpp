@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     }
     FILE *ofp(optind + 1 < argc ? fopen(argv[optind + 1], "w"): stdout);
     const int fn(fileno(ofp));
-    OJLTransform jl(nd, target_dim, seed, nblocks);
+    OrthogonalJLTransform<FLOAT_TYPE> jl(nd, target_dim, seed, nblocks);
     ks::string str(vecbufsz);
 #if PARALLEL_PARSE
     std::vector<unsigned> tmp;

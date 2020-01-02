@@ -3,12 +3,15 @@
 #define _USE_MATH_DEFINES
 #include <queue>
 #include <cstdint>
+#include <future>
 #include <limits>
 #include <type_traits>
 #ifdef NO_BLAZE
 #undef NO_BLAZE
 #endif
 #include "vec/vec.h"
+#include "vec/stats.h"
+#include "vec/welford_sd.h"
 #include "x86intrin.h"
 
 #ifndef VECTOR_WIDTH
@@ -21,7 +24,7 @@
 #endif
 #endif // VECTOR_WIDTH
 
-namespace frp { namespace linalg {
+namespace frp { inline namespace linalg {
 using std::forward;
 
 template<class Container>
@@ -289,6 +292,7 @@ void mempluseq<double>(double *data, size_t nelem, double val) {
 }
 
 
+#if 0
 template<typename MatrixType, typename ValueType,
          typename=enable_if_t<is_arithmetic<ValueType>::value>>
 MatrixType &operator+=(MatrixType &in, ValueType val) {
@@ -332,6 +336,7 @@ template<typename MatrixType, typename ValueType,
 MatrixType &operator-=(MatrixType &in, ValueType val) {
     return in += -val;
 }
+#endif
 
 
 /*
@@ -472,7 +477,9 @@ auto cov(Args &&...args) {return naive_cov(std::forward<Args>(args)...);}
 
 template<typename T>
 auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
-    // TODO: a smarter one that doesn't require a full eigensolve, at least for a subset of eigenvectors
+    // TODO: Use STEGR from LAPACK (https://www.netlib.org/lapack/lug/node48.html)
+    //       for this if all are desired, or HEEVX if a subset are.
+    // 
     // TODO: consider whitening transforms for clean-ups.
     using FType = typename T::ElementType;
 
@@ -488,7 +495,8 @@ auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
     });
     std::fprintf(stderr, "Sorted eigenvalues\n");
     if(ncomp > 0) {
-        std::sort(&vec[0], &vec[ncomp]);
+        std::fprintf(stderr, "subsampling not tested: %u\n", ncomp);
+        //std::sort(&vec[0], &vec[ncomp]);
         T subset(mat.columns(), ncomp);
         std::fprintf(stderr, "Got subset\n");
         for(int i = 0; i < ncomp; ++i)
@@ -500,6 +508,99 @@ auto pca(const T &mat, bool by_feature=true, bool bias=true, int ncomp=-1) {
         return std::make_pair(eigenvectors, eigv);
     }
 }
+
+
+// TODO:
+//      Add transformations for reductions,
+//      including inner product LSH
+//      and spherical transforms.
+
+#define REQUIRE(cond, msg) do {if(!(cond)) {throw std::runtime_error(std::string("Failed requirement: " #cond) + msg);}} while(0)
+template<typename FT>
+struct PCAAggregator {
+    static constexpr bool SO = blaze::rowMajor;
+    using SymMat = blaze::SymmetricMatrix<blaze::DynamicMatrix<FT, SO>>;
+    SymMat mat_;
+    stats::OnlineVectorSD<blaze::DynamicVector<FT, SO>> mean_estimator_;
+    size_t n_;
+    std::unique_ptr<blaze::DynamicMatrix<FT, SO>> eigvec_;
+    std::unique_ptr<blaze::DynamicVector<FT, SO>> eigval_;
+    size_t nvs_;
+    static constexpr bool is_sparse = blaze::IsSparseMatrix_v<decltype(mat_)>;
+
+    PCAAggregator(size_t from, size_t to=0 /* ncomp */):
+        mat_(from),
+        mean_estimator_(from),
+        nvs_(to ? to: size_t(-1))
+    {
+    }
+    template<bool aligned, bool padded>
+    void add(const blaze::CustomMatrix<FT, aligned, padded, SO> &o) {
+        REQUIRE(o.columns() == mat_.columns(), "must have matching # columns");
+        assert((trans(o) * o).rows() == mat_.columns());
+        std::future<void> fut = std::async(std::launch::async, [&]() {
+            for(size_t i = 0; i < mat_.rows(); ++i)
+                this->add(row(o, i));
+        });
+        mat_ += declsym(trans(o) * o);
+        // TODO: map/reduce computation
+        fut.get();
+    }
+    void add(const blaze::DynamicMatrix<FT, SO> &o) {
+        REQUIRE(o.columns() == mat_.columns(), "must have matching # columns");
+        assert((trans(o) * o).rows() == mat_.columns());
+        std::future<void> fut = std::async(std::launch::async, [&]() {
+            for(size_t i = 0; i < mat_.rows(); ++i)
+                this->add(row(o, i));
+        });
+        mat_ += declsym(trans(o) * o);
+        // TODO: map/reduce computation
+        fut.get();
+    }
+    template<typename T>
+    void add(const T &x) {
+        if constexpr(blaze::TransposeFlag_v<T> == blaze::columnVector) {
+            mean_estimator_.add(x);
+            mat_ += x * trans(x);
+        } else {
+            mean_estimator_.add(trans(x));
+            mat_ += trans(x) * x;
+        }
+        ++n_;
+    }
+    template<typename T>
+    auto project(const T &x) const {
+        REQUIRE(ready(), "must be ready");
+        return eigvec_ * x;
+    }
+    bool ready() const {
+        return eigvec_.get() && eigval_.get();
+    }
+    void finalize() {
+        if(!n_) throw std::runtime_error("Can't finalize nothing");
+        eigvec_.reset(new blaze::DynamicMatrix<FT, SO>(mat_.rows(), mat_.columns()));
+        eigval_.reset(new blaze::DynamicVector<FT, SO>(mat_.rows(), mat_.columns()));
+        auto &vecs = *eigvec_;
+        auto &vals = *eigval_;
+        blaze::DynamicMatrix<FT, SO> mat =
+               (1. / (n_ > 1 ? n_ - 1: n_) * mat_) // XX^T / (n - 1)
+                -
+                mean_estimator_.mean() * trans(mean_estimator_.mean()); // muXmuXT
+        blaze::eigen(mat, vals, vecs);
+        blaze::DynamicVector<uint32_t> indices(vals.size());
+        std::iota(indices.begin(), indices.end(), 0u);
+        std::sort(indices.begin(), indices.end(), [&](auto x, auto y) {return vals[x] > vals[y];});
+        auto rrows = std::min(nvs_, mat.rows());
+        blaze::DynamicMatrix<FT, SO> ret(rrows, mat.columns());
+        blaze::DynamicVector<FT, SO> retvals(rrows);
+        for(auto i = 0u; i < rrows; ++i) {
+            retvals[i] = vals[indices[i]];
+            row(ret, i) = vecs[indices[i]];
+        }
+        std::swap(ret, vecs);
+        std::swap(retvals, vals);
+    }
+};
 
 }} // namespace frp::linalg
 

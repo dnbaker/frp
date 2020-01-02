@@ -70,6 +70,8 @@ HEADERS=$(wildcard include/frp/*.h)
 fht.o: FFHT/fht.c
 	cd FFHT && make fht.o && cp fht.o ..
 
+HEADERS=$(wildcard include/frp/*.h)
+
 test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) -c $< -o $@ $(LIB)
 
@@ -79,14 +81,14 @@ test/%.o: test/%.cpp $(OBJS)
 %.o: %.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%: src/%.cpp $(OBJS) fftw3.h
+%: src/%.cpp $(OBJS) fftw3.h $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
-pcatest: src/pcatest.cpp $(OBJS)
+pcatest: src/pcatest.cpp $(OBJS) $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 dcitest: src/dcitest.cpp $(OBJS) $(HEADERS)
-	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack -DTIME_ADDITIONS
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack -DTIME_ADDITIONS #$(SAN)
 dcitestf: src/dcitest.cpp $(OBJS) $(HEADERS)
-	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack -DTIME_ADDITIONS
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ -lz -pthread -fopenmp -llapack -DTIME_ADDITIONS #$(SAN)
 
 %f: src/%.cpp $(OBJS) fftw3.h
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
