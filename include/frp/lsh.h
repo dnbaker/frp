@@ -249,13 +249,14 @@ struct MatrixLSHasher {
     }
 };
 
-template<typename FType=float, bool OSO=blaze::rowMajor>
+template<typename FType=float, bool OSO=blaze::rowMajor, typename DistributionType=std::normal_distribution<FType>>
 struct E2LSHasher {
-    MatrixLSHasher<FType, OSO> superhasher_;
+    MatrixLSHasher<FType, OSO, DistributionType> superhasher_;
     blaze::DynamicVector<FType> b_;
     double r_;
     clhasher clhasher_;
-    E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0): superhasher_(k, d, false, seed), r_(r), b_(k), clhasher_(seed * seed + seed) {
+    template<typename...Args>
+    E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0, Args &&...args): superhasher_(k, d, false, seed, std::forward<Args>(args)...), r_(r), b_(k), clhasher_(seed * seed + seed) {
         superhasher_.container_ /= r;
         std::uniform_real_distribution<FType> gen(0, r_);
         std::mt19937_64 mt(seed ^ uint64_t(d * k * r));
@@ -267,7 +268,7 @@ struct E2LSHasher {
         //std::fprintf(stderr, "b size: %zu\n", b_.size());
         //auto v = superhasher_.project(std::forward<Args>(args)...);
         //std::fprintf(stderr, "v size: %zu\n", v.size());
-        return round(superhasher_.project(std::forward<Args>(args)...) + b_);
+        return floor(superhasher_.project(std::forward<Args>(args)...) + b_);
     }
     template<typename...Args>
     uint64_t hash(Args &&...args) const {
@@ -279,6 +280,26 @@ struct E2LSHasher {
         return hash(std::forward<Args>(args)...);
     }
 };
+
+template<typename FT=float>
+struct ThresholdedCauchyDistribution {
+    std::cauchy_distribution<FT> cd_;
+    FT absmax_;
+    template<typename...Args> ThresholdedCauchyDistribution(FT absmax, Args &&...args): cd_(std::forward<Args>(args)...), absmax_(std::abs(absmax)) {
+    }
+    FT operator()() {
+        return std::clamp(cd_(), -absmax_, absmax_);
+    }
+};
+
+template<typename FType=float, bool OSO=blaze::rowMajor>
+struct L1E2LSHasher: public E2LSHasher<FType, OSO, ThresholdedCauchyDistribution> {
+    using super = E2LSHasher<FType, OSO, ThresholdedCauchyDistribution>;
+    L1E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0, FType amax=1000.): 
+        super(d, k, r, seed, amax) {}
+};
+
+
 
 template<typename FType=float, bool SO=blaze::rowMajor, typename DistributionType=std::normal_distribution<FType>>
 struct FHTLSHasher {
