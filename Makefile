@@ -35,9 +35,6 @@ OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) clhash/clhash.o
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
 
-clhash/clhash.o:
-	cd clhash && make && cd ..
-
 EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 BOOST_DIRS=math config random utility assert static_assert \
     integer type_traits mpl core preprocessor exception throw_exception \
@@ -101,6 +98,9 @@ dcitestf: src/dcitest.cpp $(OBJS) $(HEADERS)
 
 %.o: FFHT/%.c $(OBJS) fftw3.h
 	+cd FFHT && make $@ && cp $@ .. && cd ..
+
+clhash/clhash.o:
+	cd clhash && make && cd ..
 
 fftw-3.3.7: fftw-3.3.7.tar.gz
 	tar -zxvf fftw-3.3.7.tar.gz

@@ -3,6 +3,7 @@
 #include "vec/vec.h"
 #include "frp/jl.h"
 #include "clhash/include/clhash.h"
+#include "flat_hash_map/flat_hash_map.hpp"
 
 
 namespace frp {
@@ -347,6 +348,25 @@ struct FHTLSHasher {
     template<bool OSO>
     uint64_t operator()(const blaze::DynamicVector<FType, OSO> &c) const {
         return this->hash(c);
+    }
+};
+
+
+template<typename Hasher, typename IDType=uint32_t> //, ContainerTemplate=template<typename...> class=std::vector,
+         //typename... ContainerArgs>
+struct LSHTable {
+    using Container = std::vector<IDType>;
+    Hasher hasher_;
+    ska::flat_hash_map<uint64_t, Container> map_;
+    IDType nadded_ = 0;
+    LSHTable(Hasher &&hasher): hasher_(std::move(hasher)) {
+    }
+    template<typename T>
+    auto add(const T &x) {
+        auto id = nadded_++;
+        auto v = hasher_(x);
+        auto tmp = map_.emplace(v, {id}); // start with just ID
+        if(!tmp.second) tmp.first->push_back(id); // If already present, push back
     }
 };
 
