@@ -13,7 +13,8 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable -Wno-ignored-qualifiers -Wsuggest-attribute=const \
         # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
-OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
+OFLAG?=-O3
+OPT:= $(OFLAG) -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
       -funsafe-math-optimizations -ftree-vectorize \
         -DBOOST_NO_RTTI
 OS:=$(shell uname)

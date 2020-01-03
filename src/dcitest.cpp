@@ -183,6 +183,7 @@ int main(int argc, char *argv[]) {
     E2LSHasher<> d2(nd, l * m, 2.);
     d2.project(ls[0]);
     size_t lshash = d2.hash(ls[0]);
+    LSHTable<E2LSHasher<>> lshasher(std::move(d2));
     std::fprintf(stderr, "lshash for first item: %zu\n", lshash);
     //OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < ls.size(); ++i) {
