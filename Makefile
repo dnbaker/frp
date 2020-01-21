@@ -13,7 +13,8 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable -Wno-ignored-qualifiers -Wsuggest-attribute=const \
         # -Wconversion -Werror -Wno-float-conversion
 DBG:= # -DNDEBUG
-OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
+OFLAG?=-O3
+OPT:= $(OFLAG) -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE \
       -funsafe-math-optimizations -ftree-vectorize \
         -DBOOST_NO_RTTI
 OS:=$(shell uname)
@@ -34,9 +35,6 @@ LD=-L. -Lfftw-3.3.7/lib -Lvec/sleef/build/lib
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) clhash/clhash.o
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
-
-clhash/clhash.o:
-	cd clhash && make && cd ..
 
 EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 BOOST_DIRS=math config random utility assert static_assert \
@@ -101,6 +99,9 @@ dcitestf: src/dcitest.cpp $(OBJS) $(HEADERS)
 
 %.o: FFHT/%.c $(OBJS) fftw3.h
 	+cd FFHT && make $@ && cp $@ .. && cd ..
+
+clhash/clhash.o:
+	cd clhash && make && cd ..
 
 fftw-3.3.7: fftw-3.3.7.tar.gz
 	tar -zxvf fftw-3.3.7.tar.gz

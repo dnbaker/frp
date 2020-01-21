@@ -15,7 +15,6 @@
 #include <set>
 #include <queue>
 #include "blaze/Math.h"
-#include "flat_hash_map/flat_hash_map.hpp"
 
 #ifndef RESTRICT
 #  if __CUDACC__ || __GNUC__ || __clang__

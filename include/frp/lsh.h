@@ -3,9 +3,49 @@
 #include "vec/vec.h"
 #include "frp/jl.h"
 #include "clhash/include/clhash.h"
+#include "flat_hash_map/flat_hash_map.hpp"
 
 
 namespace frp {
+struct mclhasher {
+#if 0
+    void * answer;
+    if (posix_memalign(&answer, sizeof(__m128i),
+                       RANDOM_BYTES_NEEDED_FOR_CLHASH)) {
+        return NULL;
+    }
+#endif
+    const void *random_data_;
+    mclhasher(uint64_t seed1=137, uint64_t seed2=777): random_data_(get_random_key_for_clhash(seed1, seed2)) {}
+    mclhasher(const mclhasher &o): random_data_(copy_random_data(o)) {} // copy data
+    mclhasher(mclhasher &&o): random_data_(o.random_data_) {
+        o.random_data_ = nullptr; // move
+    }
+    static void *copy_random_data(const mclhasher &o) {
+        void *ret;
+        if(posix_memalign(&ret, sizeof(__m128i), RANDOM_BYTES_NEEDED_FOR_CLHASH)) throw std::bad_alloc();
+        return std::memcpy(ret, o.random_data_, RANDOM_BYTES_NEEDED_FOR_CLHASH);
+    }
+    template<typename T>
+    uint64_t operator()(const T *data, const size_t len) const {
+        return clhash(random_data_, (const char *)data, len * sizeof(T));
+    }
+    uint64_t operator()(const char *str) const {return operator()(str, std::strlen(str));}
+    template<typename T>
+    uint64_t operator()(const T &input) const {
+        return operator()((const char *)&input, sizeof(T));
+    }
+    template<typename T>
+    uint64_t operator()(const std::vector<T> &input) const {
+        return operator()((const char *)input.data(), sizeof(T) * input.size());
+    }
+    uint64_t operator()(const std::string &str) const {
+        return operator()(str.data(), str.size());
+    }
+    ~mclhasher() {
+        std::free((void *)random_data_);
+    }
+};
 using SIMDSpace = vec::SIMDTypes<uint64_t>;
 using VType = typename SIMDSpace::VType;
 template<typename F, typename V> ATTR_CONST INLINE auto cmp_zero(V v);
@@ -248,25 +288,28 @@ struct MatrixLSHasher {
     }
 };
 
-template<typename FType=float, bool OSO=blaze::rowMajor>
+template<typename FType=float, bool OSO=blaze::rowMajor, typename DistributionType=std::normal_distribution<FType>>
 struct E2LSHasher {
-    MatrixLSHasher<FType, OSO> superhasher_;
+    MatrixLSHasher<FType, OSO, DistributionType> superhasher_;
     blaze::DynamicVector<FType> b_;
     double r_;
-    clhasher clhasher_;
-    E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0): superhasher_(k, d, false, seed), r_(r), b_(k), clhasher_(seed * seed + seed) {
+    mclhasher clhasher_;
+    template<typename...Args>
+    E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0, Args &&...args): superhasher_(k, d, false, seed, std::forward<Args>(args)...), r_(r), b_(k), clhasher_(seed * seed + seed) {
         superhasher_.container_ /= r;
         std::uniform_real_distribution<FType> gen(0, r_);
         std::mt19937_64 mt(seed ^ uint64_t(d * k * r));
         for(auto &v: b_)
             v = gen(mt);
     }
+    E2LSHasher(const E2LSHasher &o) = default;
+    E2LSHasher(E2LSHasher &&o) = default;
     template<typename...Args>
     decltype(auto) project(Args &&...args) const {
         //std::fprintf(stderr, "b size: %zu\n", b_.size());
         //auto v = superhasher_.project(std::forward<Args>(args)...);
         //std::fprintf(stderr, "v size: %zu\n", v.size());
-        return round(superhasher_.project(std::forward<Args>(args)...) + b_);
+        return floor(superhasher_.project(std::forward<Args>(args)...) + b_);
     }
     template<typename...Args>
     uint64_t hash(Args &&...args) const {
@@ -278,6 +321,26 @@ struct E2LSHasher {
         return hash(std::forward<Args>(args)...);
     }
 };
+
+template<typename FT=float>
+struct ThresholdedCauchyDistribution {
+    std::cauchy_distribution<FT> cd_;
+    FT absmax_;
+    template<typename...Args> ThresholdedCauchyDistribution(FT absmax, Args &&...args): cd_(std::forward<Args>(args)...), absmax_(std::abs(absmax)) {
+    }
+    FT operator()() {
+        return std::clamp(cd_(), -absmax_, absmax_);
+    }
+};
+
+template<typename FType=float, bool OSO=blaze::rowMajor>
+struct L1E2LSHasher: public E2LSHasher<FType, OSO, ThresholdedCauchyDistribution<double>> {
+    using super = E2LSHasher<FType, OSO, ThresholdedCauchyDistribution<double>>;
+    L1E2LSHasher(unsigned d, unsigned k, double r = 1., uint64_t seed=0, FType amax=1000.): 
+        super(d, k, r, seed, amax) {}
+};
+
+
 
 template<typename FType=float, bool SO=blaze::rowMajor, typename DistributionType=std::normal_distribution<FType>>
 struct FHTLSHasher {
@@ -349,6 +412,37 @@ struct FHTLSHasher {
         return this->hash(c);
     }
 };
+
+
+template<typename Hasher, typename IDType=uint32_t> //, ContainerTemplate=template<typename...> class=std::vector,
+         //typename... ContainerArgs>
+struct LSHTable {
+    using Container = std::vector<IDType>;
+    Hasher hasher_;
+    ska::flat_hash_map<uint64_t, Container> map_;
+    IDType nadded_ = 0;
+    LSHTable(Hasher &&hasher): hasher_(std::move(hasher)) {
+    }
+    template<typename T>
+    auto add(const T &x) {
+        auto id = nadded_++;
+        auto v = hasher_(x);
+        auto tmp = map_.emplace(v, {id}); // start with just ID
+        if(!tmp.second) tmp.first->push_back(id); // If already present, push back
+    }
+    template<typename T>
+    const Container *query(const T &x) const {
+        auto v = hasher_(x);
+        auto it = map_.find(v);
+        if(it == map_.end()) return nullptr;
+        return &(it->second);
+    }
+};
+
+template<typename Hasher, typename IDType=uint32_t>
+auto make_lshtable(Hasher &&hasher) {
+    return LSHTable<Hasher, IDType>(std::move(hasher));
+}
 
 } // frp
 
