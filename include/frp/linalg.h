@@ -533,7 +533,8 @@ struct PCAAggregator {
         mean_estimator_(from),
         nvs_(to ? to: size_t(-1))
     {
-    }
+    PCAAggregator(PCAAggregator &&o) = default;
+    PCAAggregator(const PCAAggregator &o) = delete;
     template<bool aligned, bool padded>
     void add(const blaze::CustomMatrix<FT, aligned, padded, SO> &o) {
         REQUIRE(o.columns() == mat_.columns(), "must have matching # columns");
