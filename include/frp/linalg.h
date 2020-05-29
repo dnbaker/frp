@@ -13,6 +13,7 @@
 #include "vec/stats.h"
 #include "vec/welford_sd.h"
 #include "x86intrin.h"
+#include "frp/util.h"
 
 #ifndef VECTOR_WIDTH
 #ifdef __AVX2__
@@ -31,7 +32,7 @@ template<class Container>
 auto meanvar(const Container &c) {
     using FloatType = std::decay_t<decltype(c[0])>;
     FloatType sum(0.), varsum(0.0);
-    for_each_nz(c, [&](auto ind, auto y) {sum += y; varsum += y * y;});
+    for_each_nz(c, [&](auto, auto y) {sum += y; varsum += y * y;});
     const auto inv(static_cast<FloatType>(1)/static_cast<FloatType>(c.size()));
     varsum -= sum * sum * inv;
     varsum *= inv;

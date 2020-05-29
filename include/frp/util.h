@@ -158,30 +158,32 @@ static constexpr float random_gaussian_from_seed(T hv) {
 template<typename T> class TD;
 
 template<typename T, bool SO, typename F>
-void for_each_nz(blaze::DynamicVector<T, SO> &x, const F &func) {
+void for_each_nz(blaze::DenseVector<T, SO> &_x, const F &func) {
+    auto &x = ~_x;
     for(size_t i = 0; i < x.size(); ++i) {
-        func(i, x[i]);
+        if(x[i])
+            func(i, x[i]);
     }
 }
 template<typename T, bool SO, typename F>
-void for_each_nz(blaze::CompressedVector<T, SO> &x, const F &func) {
-    size_t i = 0;
-    for(auto it = x.begin(), e = x.end(); it != e; ++it) {
+void for_each_nz(blaze::SparseVector<T, SO> &_x, const F &func) {
+    auto &x = ~_x;
+    for(auto it = x.begin(), e = x.end(); it != e; ++it)
         func(it->index(), x->value());
-    }
 }
 template<typename T, bool SO, typename F>
-void for_each_nz(const blaze::DynamicVector<T, SO> &x, const F &func) {
+void for_each_nz(const blaze::DenseVector<T, SO> &_x, const F &func) {
+    auto &x = ~_x;
     for(size_t i = 0; i < x.size(); ++i) {
-        func(i, x[i]);
+        if(x[i])
+            func(i, x[i]);
     }
 }
 template<typename T, bool SO, typename F>
-void for_each_nz(const blaze::CompressedVector<T, SO> &x, const F &func) {
-    size_t i = 0;
-    for(auto it = x.begin(), e = x.end(); it != e; ++it) {
+void for_each_nz(const blaze::SparseVector<T, SO> &_x, const F &func) {
+    auto &x = ~_x;
+    for(auto it = x.begin(), e = x.end(); it != e; ++it)
         func(it->index(), x->value());
-    }
 }
 
 template<class Container>
