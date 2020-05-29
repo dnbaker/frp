@@ -59,28 +59,6 @@ int main(int argc, char *argv[]) {
     std::vector<uint64_t> vec(size);
     aes::AesCtr<uint64_t, 8> c8;
     aes::AesCtr<uint64_t, 4> c4;
-#if 0
-    aes::AesCtr<uint64_t, 16> c16;
-    aes::AesCtr<uint64_t, 32> c32;
-    aes::AesCtr<uint64_t, 64> c64;
-    aes::AesCtr<uint64_t, 128> c128;
-    aes::AesCtr<uint32_t, 16> c8_16;
-    time_aes(c8, vec, "c8", niter);
-    time_aes(c16, vec, "c16", niter);
-    std::cerr << "sizeof aesctr: " << sizeof(c8) << '\n';
-    std::vector<float> vals(size);
-    std::vector<double> dvals(size);
-    unormd<float> bnd;
-    std::normal_distribution<float>   snd;
-    unormd<double> dbnd;
-    std::normal_distribution<double>   dsnd;
-    time_stuff("bnd", bnd, c8, vals, niter, size);
-    time_stuff("snd", snd, c8, vals, niter, size);
-    time_stuff("dbnd", dbnd, c8, dvals, niter, size);
-    time_stuff("snd", dsnd, c8, dvals, niter, size);
-    time_stuff("u32dbnd", dbnd, c8_16, dvals, niter, size);
-    time_stuff("u32dsnd", dsnd, c8_16, dvals, niter, size);
-#endif
     std::vector<double> rvals(size);
     std::vector<float> fvals(size);
     std::uniform_real_distribution<double> urdd(0, M_PI * 2);

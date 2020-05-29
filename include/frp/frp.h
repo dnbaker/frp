@@ -9,7 +9,6 @@
 #include "frp/gpu.h"
 #include "frp/ifc.h"
 #include "frp/jl.h"
-#include "frp/kama.h"
 #include "frp/kernel.h"
 #include "frp/linalg.h"
 #include "frp/mach.h"

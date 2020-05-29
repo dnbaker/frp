@@ -5,13 +5,13 @@
 namespace frp {
 
 struct ApplyMatmul {
-    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
-    void apply(OType &out, const blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,!SO> &inp) const {
-        out = mat * inp;
+    template<typename FT, bool SO, typename OType, typename VT>
+    static void apply(OType &out, const blaze::DynamicMatrix<FT, SO> &mat, const blaze::DenseVector<VT,SO> &inp) {
+        out = mat * ~inp;
     }
-    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
-    void apply(OType &out, const blaze::DynamicMatrix<FT, SO> &mat, const InputType<FT,SO> &inp) const {
-        out = trans(mat * trans(inp));
+    template<typename FT, bool SO, typename OType, typename VT>
+    static void apply(OType &out, const blaze::DynamicMatrix<FT, SO> &mat, const blaze::DenseVector<VT,!SO> &inp) {
+        out = trans(mat * trans(~inp));
     }
 };
 
@@ -21,7 +21,7 @@ template<typename T, bool val> struct ResizeOrErrorImpl;
 template<typename T> struct ResizeOrError: public ResizeOrErrorImpl<T, blaze::IsView<std::decay_t<T>>::value> {};
 template<typename T> struct ResizeOrErrorImpl<T,true> {
     template<typename=typename std::enable_if<blaze::IsView<std::decay_t<T>>::value>::type>
-    static void apply(const T &x, size_t newsize) {
+    static void apply(const T &, size_t) {
         throw std::runtime_error("Can't resize a view");
     }
 };
@@ -302,8 +302,7 @@ public:
             throw std::runtime_error(buf);
         }
         // std::fprintf(stderr, "Applying orf::KernelBlock\n");
-        ApplyMatmul mm;
-        mm.apply(out, matrix_, in);
+        ApplyMatmul::apply(out, matrix_, in);
     }
 };
 
@@ -342,8 +341,7 @@ public:
             throw std::runtime_error(buf);
         }
         // std::fprintf(stderr, "Applying rf::KernelBlock\n");
-        ApplyMatmul mm;
-        mm.apply(out, matrix_, in);
+        ApplyMatmul::apply(out, matrix_, in);
     }
 };
 

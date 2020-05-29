@@ -84,21 +84,13 @@ struct SDBlock {
 
 
 struct ApplyVecMul {
-    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
-    void operator()(OType &out, const blaze::DynamicVector<FT, SO> &mat, const InputType<FT,!SO> &inp) const {
-        out = mat * inp;
+    template<typename FT, bool SO, typename OType, typename VT>
+    static void apply(OType &out, const blaze::DenseVector<FT, SO> &mat, const blaze::Vector<VT,!SO> &inp) {
+        out = ~mat * ~inp;
     }
-    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType>
-    void operator()(OType &out, const blaze::DynamicVector<FT, SO> &mat, const InputType<FT,SO> &inp) const {
-        out = trans(mat * trans(inp));
-    }
-    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType, template <typename, bool> class IT2, blaze::AlignmentFlag AF>
-    void operator()(OType &out, const blaze::Subvector<IT2<FT,SO>,AF> &mat, const InputType<FT,!SO> &inp) const {
-        out = mat * inp;
-    }
-    template<typename FT, bool SO, typename OType, template<typename, bool> class InputType, template<typename, bool> class IT2, blaze::AlignmentFlag AF>
-    void operator()(OType &out, const blaze::Subvector<IT2<FT,SO>, AF> &mat, const InputType<FT,SO> &inp) const {
-        out = trans(mat * trans(inp));
+    template<typename FT, bool SO, typename OType, typename VT>
+    static void apply(OType &out, const blaze::DenseVector<FT, SO> &mat, const blaze::Vector<VT,SO> &inp) {
+        out = trans(~mat * trans(~inp));
     }
 };
 
@@ -122,8 +114,7 @@ public:
         std::cerr << "Applying scaling block with norm " << vec_norm() << ":\n";
         pv(out); std::cerr << '\n';
 #endif
-        ApplyVecMul vm;
-        vm(out, out, vec_);
+        ApplyVecMul::apply(out, out, vec_);
 #if 0
         CONST_IF(blaze::TransposeFlag<VectorType>::value != blaze::TransposeFlag<Vector>::value) {
             if(&out[1] - &out[0] != 1) throw std::runtime_error("Can't use vectorized approach. Change your code so you can.");

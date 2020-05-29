@@ -8,13 +8,6 @@
 
 namespace frp {
 struct mclhasher {
-#if 0
-    void * answer;
-    if (posix_memalign(&answer, sizeof(__m128i),
-                       RANDOM_BYTES_NEEDED_FOR_CLHASH)) {
-        return NULL;
-    }
-#endif
     const void *random_data_;
     mclhasher(uint64_t seed1=137, uint64_t seed2=777): random_data_(get_random_key_for_clhash(seed1, seed2)) {}
     mclhasher(const mclhasher &o): random_data_(copy_random_data(o)) {} // copy data
