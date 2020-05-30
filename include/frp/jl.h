@@ -203,8 +203,10 @@ public:
     // Optionally add a (potentially scaled?) Guassian multiplication layer.
 };
 
-using OJLTransform = OrthogonalJLTransform<>;
+using OJLTransform = OrthogonalJLTransform<float>;
+using DOJ = OrthogonalJLTransform<double>;
 using OJLT = OJLTransform;
+using FOJ = OJLT;
 using FJLT = FastJLTransform;
 
 } // namespace jl

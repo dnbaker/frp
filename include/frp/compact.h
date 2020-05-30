@@ -158,12 +158,13 @@ public:
         }
     }
     auto size() const {return n_;}
-    template<typename Container>
-    void apply(Container &c) const {
-        //if constexpr(blaze::TransposeFlag_v<Container> == blaze::TransposeFlag_v<decltype(vec)>)
-            c *= vec_;
-        //else
-        //    c *= trans(vec_);
+    template<typename VT, bool TF>
+    void apply(blaze::Vector<VT, TF> &c) const {
+        ~c *= vec_;
+    }
+    void apply(FT *c) const {
+        blaze::CustomVector<FT, blaze::unaligned, blaze::unpadded> cv(c, vec_.size());
+        apply(cv);
     }
 };
 
