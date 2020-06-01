@@ -4,6 +4,7 @@ from setuptools.command.build_ext import build_ext
 import subprocess
 import sys
 import setuptools
+from glob import glob
 
 __version__ = subprocess.check_output(["git", "describe", "--abbrev=4"]).decode().strip().split('-')[0]
 
@@ -41,7 +42,7 @@ def ensure_sleef_built():
     assert os.path.isfile("../vec/sleef/build/include/sleef.h"), "Failed to build sleef"
 
 
-include_dirs=[
+include_dirs = [
     # Path to pybind11 headers
     get_pybind_include(),
     get_pybind_include(user=True),
@@ -55,6 +56,8 @@ include_dirs=[
    "../pybind11/include",
    "../fftw-3.3.7/api"
 ]
+
+include_dirs += [x + "/include/" for x in glob("../boost/*")]
 
 
 ext_modules = [
