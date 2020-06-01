@@ -54,12 +54,21 @@ PYBIND11_MODULE(frp, m) {
             py::buffer_info retinfo = ret.request();
             float *data((float *)info.ptr), *tmpdata(&tmp[0]);
             const size_t rowlen(info.shape[1]);
-            //std::fprintf(stderr, "rowlen: %zu. Num rows: %zd\n", rowlen, info.shape[0]);
-            for(ssize_t i(0); i < info.shape[0]; ++i) {
-                tmp.reset();
-                std::memcpy((void *)tmpdata, (void *)&data[rowlen * i], rowlen * sizeof(float));
-                jlt.transform_inplace(tmpdata);
-                std::memcpy((void *)(((float *)retinfo.ptr) + dest_size * i), (void *)tmpdata, dest_size * sizeof(float));
+            if(rowlen & (rowlen - 1)) {
+                //std::fprintf(stderr, "rowlen: %zu. Num rows: %zd\n", rowlen, info.shape[0]);
+                auto tmpsub(subvector(tmp, 0, info.shape[1]));
+                auto zsub(subvector(tmp, info.shape[1], scratch_size - info.shape[1]));
+                for(ssize_t i(0); i < info.shape[0]; ++i) {
+                    auto cv = blaze::CustomVector<float, blaze::unaligned, blaze::unpadded>(&data[rowlen * i], rowlen);
+                    tmpsub = cv;
+                    zsub = 0.f;
+                    jlt.transform_inplace(tmp);
+                    cv = tmpsub;
+                }
+            } else {
+                for(ssize_t i(0); i < info.shape[0]; ++i) {
+                    jlt.transform_inplace(&data[i * info.shape[1]]);
+                }
             }
             return ret;
         }, "Apply a JL transform across a full vector, returning a result out of place.")
@@ -106,12 +115,21 @@ PYBIND11_MODULE(frp, m) {
             py::buffer_info retinfo = ret.request();
             double *data((double *)info.ptr), *tmpdata(&tmp[0]);
             const size_t rowlen(info.shape[1]);
-            //std::fprintf(stderr, "rowlen: %zu. Num rows: %zd\n", rowlen, info.shape[0]);
-            for(ssize_t i(0); i < info.shape[0]; ++i) {
-                tmp.reset();
-                std::memcpy((void *)tmpdata, (void *)&data[rowlen * i], rowlen * sizeof(double));
-                jlt.transform_inplace(tmpdata);
-                std::memcpy((void *)(((double *)retinfo.ptr) + dest_size * i), (void *)tmpdata, dest_size * sizeof(double));
+            if(rowlen & (rowlen - 1)) {
+                //std::fprintf(stderr, "rowlen: %zu. Num rows: %zd\n", rowlen, info.shape[0]);
+                auto tmpsub(subvector(tmp, 0, info.shape[1]));
+                auto zsub(subvector(tmp, info.shape[1], scratch_size - info.shape[1]));
+                for(ssize_t i(0); i < info.shape[0]; ++i) {
+                    auto cv = blaze::CustomVector<double, blaze::unaligned, blaze::unpadded>(&data[rowlen * i], rowlen);
+                    tmpsub = cv;
+                    zsub = 0.f;
+                    jlt.transform_inplace(tmp);
+                    cv = tmpsub;
+                }
+            } else {
+                for(ssize_t i(0); i < info.shape[0]; ++i) {
+                    jlt.transform_inplace(&data[i * info.shape[1]]);
+                }
             }
             return ret;
         }, "Apply a JL transform across a full vector, returning a result out of place.")
