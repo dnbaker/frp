@@ -5,7 +5,8 @@ special functions and random number generators. Only required boost headers are 
 
 ## Contents
 0. Orthogonal JL transform with linear space and linearithmic runtime
-    1. This is available through the `ojlt` executable, in C++ programs accessing include/frp/jl.h, and using python bindings by `cd py && make`.
+    1. This is available through the `ojlt` executable, in C++ programs accessing include/frp/jl.h, and using python bindings.
+    2. Python bindings can be installed by `cd python && python3 setup.py install`.
 1. Kernel projections
     1. We support kernel approximation for the Gaussian kernel using Random Fourier Features, Orthogonal Random Features, Structured Orthogonal Random Features, and FastFood.
     2. We recommend Structured Orthogonal Random Features, as it has the highest accuracy in our experiments and can also be hundreds of times faster while still having a small memory footprint.
